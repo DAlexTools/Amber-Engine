@@ -1,0 +1,48 @@
+# Build output
+build/
+build-*/
+build-cmake/
+build-cmake-vcpkg/
+build-cmake-vcpkg-no-editor/
+out/
+bin/
+obj/
+Debug/
+Release/
+RelWithDebInfo/
+MinSizeRel/
+x64/
+Win32/
+
+# Local dependency checkouts and installs
+external/vcpkg/
+vcpkg_installed/
+
+# Visual Studio / CMake user state
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+CMakeUserPresets.json
+
+# Compiler/linker artifacts
+*.obj
+*.pdb
+*.ilk
+*.lib
+*.exp
+*.idb
+*.iobj
+*.ipdb
+*.exe
+*.dll
+*.out
+
+# Runtime/debug artifacts
+*.log
+log.txt
+imgui.ini
+entry_trace.txt
+ENGINE_ROADMAP.md
+BUILDING.md

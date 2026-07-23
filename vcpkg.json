@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "sdl-game-programming-modules",
+  "version-string": "0.1.0",
+  "builtin-baseline": "4493042c759d3bdff26164695dbee500d1e696c8",
+  "dependencies": [
+    "gtest",
+    "lua",
+    "sdl2",
+    "sdl2-gfx",
+    "sdl2-image",
+    "sdl2-mixer",
+    "sdl2-ttf"
+  ],
+  "overrides": [
+    {
+      "name": "lua",
+      "version": "5.4.8"
+    }
+  ]
+}

@@ -1,0 +1,170 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "core",
+      "displayName": "Core modules without SDL",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build-cmake",
+      "cacheVariables": {
+        "BUILD_SDL_MODULES": "OFF",
+        "BUILD_UNIT_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "full-vcpkg",
+      "displayName": "Full engine with vcpkg dependencies",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build-cmake-vcpkg",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "BUILD_SDL_MODULES": "ON",
+        "BUILD_UNIT_TESTS": "ON"
+      }
+    },
+    {
+      "name": "full-local-vcpkg",
+      "displayName": "Full engine with repo-local vcpkg",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build-cmake-vcpkg",
+      "toolchainFile": "${sourceDir}/external/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "BUILD_SDL_MODULES": "ON",
+        "BUILD_UNIT_TESTS": "ON"
+      }
+    },
+    {
+      "name": "full-local-vcpkg-no-editor",
+      "displayName": "Full engine with repo-local vcpkg, editor disabled",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build-cmake-vcpkg-no-editor",
+      "toolchainFile": "${sourceDir}/external/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "BUILD_SDL_MODULES": "ON",
+        "BUILD_UNIT_TESTS": "ON",
+        "AMBER_WITH_EDITOR": "OFF",
+        "AMBER_WITH_EDITOR_ONLY_DATA": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "core-physics",
+      "configurePreset": "core",
+      "targets": [
+        "Physics",
+        "EnginePhysicsBridgeCheck",
+        "PhysicsCollisionFilteringCheck"
+      ]
+    },
+    {
+      "name": "game",
+      "configurePreset": "full-vcpkg",
+      "targets": [
+        "GameEngineApp"
+      ]
+    },
+    {
+      "name": "game-local",
+      "configurePreset": "full-local-vcpkg",
+      "targets": [
+        "GameEngineApp"
+      ]
+    },
+    {
+      "name": "platformer-local",
+      "configurePreset": "full-local-vcpkg",
+      "targets": [
+        "PlatformerApp"
+      ]
+    },
+    {
+      "name": "container-sandbox-local",
+      "configurePreset": "full-local-vcpkg",
+      "targets": [
+        "ContainerSandboxApp"
+      ]
+    },
+    {
+      "name": "physics-lab-local",
+      "configurePreset": "full-local-vcpkg",
+      "targets": [
+        "PhysicsLabApp"
+      ]
+    },
+    {
+      "name": "samples-local",
+      "configurePreset": "full-local-vcpkg",
+      "targets": [
+        "GameEngineApp",
+        "PlatformerApp",
+        "ContainerSandboxApp",
+        "PhysicsLabApp",
+        "AngryApp",
+        "RagdollApp",
+        "ChainApp",
+        "SoftBodyApp",
+        "FabricSimulationApp"
+      ]
+    },
+    {
+      "name": "unit-tests-local",
+      "configurePreset": "full-local-vcpkg",
+      "targets": [
+        "PhysicsUnitTests",
+        "EngineUnitTests"
+      ]
+    },
+    {
+      "name": "samples-local-no-editor",
+      "configurePreset": "full-local-vcpkg-no-editor",
+      "targets": [
+        "GameEngineApp",
+        "PlatformerApp",
+        "ContainerSandboxApp",
+        "PhysicsLabApp",
+        "AngryApp",
+        "RagdollApp",
+        "ChainApp",
+        "SoftBodyApp",
+        "FabricSimulationApp"
+      ]
+    },
+    {
+      "name": "unit-tests-local-no-editor",
+      "configurePreset": "full-local-vcpkg-no-editor",
+      "targets": [
+        "PhysicsUnitTests",
+        "EngineUnitTests"
+      ]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "unit-tests-local",
+      "configurePreset": "full-local-vcpkg",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "unit-tests-local-no-editor",
+      "configurePreset": "full-local-vcpkg-no-editor",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    }
+  ]
+}
