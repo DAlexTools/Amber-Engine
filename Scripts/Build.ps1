@@ -12,7 +12,8 @@ param(
     [switch]$RunTests,
     [switch]$RunSmoke,
     [switch]$NoConfigure,
-    [switch]$ConfigureOnly
+    [switch]$ConfigureOnly,
+    [switch]$NoAutoSetupDeps
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,8 +26,8 @@ function Invoke-CommandChecked {
         [Parameter(Mandatory = $true)]
         [string]$FilePath,
 
-        [Parameter(Mandatory = $true)]
-        [string[]]$Arguments
+        [AllowEmptyCollection()]
+        [string[]]$Arguments = @()
     )
 
     Write-Host ""
@@ -40,13 +41,63 @@ function Invoke-CommandChecked {
 }
 
 function Get-ConfigurePreset {
-    param([string]$BuildMode)
+    param(
+        [string]$BuildMode,
+        [bool]$UseSystemVcpkg
+    )
 
     switch ($BuildMode) {
         "Core" { return "core" }
-        "NoEditor" { return "full-local-vcpkg-no-editor" }
-        default { return "full-local-vcpkg" }
+        "NoEditor" { return $(if ($UseSystemVcpkg) { "full-vcpkg-no-editor" } else { "full-local-vcpkg-no-editor" }) }
+        default { return $(if ($UseSystemVcpkg) { "full-vcpkg" } else { "full-local-vcpkg" }) }
     }
+}
+
+function Resolve-VcpkgToolchain {
+    param(
+        [string]$Root,
+        [bool]$AllowAutoSetup
+    )
+
+    $localToolchain = Join-Path $Root "external\vcpkg\scripts\buildsystems\vcpkg.cmake"
+    $localVcpkgExe = Join-Path $Root "external\vcpkg\vcpkg.exe"
+    if ((Test-Path $localToolchain) -and (Test-Path $localVcpkgExe)) {
+        return [pscustomobject]@{
+            UseSystemVcpkg = $false
+            Toolchain = $localToolchain
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:VCPKG_ROOT)) {
+        $systemToolchain = Join-Path $env:VCPKG_ROOT "scripts\buildsystems\vcpkg.cmake"
+        $systemVcpkgExe = Join-Path $env:VCPKG_ROOT "vcpkg.exe"
+        if ((Test-Path $systemToolchain) -and (Test-Path $systemVcpkgExe)) {
+            return [pscustomobject]@{
+                UseSystemVcpkg = $true
+                Toolchain = $systemToolchain
+            }
+        }
+    }
+
+    if ($AllowAutoSetup) {
+        $setupScript = Join-Path $Root "Scripts\SetupDependencies.ps1"
+        Invoke-CommandChecked "Setup dependencies" "powershell" @(
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            $setupScript
+        )
+
+        if (Test-Path $localToolchain) {
+            return [pscustomobject]@{
+                UseSystemVcpkg = $false
+                Toolchain = $localToolchain
+            }
+        }
+    }
+
+    throw "vcpkg was not found. Run .\SetupDependencies.bat, set VCPKG_ROOT to an existing vcpkg checkout, or build with .\Build.bat -Mode Core -Target Core."
 }
 
 function Get-BuildDirectory {
@@ -152,14 +203,12 @@ try {
     $root = Resolve-Path (Join-Path $PSScriptRoot "..")
     Set-Location $root
 
+    $vcpkg = $null
     if ($Mode -ne "Core") {
-        $localVcpkgToolchain = Join-Path $root "external\vcpkg\scripts\buildsystems\vcpkg.cmake"
-        if (-not (Test-Path $localVcpkgToolchain)) {
-            throw "Repo-local vcpkg was not found at '$localVcpkgToolchain'. Run external\vcpkg\bootstrap-vcpkg.bat or use the core mode."
-        }
+        $vcpkg = Resolve-VcpkgToolchain $root (-not $NoAutoSetupDeps)
     }
 
-    $configurePreset = Get-ConfigurePreset $Mode
+    $configurePreset = Get-ConfigurePreset $Mode ($null -ne $vcpkg -and $vcpkg.UseSystemVcpkg)
     $buildDirectory = Get-BuildDirectory $Mode $root
     $targets = Get-Targets $Mode $Target
 
@@ -168,6 +217,9 @@ try {
     Write-Host "Mode: $Mode"
     Write-Host "Target: $Target"
     Write-Host "Configuration: $Configuration"
+    if ($null -ne $vcpkg) {
+        Write-Host "vcpkg: $($vcpkg.Toolchain)"
+    }
 
     if (-not $NoConfigure) {
         Invoke-CommandChecked "Configure $configurePreset" "cmake" @("--preset", $configurePreset)
