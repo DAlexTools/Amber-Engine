@@ -140,7 +140,7 @@ if(BUILD_SDL_MODULES)
             ${LUA_INCLUDE_DIRS_EFFECTIVE}
         )
 
-        target_compile_definitions(Engine PUBLIC SMOKE_TEST=1)
+        target_compile_definitions(Engine PRIVATE SMOKE_TEST=1)
 
         target_link_libraries(Engine PUBLIC
             AmberBuildConfig
