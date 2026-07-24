@@ -17,11 +17,11 @@ Build and run:
 
 ```powershell
 cmake --build --preset container-sandbox-local
-.\build-cmake-vcpkg\Samples\Debug\ContainerSandboxApp.exe
+.\Builds\Editor\Samples\Debug\ContainerSandboxApp.exe
 ```
 
 Smoke check:
 
 ```powershell
-.\build-cmake-vcpkg\Samples\Debug\ContainerSandboxApp.exe --smoke-test
+.\Builds\Editor\Samples\Debug\ContainerSandboxApp.exe --smoke-test
 ```

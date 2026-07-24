@@ -17,11 +17,11 @@ Jumping uses a small input buffer and coyote time, so pressing jump slightly bef
 Build:
 
 ```powershell
-cmake --build build-cmake-vcpkg --target PlatformerApp
+cmake --build Builds\Editor --target PlatformerApp
 ```
 
 Smoke test:
 
 ```powershell
-.\build-cmake-vcpkg\Samples\Debug\PlatformerApp.exe --smoke-test
+.\Builds\Editor\Samples\Debug\PlatformerApp.exe --smoke-test
 ```

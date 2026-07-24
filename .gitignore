@@ -1,9 +1,7 @@
 # Build output
+Builds/
 build/
 build-*/
-build-cmake/
-build-cmake-vcpkg/
-build-cmake-vcpkg-no-editor/
 out/
 bin/
 obj/
@@ -15,7 +13,7 @@ x64/
 Win32/
 
 # Local dependency checkouts and installs
-external/vcpkg/
+Dependencies/vcpkg/
 vcpkg_installed/
 
 # Visual Studio / CMake user state

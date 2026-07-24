@@ -10,7 +10,7 @@ if %ERRORLEVEL% EQU 0 (
     set "AMBER_POWERSHELL=powershell"
 )
 
-%AMBER_POWERSHELL% -NoProfile -ExecutionPolicy Bypass -File "%~dp0Scripts\SetupDependencies.ps1" %*
+%AMBER_POWERSHELL% -NoProfile -ExecutionPolicy Bypass -File "%~dp0Tools\Setup\Setup.ps1" %*
 set "AMBER_SETUP_EXIT_CODE=%ERRORLEVEL%"
 
 echo.

@@ -6,7 +6,7 @@
       "displayName": "Core modules without SDL",
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
-      "binaryDir": "${sourceDir}/build-cmake",
+      "binaryDir": "${sourceDir}/Builds/Core",
       "cacheVariables": {
         "BUILD_SDL_MODULES": "OFF",
         "BUILD_UNIT_TESTS": "OFF"
@@ -17,7 +17,7 @@
       "displayName": "Full engine with vcpkg dependencies",
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
-      "binaryDir": "${sourceDir}/build-cmake-vcpkg",
+      "binaryDir": "${sourceDir}/Builds/Editor",
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "BUILD_SDL_MODULES": "ON",
@@ -29,8 +29,8 @@
       "displayName": "Full engine with repo-local vcpkg",
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
-      "binaryDir": "${sourceDir}/build-cmake-vcpkg",
-      "toolchainFile": "${sourceDir}/external/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "binaryDir": "${sourceDir}/Builds/Editor",
+      "toolchainFile": "${sourceDir}/Dependencies/vcpkg/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "BUILD_SDL_MODULES": "ON",
         "BUILD_UNIT_TESTS": "ON"
@@ -41,8 +41,8 @@
       "displayName": "Full engine with repo-local vcpkg, editor disabled",
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
-      "binaryDir": "${sourceDir}/build-cmake-vcpkg-no-editor",
-      "toolchainFile": "${sourceDir}/external/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "binaryDir": "${sourceDir}/Builds/NoEditor",
+      "toolchainFile": "${sourceDir}/Dependencies/vcpkg/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "BUILD_SDL_MODULES": "ON",
         "BUILD_UNIT_TESTS": "ON",
@@ -55,7 +55,7 @@
       "displayName": "Full engine with VCPKG_ROOT, editor disabled",
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
-      "binaryDir": "${sourceDir}/build-cmake-vcpkg-no-editor",
+      "binaryDir": "${sourceDir}/Builds/NoEditor",
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "BUILD_SDL_MODULES": "ON",

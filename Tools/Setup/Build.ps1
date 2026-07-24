@@ -59,8 +59,8 @@ function Resolve-VcpkgToolchain {
         [bool]$AllowAutoSetup
     )
 
-    $localToolchain = Join-Path $Root "external\vcpkg\scripts\buildsystems\vcpkg.cmake"
-    $localVcpkgExe = Join-Path $Root "external\vcpkg\vcpkg.exe"
+    $localToolchain = Join-Path $Root "Dependencies\vcpkg\scripts\buildsystems\vcpkg.cmake"
+    $localVcpkgExe = Join-Path $Root "Dependencies\vcpkg\vcpkg.exe"
     if ((Test-Path $localToolchain) -and (Test-Path $localVcpkgExe)) {
         return [pscustomobject]@{
             UseSystemVcpkg = $false
@@ -80,7 +80,7 @@ function Resolve-VcpkgToolchain {
     }
 
     if ($AllowAutoSetup) {
-        $setupScript = Join-Path $Root "Scripts\SetupDependencies.ps1"
+        $setupScript = Join-Path $PSScriptRoot "SetupDependencies.ps1"
         Invoke-CommandChecked "Setup dependencies" "powershell" @(
             "-NoProfile",
             "-ExecutionPolicy",
@@ -97,7 +97,7 @@ function Resolve-VcpkgToolchain {
         }
     }
 
-    throw "vcpkg was not found. Run .\SetupDependencies.bat, set VCPKG_ROOT to an existing vcpkg checkout, or build with .\Build.bat -Mode Core -Target Core."
+    throw "vcpkg was not found. Run .\Setup.bat, set VCPKG_ROOT to an existing vcpkg checkout, or build with .\Setup.bat -Mode Core -Target Core."
 }
 
 function Get-BuildDirectory {
@@ -107,9 +107,9 @@ function Get-BuildDirectory {
     )
 
     switch ($BuildMode) {
-        "Core" { return Join-Path $Root "build-cmake" }
-        "NoEditor" { return Join-Path $Root "build-cmake-vcpkg-no-editor" }
-        default { return Join-Path $Root "build-cmake-vcpkg" }
+        "Core" { return Join-Path $Root "Builds\Core" }
+        "NoEditor" { return Join-Path $Root "Builds\NoEditor" }
+        default { return Join-Path $Root "Builds\Editor" }
     }
 }
 
@@ -200,7 +200,7 @@ function Invoke-SmokeChecks {
 }
 
 try {
-    $root = Resolve-Path (Join-Path $PSScriptRoot "..")
+    $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
     Set-Location $root
 
     $vcpkg = $null

@@ -13,7 +13,7 @@ AmberEngine is a work-in-progress 2D C++ engine built around SDL2, ImGui, a cust
   - `ContainerSandboxApp` - granular container physics sample.
   - `PlatformerApp` - small Mario-like platformer sample.
   - Legacy physics demos: angry-birds style scene, ragdoll, chain, soft body and cloth.
-- One-click Windows build through `Build.bat`.
+- One-click Windows setup/build through `Setup.bat`.
 - GoogleTest unit tests for runtime logging and physics behavior.
 
 ## Repository Layout
@@ -24,15 +24,13 @@ Engine/
   Editor/               Editor-only ImGui modules
   ThirdParty/           Bundled headers/sources such as glm, imgui, lua and sol
   Content/              Reserved engine content
-external/               Local dependency checkouts; vcpkg itself is ignored
+Dependencies/           Local dependency checkouts; vcpkg itself is ignored
 Samples/                Runnable sample apps
 Tests/                  GoogleTest unit tests
 Content/                Game/project content used by GameEngineApp
-Scripts/                Build helper scripts
+Tools/Setup/            Internal setup/build helper scripts
 CMakePresets.json       Visual Studio/CMake build presets
-Build.bat               One-click local build entrypoint
-Clean.bat               Removes generated local files before committing
-SetupDependencies.bat   Bootstraps repo-local vcpkg
+Setup.bat               One-click local setup/build entrypoint
 ```
 
 ## Requirements
@@ -42,30 +40,30 @@ SetupDependencies.bat   Bootstraps repo-local vcpkg
 - CMake 3.16 or newer.
 - PowerShell 5 or PowerShell 7.
 - Git.
-- vcpkg cloned into `external/vcpkg`.
+- vcpkg cloned into `Dependencies/vcpkg`.
 
 The project uses manifest dependencies from `vcpkg.json`: SDL2, SDL2_image, SDL2_mixer without extra codec features, SDL2_ttf, SDL2_gfx, Lua 5.4.8 and GoogleTest.
 
 ## Quick Start
 
-Bootstrap vcpkg once:
+Bootstrap dependencies only:
 
 ```powershell
-.\SetupDependencies.bat
+.\Setup.bat -DepsOnly
 ```
 
 Then build the editor-enabled sample set:
 
 ```powershell
-.\Build.bat
+.\Setup.bat
 ```
 
-`Build.bat` also tries to run dependency setup automatically when `external/vcpkg` is missing. If you already have vcpkg elsewhere, set `VCPKG_ROOT` and the script will use the `full-vcpkg` preset instead of the repo-local preset.
+`Setup.bat` also tries to run dependency setup automatically when `Dependencies/vcpkg` is missing. If you already have vcpkg elsewhere, set `VCPKG_ROOT` and the script will use the `full-vcpkg` preset instead of the repo-local preset.
 
 The generated solution is:
 
 ```text
-build-cmake-vcpkg/AmberEngine.sln
+Builds/Editor/AmberEngine.sln
 ```
 
 CMake predefined targets such as `ALL_BUILD` and `ZERO_CHECK` are still generated, but they are grouped under the `_CMake` solution folder. Engine, editor, samples and tests are grouped to mirror the repository layout.
@@ -75,19 +73,18 @@ CMake predefined targets such as `ALL_BUILD` and `ZERO_CHECK` are still generate
 One-click helper:
 
 ```powershell
-.\SetupDependencies.bat
-.\Build.bat -Target Samples
-.\Build.bat -Target Tests
-.\Build.bat -Target Samples -RunSmoke
-.\Build.bat -Mode NoEditor -Target Samples
-.\Build.bat -Mode Core -Target Core
+.\Setup.bat -Target Samples
+.\Setup.bat -Target Tests
+.\Setup.bat -Target Samples -RunSmoke
+.\Setup.bat -Mode NoEditor -Target Samples
+.\Setup.bat -Mode Core -Target Core
 ```
 
 Use this for automation so the `.bat` file does not pause:
 
 ```powershell
 $env:AMBER_BUILD_NO_PAUSE = "1"
-.\Build.bat -Target Tests
+.\Setup.bat -Target Tests
 ```
 
 Manual CMake build:
@@ -112,31 +109,31 @@ Core physics-only build without SDL/Lua:
 ```powershell
 cmake --preset core
 cmake --build --preset core-physics
-.\build-cmake\Engine\Runtime\Physics\Debug\PhysicsCollisionFilteringCheck.exe
+.\Builds\Core\Engine\Runtime\Physics\Debug\PhysicsCollisionFilteringCheck.exe
 ```
 
 More detailed build notes are in [BUILDING.md](BUILDING.md).
 
 ## Running Samples
 
-After `.\Build.bat`, run apps from the project root or from the build output folder:
+After `.\Setup.bat`, run apps from the project root or from the build output folder:
 
 ```powershell
-.\build-cmake-vcpkg\Samples\Debug\GameEngineApp.exe
-.\build-cmake-vcpkg\Samples\Debug\PhysicsLabApp.exe
-.\build-cmake-vcpkg\Samples\Debug\ContainerSandboxApp.exe
-.\build-cmake-vcpkg\Samples\Debug\PlatformerApp.exe
+.\Builds\Editor\Samples\Debug\GameEngineApp.exe
+.\Builds\Editor\Samples\Debug\PhysicsLabApp.exe
+.\Builds\Editor\Samples\Debug\ContainerSandboxApp.exe
+.\Builds\Editor\Samples\Debug\PlatformerApp.exe
 ```
 
 Useful smoke checks:
 
 ```powershell
-.\build-cmake-vcpkg\Samples\Debug\PhysicsLabApp.exe --smoke-test
-.\build-cmake-vcpkg\Samples\Debug\PhysicsLabApp.exe --ui-smoke-test
-.\build-cmake-vcpkg\Samples\Debug\PhysicsLabApp.exe --perf-test
-.\build-cmake-vcpkg\Samples\Debug\PlatformerApp.exe --smoke-test
-.\build-cmake-vcpkg\Samples\Debug\ContainerSandboxApp.exe --smoke-test
-.\build-cmake-vcpkg\Samples\Debug\GameEngineApp.exe --smoke-test --level 1
+.\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --smoke-test
+.\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --ui-smoke-test
+.\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --perf-test
+.\Builds\Editor\Samples\Debug\PlatformerApp.exe --smoke-test
+.\Builds\Editor\Samples\Debug\ContainerSandboxApp.exe --smoke-test
+.\Builds\Editor\Samples\Debug\GameEngineApp.exe --smoke-test --level 1
 ```
 
 Fullscreen controls:
@@ -168,22 +165,22 @@ AmberEngine has two Unreal-style build gates:
 
 Do not commit generated files or local dependency checkouts:
 
-- `build-cmake*/`
+- `Builds/`
 - `build/`, `Debug/`, `Release/`, `.vs/`
-- `external/vcpkg/`
+- `Dependencies/vcpkg/`
 - `imgui.ini`
 - logs and compiler outputs
 
-The repository is intended to be rebuilt from source using `Build.bat` or the CMake presets.
+The repository is intended to be rebuilt from source using `Setup.bat` or the CMake presets.
 Line endings and binary asset handling are declared in `.gitattributes`.
 
 Before publishing or committing, clean generated local state:
 
 ```powershell
-.\Clean.bat -RemoveVcpkg
+.\Setup.bat -Clean -RemoveVcpkg
 ```
 
-If Visual Studio is open, it can keep `.vs` databases inside `build-cmake-vcpkg` locked. Close Visual Studio and run the command again.
+If Visual Studio is open, it can keep `.vs` databases inside `Builds` locked. Close Visual Studio and run the command again.
 
 ## Acknowledgements
 

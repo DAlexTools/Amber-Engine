@@ -26,11 +26,11 @@ function Invoke-CommandChecked {
 }
 
 try {
-    $root = Resolve-Path (Join-Path $PSScriptRoot "..")
+    $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
     Set-Location $root
 
-    $externalDir = Join-Path $root "external"
-    $vcpkgDir = Join-Path $externalDir "vcpkg"
+    $dependenciesDir = Join-Path $root "Dependencies"
+    $vcpkgDir = Join-Path $dependenciesDir "vcpkg"
     $toolchain = Join-Path $vcpkgDir "scripts\buildsystems\vcpkg.cmake"
     $vcpkgExe = Join-Path $vcpkgDir "vcpkg.exe"
     $bootstrap = Join-Path $vcpkgDir "bootstrap-vcpkg.bat"
@@ -40,8 +40,8 @@ try {
         exit 0
     }
 
-    if (-not (Test-Path $externalDir)) {
-        New-Item -ItemType Directory -Path $externalDir | Out-Null
+    if (-not (Test-Path $dependenciesDir)) {
+        New-Item -ItemType Directory -Path $dependenciesDir | Out-Null
     }
 
     if (-not (Test-Path $vcpkgDir)) {
@@ -53,7 +53,7 @@ try {
     }
 
     if (-not (Test-Path $bootstrap)) {
-        throw "vcpkg exists but bootstrap script was not found at '$bootstrap'. Delete external\vcpkg and run SetupDependencies.bat again."
+        throw "vcpkg exists but bootstrap script was not found at '$bootstrap'. Delete Dependencies\vcpkg and run Setup.bat again."
     }
 
     Invoke-CommandChecked "Bootstrap vcpkg" $bootstrap

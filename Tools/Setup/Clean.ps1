@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+$Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $Root = $Root.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
 $RootPrefix = $Root + [System.IO.Path]::DirectorySeparatorChar
 
@@ -24,10 +24,8 @@ $targets = [System.Collections.Generic.List[string]]::new()
 
 @(
     ".vs",
+    "Builds",
     "build",
-    "build-cmake",
-    "build-cmake-vcpkg",
-    "build-cmake-vcpkg-no-editor",
     "out",
     "bin",
     "obj",
@@ -49,7 +47,7 @@ Get-ChildItem -LiteralPath $Root -Force -Directory -ErrorAction Stop |
     ForEach-Object { $targets.Add($_.Name) }
 
 if ($RemoveVcpkg) {
-    $targets.Add("external\vcpkg")
+    $targets.Add("Dependencies\vcpkg")
 }
 
 $uniqueTargets = $targets | Sort-Object -Unique
@@ -85,7 +83,7 @@ if ($removed.Count -gt 0) {
 }
 
 if ($failed.Count -gt 0) {
-    Write-Warning "Some files could not be removed. Close Visual Studio/CMake processes that use this repository and run Clean.bat again."
+    Write-Warning "Some files could not be removed. Close Visual Studio/CMake processes that use this repository and run Setup.bat -Clean again."
     $failed | Format-Table -AutoSize
     exit 1
 }

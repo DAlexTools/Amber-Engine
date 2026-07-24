@@ -17,18 +17,18 @@ Build and run:
 
 ```powershell
 cmake --build --preset physics-lab-local
-.\build-cmake-vcpkg\Samples\Debug\PhysicsLabApp.exe
+.\Builds\Editor\Samples\Debug\PhysicsLabApp.exe
 ```
 
 Smoke check:
 
 ```powershell
-.\build-cmake-vcpkg\Samples\Debug\PhysicsLabApp.exe --smoke-test
+.\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --smoke-test
 ```
 
 UI smoke check:
 
 ```powershell
 $env:SDL_VIDEODRIVER = "dummy"
-.\build-cmake-vcpkg\Samples\Debug\PhysicsLabApp.exe --ui-smoke-test
+.\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --ui-smoke-test
 ```
