@@ -1,7 +1,8 @@
 set(PHYSICS_DEMOS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/PhysicsDemos)
-set(PLATFORMER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Platformer)
-set(CONTAINER_SANDBOX_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ContainerSandbox)
-set(PHYSICS_LAB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/PhysicsLab)
+set(GAMES_DEMOS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/GamesDemos)
+set(PLATFORMER_DIR ${GAMES_DEMOS_DIR}/Platformer)
+set(CONTAINER_SANDBOX_DIR ${PHYSICS_DEMOS_DIR}/ContainerSandbox)
+set(PHYSICS_LAB_DIR ${PHYSICS_DEMOS_DIR}/PhysicsLab)
 
 if(SDL2_TARGET_FOUND)
     add_executable(PlatformerApp
@@ -24,7 +25,7 @@ if(SDL2_TARGET_FOUND)
         target_compile_definitions(PlatformerApp PRIVATE AMBER_ENABLE_SAMPLE_DIAGNOSTICS)
         target_link_libraries(PlatformerApp PRIVATE EditorDiagnostics)
     endif()
-    amber_target_folder(PlatformerApp "Samples/Platformer")
+    amber_target_folder(PlatformerApp "Samples/GamesDemos/Platformer")
     amber_add_header_tree(PlatformerApp "${PLATFORMER_DIR}")
     amber_group_sources(PlatformerApp "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -48,7 +49,7 @@ if(SDL2_TARGET_FOUND)
         target_compile_definitions(ContainerSandboxApp PRIVATE AMBER_ENABLE_SAMPLE_DIAGNOSTICS)
         target_link_libraries(ContainerSandboxApp PRIVATE EditorDiagnostics)
     endif()
-    amber_target_folder(ContainerSandboxApp "Samples/ContainerSandbox")
+    amber_target_folder(ContainerSandboxApp "Samples/PhysicsDemos/ContainerSandbox")
     amber_add_header_tree(ContainerSandboxApp "${CONTAINER_SANDBOX_DIR}")
     amber_group_sources(ContainerSandboxApp "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -74,7 +75,7 @@ if(SDL2_TARGET_FOUND)
             target_compile_definitions(PhysicsLabApp PRIVATE AMBER_ENABLE_PHYSICS_LAB_OUTPUT_LOG)
             target_link_libraries(PhysicsLabApp PRIVATE EditorOutputLog)
         endif()
-        amber_target_folder(PhysicsLabApp "Samples/PhysicsLab")
+        amber_target_folder(PhysicsLabApp "Samples/PhysicsDemos/PhysicsLab")
         amber_add_header_tree(PhysicsLabApp "${PHYSICS_LAB_DIR}")
         amber_group_sources(PhysicsLabApp "${CMAKE_CURRENT_SOURCE_DIR}")
     else()
@@ -165,7 +166,7 @@ endif()
 
 if(TARGET Engine)
     add_executable(GameEngineApp
-        ${CMAKE_CURRENT_SOURCE_DIR}/Game/main.cpp
+        ${GAMES_DEMOS_DIR}/Game/main.cpp
     )
 
     target_link_libraries(GameEngineApp PRIVATE
@@ -173,8 +174,8 @@ if(TARGET Engine)
         Engine
     )
     target_compile_definitions(GameEngineApp PRIVATE SMOKE_TEST=1)
-    amber_target_folder(GameEngineApp "Samples/Game")
-    amber_add_header_tree(GameEngineApp "${CMAKE_CURRENT_SOURCE_DIR}/Game")
+    amber_target_folder(GameEngineApp "Samples/GamesDemos/Game")
+    amber_add_header_tree(GameEngineApp "${GAMES_DEMOS_DIR}/Game")
     amber_group_sources(GameEngineApp "${CMAKE_CURRENT_SOURCE_DIR}")
 else()
     message(WARNING

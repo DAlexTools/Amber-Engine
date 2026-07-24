@@ -15,10 +15,15 @@ Current targets include:
 - `PhysicsLabApp`
 - `GameEngineApp`
 
-`GameEngineApp` starts from `Game/main.cpp`.
-`PlatformerApp` starts from `Platformer/main.cpp`.
-`ContainerSandboxApp` starts from `ContainerSandbox/main.cpp`.
-`PhysicsLabApp` starts from `PhysicsLab/main.cpp`.
+`GameEngineApp` starts from `GamesDemos/Game/main.cpp`.
+`PlatformerApp` starts from `GamesDemos/Platformer/main.cpp`.
+`ContainerSandboxApp` starts from `PhysicsDemos/ContainerSandbox/main.cpp`.
+`PhysicsLabApp` starts from `PhysicsDemos/PhysicsLab/main.cpp`.
+
+Game demos live in `GamesDemos`:
+
+- `GamesDemos/Game`
+- `GamesDemos/Platformer`
 
 Physics demos live in `PhysicsDemos`:
 
@@ -29,6 +34,8 @@ Physics demos live in `PhysicsDemos`:
 - `PhysicsDemos/Chain`
 - `PhysicsDemos/SoftBody`
 - `PhysicsDemos/FabricSimulation`
+- `PhysicsDemos/ContainerSandbox`
+- `PhysicsDemos/PhysicsLab`
 - `PhysicsDemos/Content`
 
 `ContainerSandbox` is a standalone granular physics sample with movable/rotatable cup, tray and funnel containers filled with small circle bodies.
