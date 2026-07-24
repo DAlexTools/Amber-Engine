@@ -5,7 +5,7 @@
 #include "../Components/PhysicsBodyComponent.h"
 #include "../Components/RigidBodyComponent.h"
 #include "../Components/TransformComponent.h"
-#include "../Game/Game.h"
+#include "../Classes/Engine.h"
 
 
 
@@ -46,17 +46,17 @@ class MovementSystem : public System
 					int paddingRight = 50;
 					int paddingBottom = 50;
 					transform.position.x = transform.position.x < paddingLeft ? paddingLeft : transform.position.x;
-					transform.position.x = transform.position.x > Game::MapWidth - paddingRight ? Game::MapWidth - paddingRight : transform.position.x;
+					transform.position.x = transform.position.x > AE::Engine::MapWidth - paddingRight ? AE::Engine::MapWidth - paddingRight : transform.position.x;
 					transform.position.y = transform.position.y < paddingTop ? paddingTop : transform.position.y;
-					transform.position.y = transform.position.y > Game::MapHeight - paddingBottom ? Game::MapHeight - paddingBottom : transform.position.y;
+					transform.position.y = transform.position.y > AE::Engine::MapHeight - paddingBottom ? AE::Engine::MapHeight - paddingBottom : transform.position.y;
 				}
 
 				bool isEntityOutsideMap = 
 				(
 					transform.position.x < 0 || 
-					transform.position.x > Game::MapWidth ||
+					transform.position.x > AE::Engine::MapWidth ||
 					transform.position.y < 0 || 
-					transform.position.y > Game::MapHeight
+					transform.position.y > AE::Engine::MapHeight
 				);
 
 				if (isEntityOutsideMap && !entity.HasTag("player"))

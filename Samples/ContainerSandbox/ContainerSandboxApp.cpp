@@ -113,6 +113,7 @@ int ContainerSandboxApp::Run()
     return 0;
 }
 
+#if SMOKE_TEST
 bool ContainerSandboxApp::RunSmokeTest()
 {
     ResetSimulation(ContainerMode::Cup);
@@ -169,6 +170,7 @@ bool ContainerSandboxApp::RunSmokeTest()
 
     return passed;
 }
+#endif
 
 bool ContainerSandboxApp::Initialize()
 {

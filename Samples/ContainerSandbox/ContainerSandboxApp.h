@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "Core/BuildConfig.h"
 #include "Physics/Objects/Body.h"
 #include "Core/Math/Vector2D.h"
 #include "Classes/World.h"
@@ -21,7 +22,9 @@ public:
     ContainerSandboxApp();
 
     int Run();
+#if SMOKE_TEST
     bool RunSmokeTest();
+#endif
 
 private:
     enum class ContainerMode

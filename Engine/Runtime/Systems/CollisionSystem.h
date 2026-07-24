@@ -8,7 +8,7 @@
 #include "../Components/PhysicsBodyComponent.h"
 #include "../Components/TransformComponent.h"
 
-bool CheckAABBCollision(double aX, double aY, double aW, double aH, double bX, double bY, double bW, double bH)
+inline bool CheckAABBCollision(double aX, double aY, double aW, double aH, double bX, double bY, double bW, double bH)
 {
     return
     (

@@ -4,6 +4,7 @@
 #include "../EntityComponentSystem/ECS.h"
 #include "../Components/CameraFollowComponent.h"
 #include "../Components/TransformComponent.h"
+#include "../Classes/Engine.h"
 
 class CameraMovementSystem : public System
 {
@@ -20,14 +21,14 @@ public:
         {
             auto transform = entity.GetComponent<TransformComponent>();
 
-            if (transform.position.x + (camera.w / 2) < Game::MapWidth)
+            if (transform.position.x + (camera.w / 2) < AE::Engine::MapWidth)
             {
-                camera.x = transform.position.x - (Game::WindowWidth / 2);
+                camera.x = transform.position.x - (AE::Engine::WindowWidth / 2);
             }
 
-            if (transform.position.y + (camera.h / 2) < Game::MapHeight)
+            if (transform.position.y + (camera.h / 2) < AE::Engine::MapHeight)
             {
-                camera.y = transform.position.y - (Game::WindowHeight / 2);
+                camera.y = transform.position.y - (AE::Engine::WindowHeight / 2);
             }
             
             camera.x = camera.x < 0 ? 0 : camera.x;

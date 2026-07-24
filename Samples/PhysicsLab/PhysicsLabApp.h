@@ -23,9 +23,11 @@ public:
     PhysicsLabApp();
 
     int Run();
+#if SMOKE_TEST
     bool RunSmokeTest();
     bool RunUiSmokeTest();
     bool RunPerfTest();
+#endif
 
 private:
     enum class Scene

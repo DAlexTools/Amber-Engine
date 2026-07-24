@@ -40,5 +40,6 @@ add_executable(PhysicsCollisionFilteringCheck
 target_link_libraries(PhysicsCollisionFilteringCheck PRIVATE
     Physics
 )
+target_compile_definitions(PhysicsCollisionFilteringCheck PRIVATE SMOKE_TEST=1)
 amber_target_folder(PhysicsCollisionFilteringCheck "Engine/Runtime/Physics/Tests")
 amber_group_sources(PhysicsCollisionFilteringCheck "${ENGINE_RUNTIME_DIR}")

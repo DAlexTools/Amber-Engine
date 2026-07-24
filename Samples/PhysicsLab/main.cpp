@@ -1,17 +1,22 @@
 #include "PhysicsLabApp.h"
 
+#include "Core/BuildConfig.h"
+
 #include <iostream>
 #include <string>
 
 int main(int argc, char* argv[])
 {
+#if SMOKE_TEST
     bool smokeTest = false;
     bool uiSmokeTest = false;
     bool perfTest = false;
+#endif
 
     for (int i = 1; i < argc; ++i)
     {
         const std::string argument = argv[i];
+#if SMOKE_TEST
         if (argument == "--smoke-test")
         {
             smokeTest = true;
@@ -24,9 +29,11 @@ int main(int argc, char* argv[])
         {
             perfTest = true;
         }
+#endif
     }
 
     PhysicsLabApp app;
+#if SMOKE_TEST
     if (smokeTest)
     {
         const bool passed = app.RunSmokeTest();
@@ -55,6 +62,7 @@ int main(int argc, char* argv[])
     {
         return app.RunPerfTest() ? 0 : 1;
     }
+#endif
 
     return app.Run();
 }

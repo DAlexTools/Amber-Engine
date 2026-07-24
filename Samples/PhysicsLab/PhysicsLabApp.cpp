@@ -122,6 +122,7 @@ int PhysicsLabApp::Run()
     return 0;
 }
 
+#if SMOKE_TEST
 bool PhysicsLabApp::RunSmokeTest()
 {
     bool passed = true;
@@ -191,7 +192,9 @@ bool PhysicsLabApp::RunSmokeTest()
 
     return passed;
 }
+#endif
 
+#if SMOKE_TEST
 bool PhysicsLabApp::RunUiSmokeTest()
 {
     if (!Initialize())
@@ -209,7 +212,9 @@ bool PhysicsLabApp::RunUiSmokeTest()
     Shutdown();
     return true;
 }
+#endif
 
+#if SMOKE_TEST
 bool PhysicsLabApp::RunPerfTest()
 {
     struct PerfTotals
@@ -279,6 +284,7 @@ bool PhysicsLabApp::RunPerfTest()
     runScene(Scene::StackStress, "Stack12x14", 120, 360);
     return true;
 }
+#endif
 
 bool PhysicsLabApp::Initialize()
 {

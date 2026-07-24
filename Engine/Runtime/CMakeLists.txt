@@ -126,9 +126,10 @@ if(BUILD_SDL_MODULES)
         AND LUA_PACKAGE_FOUND)
         add_library(Engine STATIC
             ${ENGINE_RUNTIME_DIR}/AssetManager/AssetManager.cpp
+            ${ENGINE_RUNTIME_DIR}/Classes/Engine.cpp
             ${ENGINE_RUNTIME_DIR}/EntityComponentSystem/ECS.cpp
             ${ENGINE_RUNTIME_DIR}/FileManager/FileManager.cpp
-            ${ENGINE_RUNTIME_DIR}/Game/Game.cpp
+            ${ENGINE_RUNTIME_DIR}/Game/GameModule.cpp
             ${ENGINE_RUNTIME_DIR}/Game/LevelLoader.cpp
             ${ENGINE_RUNTIME_DIR}/Utilities/Utils.cpp
         )
@@ -138,6 +139,8 @@ if(BUILD_SDL_MODULES)
             ${ENGINE_THIRD_PARTY_DIR}
             ${LUA_INCLUDE_DIRS_EFFECTIVE}
         )
+
+        target_compile_definitions(Engine PUBLIC SMOKE_TEST=1)
 
         target_link_libraries(Engine PUBLIC
             AmberBuildConfig
@@ -153,6 +156,7 @@ if(BUILD_SDL_MODULES)
         )
         amber_target_folder(Engine "Engine/Runtime")
         amber_add_header_tree(Engine "${ENGINE_RUNTIME_DIR}/AssetManager")
+        amber_add_header_tree(Engine "${ENGINE_RUNTIME_DIR}/Classes")
         amber_add_header_tree(Engine "${ENGINE_RUNTIME_DIR}/Components")
         amber_add_header_tree(Engine "${ENGINE_RUNTIME_DIR}/EntityComponentSystem")
         amber_add_header_tree(Engine "${ENGINE_RUNTIME_DIR}/EventBus")

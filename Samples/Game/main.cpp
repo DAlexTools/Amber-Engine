@@ -1,4 +1,6 @@
-#include "Game/Game.h"
+#include "Classes/Engine.h"
+#include "Core/BuildConfig.h"
+#include "Game/GameModule.h"
 #include <iostream>
 #include <string>
 
@@ -20,16 +22,19 @@ namespace
 
 int main(int argc, char* argv[])
 {
-	bool smokeTest = false;
-	bool physicsContactSmokeTest = false;
-	bool physicsObstacleSmokeTest = false;
 	bool debugPhysics = false;
 	bool fullscreen = true;
 	int levelNumber = 1;
+#if SMOKE_TEST
+	bool smokeTest = false;
+	bool physicsContactSmokeTest = false;
+	bool physicsObstacleSmokeTest = false;
+#endif
 
 	for (int i = 1; i < argc; ++i)
 	{
 		const std::string argument = argv[i];
+#if SMOKE_TEST
 		if (argument == "--smoke-test")
 		{
 			smokeTest = true;
@@ -42,7 +47,9 @@ int main(int argc, char* argv[])
 		{
 			physicsObstacleSmokeTest = true;
 		}
-		else if (argument == "--debug-physics")
+		else
+#endif
+		if (argument == "--debug-physics")
 		{
 			debugPhysics = true;
 		}
@@ -64,22 +71,25 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	Game game;
-	game.SetFullscreenEnabled(fullscreen);
-	
-	game.Initialize();
-	if (!game.IsRunning())
+	AE::Engine engine;
+	GameModule gameModule(engine);
+
+	AE::EngineConfig engineConfig;
+	engineConfig.startFullscreen = fullscreen;
+
+	if (!engine.Initialize(engineConfig))
 	{
 		return 1;
 	}
 
-	game.SetDebugEnabled(debugPhysics);
-	game.SetLevelNumber(levelNumber);
+	gameModule.SetDebugEnabled(debugPhysics);
+	gameModule.SetLevelNumber(levelNumber);
 
+#if SMOKE_TEST
 	if (physicsContactSmokeTest)
 	{
-		const bool passed = game.RunPhysicsContactSmokeTest();
-		game.Destroy();
+		const bool passed = gameModule.RunPhysicsContactSmokeTest();
+		engine.Shutdown();
 
 		if (!passed)
 		{
@@ -90,11 +100,13 @@ int main(int argc, char* argv[])
 		std::cout << "Physics contact smoke test passed." << std::endl;
 		return 0;
 	}
+#endif
 
+#if SMOKE_TEST
 	if (physicsObstacleSmokeTest)
 	{
-		const bool passed = game.RunPhysicsObstacleSmokeTest();
-		game.Destroy();
+		const bool passed = gameModule.RunPhysicsObstacleSmokeTest();
+		engine.Shutdown();
 
 		if (!passed)
 		{
@@ -105,18 +117,21 @@ int main(int argc, char* argv[])
 		std::cout << "Physics obstacle smoke test passed." << std::endl;
 		return 0;
 	}
+#endif
 
+#if SMOKE_TEST
 	if (smokeTest)
 	{
-		game.Setup();
-		game.Update();
-		game.Render();
-		game.Destroy();
+		gameModule.Setup();
+		gameModule.Update();
+		gameModule.Render();
+		engine.Shutdown();
 		return 0;
 	}
+#endif
 
-	game.Run();
-	game.Destroy();
+	gameModule.Run();
+	engine.Shutdown();
 
 	return 0;
 }

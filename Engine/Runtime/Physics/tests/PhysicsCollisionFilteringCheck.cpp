@@ -1,3 +1,7 @@
+#include "Core/BuildConfig.h"
+
+#if SMOKE_TEST
+
 #include <cassert>
 
 #include "Physics/Objects/Body.h"
@@ -90,3 +94,5 @@ int main()
     CheckDynamicBodyRespondsToStaticObstacle();
     return 0;
 }
+
+#endif
