@@ -1,5 +1,9 @@
 # Platformer Content
 
-Reserved for `PlatformerApp` sample assets.
+Reserved for `PlatformerApp` sample assets and scripts.
 
-The current platformer renders simple shapes procedurally, so this folder is intentionally empty except for this marker.
+The current platformer renders shapes procedurally. Enemy behavior is configured by Lua scripts:
+
+```text
+Scripts/PlatformerEnemies.lua
+```

@@ -1,5 +1,6 @@
 set(PHYSICS_DEMOS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/PhysicsDemos)
 set(GAMES_DEMOS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/GamesDemos)
+set(ENGINE_THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Engine/ThirdParty)
 set(PLATFORMER_DIR ${GAMES_DEMOS_DIR}/Platformer)
 set(CONTAINER_SANDBOX_DIR ${PHYSICS_DEMOS_DIR}/ContainerSandbox)
 set(PHYSICS_LAB_DIR ${PHYSICS_DEMOS_DIR}/PhysicsLab)
@@ -14,11 +15,14 @@ if(SDL2_TARGET_FOUND)
 
     target_include_directories(PlatformerApp PRIVATE
         ${PLATFORMER_DIR}
+        ${ENGINE_THIRD_PARTY_DIR}
+        ${LUA_INCLUDE_DIRS_EFFECTIVE}
     )
 
     target_link_libraries(PlatformerApp PRIVATE
         AmberBuildConfig
         Physics
+        ${LUA_LINK_TARGETS}
         ${SDL2_LINK_TARGETS}
     )
     if(TARGET EditorDiagnostics)

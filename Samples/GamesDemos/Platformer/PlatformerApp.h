@@ -3,11 +3,18 @@
 
 #include <SDL2/SDL.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
+#include <sol/sol.hpp>
+
+#include "Classes/World.h"
 #include "Core/BuildConfig.h"
 #include "Core/Math/Vector2D.h"
+#include "Physics/Objects/Body.h"
 
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
 #include "Editor/Diagnostics/SampleDiagnosticsOverlay.h"
@@ -40,6 +47,7 @@ private:
         float height = 42.0f;
         bool grounded = false;
         bool won = false;
+        int facing = 1;
     };
 
     struct Coin
@@ -50,13 +58,64 @@ private:
 
     struct Enemy
     {
+        std::string name;
         AE::Physics::Vector2D spawnPosition;
         AE::Physics::Vector2D position;
+        AE::Physics::Vector2D velocity;
         float width = 30.0f;
         float height = 26.0f;
-        float velocityX = 70.0f;
+        float speed = 70.0f;
+        float direction = 1.0f;
         float leftBound = 0.0f;
         float rightBound = 0.0f;
+        float groundY = 0.0f;
+        float timeAlive = 0.0f;
+        float timeSinceJump = 0.0f;
+        float jumpCooldown = 1.2f;
+        float jumpVelocity = -340.0f;
+        float alertRange = 240.0f;
+        int maxHealth = 1;
+        int health = 1;
+        bool alive = true;
+        SDL_Color color{174, 54, 62, 255};
+        sol::function updateScript;
+    };
+
+    struct Projectile
+    {
+        AE::Physics::Vector2D position;
+        AE::Physics::Vector2D velocity;
+        float width = 16.0f;
+        float height = 6.0f;
+        float timeToLive = 1.2f;
+        int damage = 1;
+        bool active = true;
+    };
+
+    struct SolidPlatform
+    {
+        int tileX = 0;
+        int tileY = 0;
+        int width = 0;
+        int height = 0;
+    };
+
+    struct BodyVisual
+    {
+        AE::Physics::Body* body = nullptr;
+        SDL_Color fill{};
+        SDL_Color edge{};
+        bool gameplayBody = false;
+    };
+
+    struct KinematicBody
+    {
+        AE::Physics::Body* body = nullptr;
+        AE::Physics::Vector2D basePosition;
+        AE::Physics::Vector2D axis;
+        float amplitude = 0.0f;
+        float speed = 0.0f;
+        float phase = 0.0f;
     };
 
     struct InputState
@@ -65,6 +124,7 @@ private:
         bool moveRight = false;
         bool jumpPressed = false;
         bool jumpHeld = false;
+        bool shootPressed = false;
     };
 
     static constexpr int WindowWidth = 960;
@@ -88,28 +148,47 @@ private:
     double lastUpdateMs = 0.0;
     double lastRenderMs = 0.0;
     int fixedStepsThisFrame = 0;
+    float shootCooldownTimer = 0.0f;
+    float physicsSceneTime = 0.0f;
+    bool scriptedEnemiesLoaded = false;
+    std::string enemyScriptPath;
 
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
     AE::Editor::SampleDiagnosticsOverlay diagnostics;
 #endif
 
+    sol::state lua;
+    std::unique_ptr<AE::Physics::World> physicsWorld;
     std::vector<std::string> levelTiles;
+    std::vector<SolidPlatform> solidPlatforms;
     Player player;
     AE::Physics::Vector2D playerSpawn;
     std::vector<Coin> coins;
     std::vector<Enemy> enemies;
+    std::vector<Projectile> projectiles;
+    std::vector<BodyVisual> physicsVisuals;
+    std::vector<KinematicBody> kinematicBodies;
     RectF finish;
 
     bool Initialize();
     void Shutdown();
     void ToggleFullscreen();
     void BuildLevel();
+    void LoadScriptedEnemies();
+    void LoadFallbackEnemies();
+    void BuildPhysicsScene();
     void ResetLevel();
     void ResetPlayer();
     void PollEvents(InputState& input);
     void Step(float dt, const InputState& input);
+    void TryShoot();
     void UpdatePlayer(float dt, const InputState& input);
     void UpdateEnemies(float dt);
+    void UpdateProjectiles(float dt);
+    void StepPhysics(float dt);
+    void UpdateKinematicPhysicsBodies(float dt);
+    void ResolvePlayerPhysicsContacts();
+    void ApplyProjectilePhysicsHit(Projectile& projectile);
     void UpdateCoins();
     void UpdateHazards();
     void UpdateGoal();
@@ -119,6 +198,11 @@ private:
     bool IsSolidTile(int tileX, int tileY) const;
     RectF PlayerRect() const;
     RectF EnemyRect(const Enemy& enemy) const;
+    RectF ProjectileRect(const Projectile& projectile) const;
+    RectF BodyBounds(const AE::Physics::Body& body) const;
+    int AliveEnemyCount() const;
+    int PhysicsBodyCount() const;
+    int PhysicsConstraintCount() const;
     static bool Intersects(const RectF& first, const RectF& second);
     static int ClampInt(int value, int minValue, int maxValue);
     static float ClampFloat(float value, float minValue, float maxValue);
@@ -134,11 +218,34 @@ private:
     void DrawLevel() const;
     void DrawCoins() const;
     void DrawEnemies() const;
+    void DrawProjectiles() const;
+    void DrawPhysics() const;
     void DrawPlayer() const;
     void DrawFinish() const;
     void DrawHud() const;
     void DrawRect(const RectF& rect, SDL_Color color) const;
+    void DrawWorldLine(const AE::Physics::Vector2D& from, const AE::Physics::Vector2D& to, SDL_Color color) const;
+    void DrawFilledCircle(int centerX, int centerY, int radius, SDL_Color color) const;
+    void DrawFilledPolygon(const std::vector<AE::Physics::Vector2D>& vertices, SDL_Color color) const;
+    void DrawPolyline(const std::vector<AE::Physics::Vector2D>& vertices, SDL_Color color, bool closed) const;
     void DrawScreenRect(int x, int y, int w, int h, SDL_Color color) const;
+    AE::Physics::Body* AddPhysicsBox(
+        AE::Physics::Vector2D position,
+        float width,
+        float height,
+        float mass,
+        SDL_Color fill,
+        SDL_Color edge,
+        float rotation = 0.0f,
+        bool gameplayBody = true);
+    AE::Physics::Body* AddPhysicsCircle(
+        AE::Physics::Vector2D position,
+        float radius,
+        float mass,
+        SDL_Color fill,
+        SDL_Color edge,
+        bool gameplayBody = true);
+    void AddPhysicsJoint(AE::Physics::Body* first, AE::Physics::Body* second);
 };
 
 #endif
