@@ -19,7 +19,7 @@
 #include "../EnginePhysicsBridge/EnginePhysicsBridge.h"
 #include "../Logging/Logger.h"
 #include "../Systems/PhysicsContactResponseSystem.h"
-#include "./Game.h"
+#include "../Classes/Engine.h"
 
 namespace
 {
@@ -403,8 +403,8 @@ void LevelLoader::LoadLevel(sol::state& lua, const std::unique_ptr<Registry>& re
         }
     }
     mapFile.close();
-    Game::MapWidth = mapNumCols * tileSize * mapScale;
-    Game::MapHeight = mapNumRows * tileSize * mapScale;
+    AE::Engine::MapWidth = mapNumCols * tileSize * mapScale;
+    AE::Engine::MapHeight = mapNumRows * tileSize * mapScale;
 
     if (tilePhysicsBody != sol::nullopt && ReadBool(tilePhysicsBody.value(), "enabled", true)) {
         if (!registry->HasSystem<PhysicsWorldSystem>()) {
