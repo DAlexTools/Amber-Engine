@@ -32,6 +32,7 @@ Scripts/                Build helper scripts
 CMakePresets.json       Visual Studio/CMake build presets
 Build.bat               One-click local build entrypoint
 Clean.bat               Removes generated local files before committing
+SetupDependencies.bat   Bootstraps repo-local vcpkg
 ```
 
 ## Requirements
@@ -43,23 +44,23 @@ Clean.bat               Removes generated local files before committing
 - Git.
 - vcpkg cloned into `external/vcpkg`.
 
-The project uses manifest dependencies from `vcpkg.json`: SDL2, SDL2_image, SDL2_mixer, SDL2_ttf, SDL2_gfx, Lua 5.4.8 and GoogleTest.
+The project uses manifest dependencies from `vcpkg.json`: SDL2, SDL2_image, SDL2_mixer without extra codec features, SDL2_ttf, SDL2_gfx, Lua 5.4.8 and GoogleTest.
 
 ## Quick Start
 
-Clone/bootstrap vcpkg once:
+Bootstrap vcpkg once:
 
 ```powershell
-New-Item -ItemType Directory -Force external
-git clone https://github.com/microsoft/vcpkg.git external/vcpkg
-.\external\vcpkg\bootstrap-vcpkg.bat
+.\SetupDependencies.bat
 ```
 
-Build the editor-enabled sample set:
+Then build the editor-enabled sample set:
 
 ```powershell
 .\Build.bat
 ```
+
+`Build.bat` also tries to run dependency setup automatically when `external/vcpkg` is missing. If you already have vcpkg elsewhere, set `VCPKG_ROOT` and the script will use the `full-vcpkg` preset instead of the repo-local preset.
 
 The generated solution is:
 
@@ -74,6 +75,7 @@ CMake predefined targets such as `ALL_BUILD` and `ZERO_CHECK` are still generate
 One-click helper:
 
 ```powershell
+.\SetupDependencies.bat
 .\Build.bat -Target Samples
 .\Build.bat -Target Tests
 .\Build.bat -Target Samples -RunSmoke
