@@ -7,11 +7,8 @@
 #include "../Components/TransformComponent.h"
 #include "../Classes/Engine.h"
 
-
-
 class MovementSystem : public System
 {
-	
 	public:
 		MovementSystem()
 		{

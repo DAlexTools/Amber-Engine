@@ -30,12 +30,10 @@ public:
             {
                 camera.y = transform.position.y - (AE::Engine::WindowHeight / 2);
             }
-            
             camera.x = camera.x < 0 ? 0 : camera.x;
             camera.y = camera.y  < 0 ? 0 : camera.y;
             camera.x = camera.x > camera.w ? camera.w : camera.x;
             camera.y = camera.y > camera.h ? camera.h : camera.y;
-            
         }
     }
 };
