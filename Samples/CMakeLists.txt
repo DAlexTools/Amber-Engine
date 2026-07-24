@@ -2,6 +2,7 @@ set(PHYSICS_DEMOS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/PhysicsDemos)
 set(GAMES_DEMOS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/GamesDemos)
 set(ENGINE_THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Engine/ThirdParty)
 set(PLATFORMER_DIR ${GAMES_DEMOS_DIR}/Platformer)
+set(PLATFORMER2_DIR ${GAMES_DEMOS_DIR}/Platformer2)
 set(CONTAINER_SANDBOX_DIR ${PHYSICS_DEMOS_DIR}/ContainerSandbox)
 set(PHYSICS_LAB_DIR ${PHYSICS_DEMOS_DIR}/PhysicsLab)
 
@@ -32,6 +33,32 @@ if(SDL2_TARGET_FOUND)
     amber_target_folder(PlatformerApp "Samples/GamesDemos/Platformer")
     amber_add_header_tree(PlatformerApp "${PLATFORMER_DIR}")
     amber_group_sources(PlatformerApp "${CMAKE_CURRENT_SOURCE_DIR}")
+
+    if(SDL2_IMAGE_TARGET_FOUND)
+        add_executable(Platformer2App
+            ${PLATFORMER2_DIR}/main.cpp
+            ${PLATFORMER2_DIR}/Platformer2App.cpp
+        )
+
+        target_compile_definitions(Platformer2App PRIVATE SDL_MAIN_HANDLED SMOKE_TEST=1)
+
+        target_include_directories(Platformer2App PRIVATE
+            ${PLATFORMER2_DIR}
+        )
+
+        target_link_libraries(Platformer2App PRIVATE
+            AmberBuildConfig
+            ${SDL2_LINK_TARGETS}
+            ${SDL2_IMAGE_TARGET}
+        )
+        amber_target_folder(Platformer2App "Samples/GamesDemos/Platformer2")
+        amber_add_header_tree(Platformer2App "${PLATFORMER2_DIR}")
+        amber_group_sources(Platformer2App "${CMAKE_CURRENT_SOURCE_DIR}")
+    else()
+        message(WARNING
+            "Platformer2App target is disabled because SDL2_image was not found."
+        )
+    endif()
 
     add_executable(ContainerSandboxApp
         ${CONTAINER_SANDBOX_DIR}/main.cpp

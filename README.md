@@ -11,6 +11,7 @@ AmberEngine is a work-in-progress 2D C++ engine built around SDL2, ImGui, a cust
 - Game demos:
   - `GameEngineApp` - Lua/content-driven SDL game sample.
   - `PlatformerApp` - Lua-scripted platformer with double jump, player/enemy shooting and embedded physics bodies.
+  - `Platformer2App` - tilemap-backed platformer with ladders, spikes, lifts and animated sprites.
 - Physics demos:
   - `PhysicsLabApp` - ImGui physics sandbox with container, stack, filter, platform, pinball and bridge/rope scenes.
   - `ContainerSandboxApp` - granular container physics sample.
@@ -28,7 +29,7 @@ Engine/
   Content/              Reserved engine content
 Dependencies/           Local dependency checkouts; vcpkg itself is ignored
 Samples/                Runnable sample apps
-  GamesDemos/           Game-facing demos: GameEngineApp and PlatformerApp
+  GamesDemos/           Game-facing demos: GameEngineApp, PlatformerApp and Platformer2App
   PhysicsDemos/         Physics demos, shared physics sample renderer and content
 Tests/                  GoogleTest unit tests
 Content/                Game/project content used by GameEngineApp
@@ -127,6 +128,7 @@ After `.\Setup.bat`, run apps from the project root or from the build output fol
 .\Builds\Editor\Samples\Debug\PhysicsLabApp.exe
 .\Builds\Editor\Samples\Debug\ContainerSandboxApp.exe
 .\Builds\Editor\Samples\Debug\PlatformerApp.exe
+.\Builds\Editor\Samples\Debug\Platformer2App.exe
 ```
 
 Sample source layout:
@@ -134,6 +136,7 @@ Sample source layout:
 ```text
 Samples/GamesDemos/Game/                 GameEngineApp entrypoint
 Samples/GamesDemos/Platformer/           PlatformerApp source and sample content
+Samples/GamesDemos/Platformer2/          Platformer2App source and Kenney tile content
 Samples/PhysicsDemos/PhysicsLab/         PhysicsLabApp source
 Samples/PhysicsDemos/ContainerSandbox/   ContainerSandboxApp source
 Samples/PhysicsDemos/AngryApp/           Legacy angry-birds style physics demo

@@ -25,7 +25,7 @@
 #endif
 
 
-#define ALIGN(x) alignas(x)
+
 
 
 /**
@@ -44,7 +44,7 @@ enum ENGINE_API LogType
 /**
  * Struct representing a single log entry with a type and message.
  */
-struct ENGINE_API ALIGN(16) LogEntry 
+struct ENGINE_API LogEntry 
 {
     LogType type;                /**< Type of log entry */
     std::string message;         /**< Message content of the log entry */
@@ -93,7 +93,7 @@ class ENGINE_API Logger
 
 
 private:
-    ENGINE_API ALIGN(16) static std::string filePath;
+    ENGINE_API static std::string filePath;
     ENGINE_API static bool consoleEnabled;
 };
 

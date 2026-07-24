@@ -3,7 +3,7 @@ param(
     [ValidateSet("Editor", "NoEditor", "Core")]
     [string]$Mode = "Editor",
 
-    [ValidateSet("Samples", "Game", "Tests", "PhysicsLab", "Platformer", "ContainerSandbox", "Core", "All")]
+    [ValidateSet("Samples", "Game", "Tests", "PhysicsLab", "Platformer", "Platformer2", "ContainerSandbox", "Core", "All")]
     [string]$Target = "Samples",
 
     [ValidateSet("Debug", "Release", "RelWithDebInfo", "MinSizeRel")]
@@ -122,6 +122,7 @@ function Get-Targets {
     $sampleTargets = @(
         "GameEngineApp",
         "PlatformerApp",
+        "Platformer2App",
         "ContainerSandboxApp",
         "PhysicsLabApp",
         "AngryApp",
@@ -142,6 +143,7 @@ function Get-Targets {
         "Tests" { return $testTargets }
         "PhysicsLab" { return @("PhysicsLabApp") }
         "Platformer" { return @("PlatformerApp") }
+        "Platformer2" { return @("Platformer2App") }
         "ContainerSandbox" { return @("ContainerSandboxApp") }
         "Core" { return $coreTargets }
         "All" { return $sampleTargets + $testTargets }
@@ -183,6 +185,10 @@ function Invoke-SmokeChecks {
 
         if ($BuildTarget -in @("Samples", "All", "Platformer")) {
             Invoke-CommandChecked "Platformer smoke" (Join-Path $sampleBin "PlatformerApp.exe") @("--smoke-test")
+        }
+
+        if ($BuildTarget -in @("Samples", "All", "Platformer2")) {
+            Invoke-CommandChecked "Platformer2 smoke" (Join-Path $sampleBin "Platformer2App.exe") @("--smoke-test")
         }
 
         if ($BuildTarget -in @("Samples", "All", "ContainerSandbox")) {
