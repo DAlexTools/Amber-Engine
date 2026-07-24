@@ -9,7 +9,7 @@ if(SDL2_TARGET_FOUND)
         ${PLATFORMER_DIR}/PlatformerApp.cpp
     )
 
-    target_compile_definitions(PlatformerApp PRIVATE SDL_MAIN_HANDLED)
+    target_compile_definitions(PlatformerApp PRIVATE SDL_MAIN_HANDLED SMOKE_TEST=1)
 
     target_include_directories(PlatformerApp PRIVATE
         ${PLATFORMER_DIR}
@@ -33,7 +33,7 @@ if(SDL2_TARGET_FOUND)
         ${CONTAINER_SANDBOX_DIR}/ContainerSandboxApp.cpp
     )
 
-    target_compile_definitions(ContainerSandboxApp PRIVATE SDL_MAIN_HANDLED)
+    target_compile_definitions(ContainerSandboxApp PRIVATE SDL_MAIN_HANDLED SMOKE_TEST=1)
 
     target_include_directories(ContainerSandboxApp PRIVATE
         ${CONTAINER_SANDBOX_DIR}
@@ -58,7 +58,7 @@ if(SDL2_TARGET_FOUND)
             ${PHYSICS_LAB_DIR}/PhysicsLabApp.cpp
         )
 
-        target_compile_definitions(PhysicsLabApp PRIVATE SDL_MAIN_HANDLED)
+        target_compile_definitions(PhysicsLabApp PRIVATE SDL_MAIN_HANDLED SMOKE_TEST=1)
 
         target_include_directories(PhysicsLabApp PRIVATE
             ${PHYSICS_LAB_DIR}
@@ -172,6 +172,7 @@ if(TARGET Engine)
         AmberBuildConfig
         Engine
     )
+    target_compile_definitions(GameEngineApp PRIVATE SMOKE_TEST=1)
     amber_target_folder(GameEngineApp "Samples/Game")
     amber_add_header_tree(GameEngineApp "${CMAKE_CURRENT_SOURCE_DIR}/Game")
     amber_group_sources(GameEngineApp "${CMAKE_CURRENT_SOURCE_DIR}")
