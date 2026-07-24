@@ -34,21 +34,29 @@ int main(int argc, char* argv[])
 	for (int i = 1; i < argc; ++i)
 	{
 		const std::string argument = argv[i];
+		bool handledArgument = false;
 #if SMOKE_TEST
 		if (argument == "--smoke-test")
 		{
 			smokeTest = true;
+			handledArgument = true;
 		}
 		else if (argument == "--physics-contact-smoke-test")
 		{
 			physicsContactSmokeTest = true;
+			handledArgument = true;
 		}
 		else if (argument == "--physics-obstacle-smoke-test")
 		{
 			physicsObstacleSmokeTest = true;
+			handledArgument = true;
 		}
-		else
 #endif
+		if (handledArgument)
+		{
+			continue;
+		}
+
 		if (argument == "--debug-physics")
 		{
 			debugPhysics = true;
