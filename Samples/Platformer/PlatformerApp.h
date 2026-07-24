@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "Core/BuildConfig.h"
 #include "Core/Math/Vector2D.h"
 
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
@@ -18,7 +19,9 @@ public:
     PlatformerApp();
 
     int Run();
+#if SMOKE_TEST
     bool RunSmokeTest();
+#endif
 
 private:
     struct RectF
@@ -74,7 +77,9 @@ private:
     SDL_Renderer* renderer = nullptr;
     SDL_Texture* frameTexture = nullptr;
     bool running = false;
+#if SMOKE_TEST
     bool smokeMode = false;
+#endif
     bool fullscreen = false;
     bool paused = false;
     float cameraX = 0.0f;

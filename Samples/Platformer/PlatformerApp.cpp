@@ -56,7 +56,9 @@ namespace
 
 int PlatformerApp::Run()
 {
+#if SMOKE_TEST
     smokeMode = false;
+#endif
     if (!Initialize())
     {
         return 1;
@@ -102,6 +104,7 @@ int PlatformerApp::Run()
     return 0;
 }
 
+#if SMOKE_TEST
 bool PlatformerApp::RunSmokeTest()
 {
     smokeMode = true;
@@ -180,6 +183,7 @@ bool PlatformerApp::RunSmokeTest()
     return movedRight && stayedInWorld && hasGroundState && coinCollected && hazardResetsPlayer && finishWorks &&
         bufferedJumpWorks && coyoteJumpWorks;
 }
+#endif
 
 bool PlatformerApp::Initialize()
 {
