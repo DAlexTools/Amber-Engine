@@ -15,6 +15,7 @@ target_link_libraries(PhysicsUnitTests PRIVATE
     GTest::gtest
     GTest::gtest_main
 )
+target_compile_definitions(PhysicsUnitTests PRIVATE C_UNIT_TEST=1)
 
 include(GoogleTest)
 gtest_discover_tests(PhysicsUnitTests
@@ -36,6 +37,7 @@ target_link_libraries(EngineUnitTests PRIVATE
     GTest::gtest
     GTest::gtest_main
 )
+target_compile_definitions(EngineUnitTests PRIVATE C_UNIT_TEST=1)
 
 gtest_discover_tests(EngineUnitTests
     DISCOVERY_MODE PRE_TEST

@@ -15,3 +15,11 @@
 #ifndef WITH_EDITOR_ONLY_DATA
 #define WITH_EDITOR_ONLY_DATA AMBER_WITH_EDITOR_ONLY_DATA
 #endif
+
+#ifndef SMOKE_TEST
+#define SMOKE_TEST 0
+#endif
+
+#ifndef C_UNIT_TEST
+#define C_UNIT_TEST 0
+#endif
