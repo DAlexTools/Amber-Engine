@@ -10,7 +10,7 @@ AmberEngine is a work-in-progress 2D C++ engine built around SDL2, ImGui, a cust
 - Editor-side ImGui utilities behind `WITH_EDITOR`, currently including OutputLog and sample diagnostics overlays.
 - Game demos:
   - `GameEngineApp` - Lua/content-driven SDL game sample.
-  - `PlatformerApp` - Lua-scripted platformer with shooting and embedded physics bodies.
+  - `PlatformerApp` - Lua-scripted platformer with double jump, player/enemy shooting and embedded physics bodies.
 - Physics demos:
   - `PhysicsLabApp` - ImGui physics sandbox with container, stack, filter, platform, pinball and bridge/rope scenes.
   - `ContainerSandboxApp` - granular container physics sample.

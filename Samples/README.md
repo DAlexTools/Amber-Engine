@@ -38,7 +38,7 @@ Physics demos live in `PhysicsDemos`:
 - `PhysicsDemos/PhysicsLab`
 - `PhysicsDemos/Content`
 
-`Platformer` is a scripted side-scrolling game demo with Lua-driven enemies, player projectiles and an embedded `AE::Physics::World` playground with crates, balls, rope/chain constraints and a moving platform.
+`Platformer` is a scripted side-scrolling game demo with double jump, Lua-driven enemies, player/enemy projectiles and an embedded `AE::Physics::World` playground with crates, balls, rope/chain constraints and moving platforms.
 `ContainerSandbox` is a standalone granular physics sample with movable/rotatable cup, tray and funnel containers filled with small circle bodies.
 `PhysicsLab` is an ImGui-backed sandbox that groups container, stack, collision filtering, moving platform, pinball and bridge/rope physics scenes behind one parameter UI.
 

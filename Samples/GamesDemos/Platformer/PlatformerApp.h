@@ -48,6 +48,7 @@ private:
         bool grounded = false;
         bool won = false;
         int facing = 1;
+        int airJumpsRemaining = 1;
     };
 
     struct Coin
@@ -78,6 +79,11 @@ private:
         int health = 1;
         bool alive = true;
         SDL_Color color{174, 54, 62, 255};
+        float shootCooldown = 1.35f;
+        float shootTimer = 0.0f;
+        float shootRange = 420.0f;
+        float projectileSpeed = 360.0f;
+        bool canShoot = false;
         sol::function updateScript;
     };
 
@@ -90,6 +96,7 @@ private:
         float timeToLive = 1.2f;
         int damage = 1;
         bool active = true;
+        bool fromPlayer = true;
     };
 
     struct SolidPlatform
@@ -182,12 +189,13 @@ private:
     void PollEvents(InputState& input);
     void Step(float dt, const InputState& input);
     void TryShoot();
+    void TryEnemyShoot(Enemy& enemy);
     void UpdatePlayer(float dt, const InputState& input);
     void UpdateEnemies(float dt);
     void UpdateProjectiles(float dt);
     void StepPhysics(float dt);
     void UpdateKinematicPhysicsBodies(float dt);
-    void ResolvePlayerPhysicsContacts();
+    void ResolvePlayerPhysicsContacts(float dt);
     void ApplyProjectilePhysicsHit(Projectile& projectile);
     void UpdateCoins();
     void UpdateHazards();
@@ -200,6 +208,7 @@ private:
     RectF EnemyRect(const Enemy& enemy) const;
     RectF ProjectileRect(const Projectile& projectile) const;
     RectF BodyBounds(const AE::Physics::Body& body) const;
+    bool IsKinematicBody(const AE::Physics::Body* body) const;
     int AliveEnemyCount() const;
     int PhysicsBodyCount() const;
     int PhysicsConstraintCount() const;

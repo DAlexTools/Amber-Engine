@@ -28,6 +28,7 @@ namespace
     constexpr float CoyoteTime = 0.11f;
     constexpr float JumpBufferTime = 0.13f;
     constexpr float MaxFallSpeed = 880.0f;
+    constexpr int MaxAirJumps = 1;
     constexpr float EnemyGravity = 1350.0f;
     constexpr float ProjectileSpeed = 680.0f;
     constexpr float ProjectileCooldown = 0.18f;
@@ -46,6 +47,7 @@ namespace
     SDL_Color CoinColor{245, 196, 48, 255};
     SDL_Color EnemyColor{174, 54, 62, 255};
     SDL_Color ProjectileColor{255, 236, 132, 255};
+    SDL_Color EnemyProjectileColor{235, 88, 118, 255};
     SDL_Color PhysicsWood{184, 130, 72, 255};
     SDL_Color PhysicsWoodEdge{92, 58, 42, 255};
     SDL_Color PhysicsMetal{110, 130, 148, 255};
@@ -71,6 +73,11 @@ namespace
     }
 
     int ReadInt(sol::table table, const char* key, int defaultValue)
+    {
+        return table[key].get_or(defaultValue);
+    }
+
+    bool ReadBool(sol::table table, const char* key, bool defaultValue)
     {
         return table[key].get_or(defaultValue);
     }
@@ -270,12 +277,38 @@ bool PlatformerApp::RunSmokeTest()
     Step(FixedTimeStep, coyoteJumpInput);
     const bool coyoteJumpWorks = player.velocity.y < 0.0f && !player.grounded;
 
+    ResetPlayer();
+    for (int frame = 0; frame < 12; ++frame)
+    {
+        Step(FixedTimeStep, InputState{});
+    }
+    InputState firstJumpInput;
+    firstJumpInput.jumpPressed = true;
+    firstJumpInput.jumpHeld = true;
+    Step(FixedTimeStep, firstJumpInput);
+    firstJumpInput.jumpPressed = false;
+    for (int frame = 0; frame < 10; ++frame)
+    {
+        Step(FixedTimeStep, firstJumpInput);
+    }
+    const float beforeDoubleJumpVelocity = player.velocity.y;
+    InputState secondJumpInput;
+    secondJumpInput.jumpPressed = true;
+    secondJumpInput.jumpHeld = true;
+    Step(FixedTimeStep, secondJumpInput);
+    const bool doubleJumpWorks = !player.grounded && player.velocity.y < beforeDoubleJumpVelocity - 90.0f;
+
     const bool scriptedEnemiesWork = scriptedEnemiesLoaded && enemies.size() >= 4;
 
     ResetLevel();
     bool shootingWorks = false;
     if (!enemies.empty())
     {
+        for (Enemy& enemy : enemies)
+        {
+            enemy.shootTimer = 999.0f;
+        }
+
         Enemy& target = enemies.back();
         player.position = AE::Physics::Vector2D(target.position.x - 190.0f, target.position.y);
         player.velocity = AE::Physics::Vector2D::Zero;
@@ -327,14 +360,58 @@ bool PlatformerApp::RunSmokeTest()
             testBody->velocity.MagnitudeSquared() > 5.0f;
     }
 
+    ResetLevel();
+    bool movingPlatformLandingWorks = false;
+    if (!kinematicBodies.empty() && kinematicBodies.front().body)
+    {
+        const RectF platformBounds = BodyBounds(*kinematicBodies.front().body);
+        player.position = AE::Physics::Vector2D(
+            platformBounds.x + platformBounds.w * 0.5f - player.width * 0.5f,
+            platformBounds.y - player.height + 5.0f);
+        player.velocity = AE::Physics::Vector2D(0.0f, 120.0f);
+        player.grounded = false;
+        Step(FixedTimeStep, InputState{});
+        movingPlatformLandingWorks = player.grounded &&
+            std::abs((player.position.y + player.height) - BodyBounds(*kinematicBodies.front().body).y) < 1.5f;
+    }
+
+    ResetLevel();
+    bool enemyShootingWorks = false;
+    Enemy* shootingEnemy = nullptr;
+    for (Enemy& enemy : enemies)
+    {
+        if (enemy.canShoot)
+        {
+            shootingEnemy = &enemy;
+            break;
+        }
+    }
+    if (shootingEnemy)
+    {
+        shootingEnemy->shootTimer = 0.0f;
+        player.position = AE::Physics::Vector2D(shootingEnemy->position.x + 180.0f, shootingEnemy->position.y);
+        player.velocity = AE::Physics::Vector2D::Zero;
+        Step(FixedTimeStep, InputState{});
+
+        int enemyProjectileCount = 0;
+        for (const Projectile& projectile : projectiles)
+        {
+            if (!projectile.fromPlayer)
+            {
+                ++enemyProjectileCount;
+            }
+        }
+        enemyShootingWorks = enemyProjectileCount > 0;
+    }
+
     const bool physicsSceneWorks = PhysicsBodyCount() > static_cast<int>(solidPlatforms.size()) + 18 &&
         PhysicsConstraintCount() >= 12 &&
         physicsWorld &&
         physicsWorld->GetLastStats().bodyCount > 0;
 
     const bool passed = movedRight && stayedInWorld && hasGroundState && coinCollected && hazardResetsPlayer && finishWorks &&
-        bufferedJumpWorks && coyoteJumpWorks && scriptedEnemiesWork && shootingWorks && physicsSceneWorks &&
-        physicsBodyReacts;
+        bufferedJumpWorks && coyoteJumpWorks && doubleJumpWorks && scriptedEnemiesWork && shootingWorks && physicsSceneWorks &&
+        physicsBodyReacts && movingPlatformLandingWorks && enemyShootingWorks;
     if (!passed)
     {
         std::cerr
@@ -347,10 +424,13 @@ bool PlatformerApp::RunSmokeTest()
             << " finishWorks=" << finishWorks
             << " bufferedJumpWorks=" << bufferedJumpWorks
             << " coyoteJumpWorks=" << coyoteJumpWorks
+            << " doubleJumpWorks=" << doubleJumpWorks
             << " scriptedEnemiesWork=" << scriptedEnemiesWork
             << " shootingWorks=" << shootingWorks
+            << " enemyShootingWorks=" << enemyShootingWorks
             << " physicsSceneWorks=" << physicsSceneWorks
             << " physicsBodyReacts=" << physicsBodyReacts
+            << " movingPlatformLandingWorks=" << movingPlatformLandingWorks
             << " enemies=" << enemies.size()
             << " alive=" << AliveEnemyCount()
             << " bodies=" << PhysicsBodyCount()
@@ -486,6 +566,16 @@ void PlatformerApp::BuildLevel()
     fillTiles(58, 14, 3, 1, '#');
     fillTiles(72, 14, 4, 1, '#');
 
+    fillTiles(11, 12, 3, 1, '#');
+    fillTiles(16, 10, 3, 1, '#');
+    fillTiles(21, 8, 4, 1, '#');
+    fillTiles(30, 10, 4, 1, '#');
+    fillTiles(45, 9, 4, 1, '#');
+    fillTiles(55, 8, 4, 1, '#');
+    fillTiles(68, 9, 4, 1, '#');
+    fillTiles(74, 7, 3, 1, '#');
+    fillTiles(84, 8, 4, 1, '#');
+
     fillTiles(7, 14, 1, 1, '#');
     fillTiles(8, 13, 1, 2, '#');
     fillTiles(9, 12, 1, 3, '#');
@@ -583,6 +673,11 @@ void PlatformerApp::LoadScriptedEnemies()
             enemy.jumpVelocity = ReadFloat(enemyTable, "jump_velocity", enemy.jumpVelocity);
             enemy.alertRange = ReadFloat(enemyTable, "alert_range", enemy.alertRange);
             enemy.color = ReadColor(enemyTable, "color", enemy.color);
+            enemy.canShoot = ReadBool(enemyTable, "can_shoot", enemy.canShoot);
+            enemy.shootCooldown = ReadFloat(enemyTable, "shoot_cooldown", enemy.shootCooldown);
+            enemy.shootRange = ReadFloat(enemyTable, "shoot_range", enemy.shootRange);
+            enemy.projectileSpeed = ReadFloat(enemyTable, "projectile_speed", enemy.projectileSpeed);
+            enemy.shootTimer = ReadFloat(enemyTable, "shoot_delay", 0.2f + static_cast<float>(enemies.size() % 3) * 0.25f);
             enemy.velocity = AE::Physics::Vector2D(enemy.speed * enemy.direction, 0.0f);
 
             sol::object updateObject = enemyTable.get<sol::object>("on_update");
@@ -685,6 +780,14 @@ void PlatformerApp::LoadFallbackEnemies()
     for (Enemy& enemy : enemies)
     {
         enemy.position = enemy.spawnPosition;
+        if (enemy.name == "fallback_hopper" || enemy.name == "fallback_sentry")
+        {
+            enemy.canShoot = true;
+            enemy.shootCooldown = enemy.name == "fallback_sentry" ? 1.05f : 1.45f;
+            enemy.shootRange = enemy.name == "fallback_sentry" ? 460.0f : 340.0f;
+            enemy.projectileSpeed = 360.0f;
+            enemy.shootTimer = 0.25f;
+        }
     }
 }
 
@@ -804,7 +907,7 @@ void PlatformerApp::BuildPhysicsScene()
         SDL_Color{104, 184, 116, 255},
         PhysicsMetalEdge,
         0.0f,
-        false);
+        true);
     kinematicBodies.push_back(KinematicBody{
         movingPlatform,
         movingPlatform->position,
@@ -812,6 +915,24 @@ void PlatformerApp::BuildPhysicsScene()
         92.0f,
         1.15f,
         0.0f
+    });
+
+    AE::Physics::Body* elevatorPlatform = AddPhysicsBox(
+        AE::Physics::Vector2D(1730.0f, 390.0f),
+        132.0f,
+        18.0f,
+        0.0f,
+        SDL_Color{104, 184, 116, 255},
+        PhysicsMetalEdge,
+        0.0f,
+        true);
+    kinematicBodies.push_back(KinematicBody{
+        elevatorPlatform,
+        elevatorPlatform->position,
+        AE::Physics::Vector2D(0.0f, 1.0f),
+        72.0f,
+        1.05f,
+        1.4f
     });
 }
 
@@ -829,6 +950,7 @@ void PlatformerApp::ResetLevel()
         enemy.alive = true;
         enemy.timeAlive = 0.0f;
         enemy.timeSinceJump = 0.0f;
+        enemy.shootTimer = enemy.canShoot ? 0.2f : 0.0f;
     }
     projectiles.clear();
     shootCooldownTimer = 0.0f;
@@ -843,6 +965,7 @@ void PlatformerApp::ResetPlayer()
     player.grounded = false;
     player.won = false;
     player.facing = 1;
+    player.airJumpsRemaining = MaxAirJumps;
     coyoteTimer = 0.0f;
     jumpBufferTimer = 0.0f;
 }
@@ -992,8 +1115,46 @@ void PlatformerApp::TryShoot()
         player.position.y + player.height * 0.42f);
     projectile.velocity = AE::Physics::Vector2D(ProjectileSpeed * direction, 0.0f);
     projectile.damage = 1;
+    projectile.fromPlayer = true;
     projectiles.push_back(projectile);
     shootCooldownTimer = ProjectileCooldown;
+}
+
+void PlatformerApp::TryEnemyShoot(Enemy& enemy)
+{
+    if (!enemy.canShoot || enemy.shootTimer > 0.0f || player.won)
+    {
+        return;
+    }
+
+    const float enemyCenterX = enemy.position.x + enemy.width * 0.5f;
+    const float enemyCenterY = enemy.position.y + enemy.height * 0.45f;
+    const float playerCenterX = player.position.x + player.width * 0.5f;
+    const float playerCenterY = player.position.y + player.height * 0.45f;
+    const float deltaX = playerCenterX - enemyCenterX;
+    const float deltaY = playerCenterY - enemyCenterY;
+    const float distanceSquared = deltaX * deltaX + deltaY * deltaY;
+    if (distanceSquared < 1.0f || distanceSquared > enemy.shootRange * enemy.shootRange || std::abs(deltaY) > 180.0f)
+    {
+        return;
+    }
+
+    const float invDistance = 1.0f / std::sqrt(distanceSquared);
+    const float directionX = deltaX * invDistance;
+    const float directionY = deltaY * invDistance;
+
+    Projectile projectile;
+    projectile.width = 12.0f;
+    projectile.height = 8.0f;
+    projectile.timeToLive = 2.0f;
+    projectile.damage = 1;
+    projectile.fromPlayer = false;
+    projectile.position = AE::Physics::Vector2D(
+        enemyCenterX + directionX * 20.0f - projectile.width * 0.5f,
+        enemyCenterY + directionY * 14.0f - projectile.height * 0.5f);
+    projectile.velocity = AE::Physics::Vector2D(directionX * enemy.projectileSpeed, directionY * enemy.projectileSpeed);
+    projectiles.push_back(projectile);
+    enemy.shootTimer = enemy.shootCooldown;
 }
 
 void PlatformerApp::UpdatePlayer(float dt, const InputState& input)
@@ -1039,6 +1200,13 @@ void PlatformerApp::UpdatePlayer(float dt, const InputState& input)
         coyoteTimer = 0.0f;
         jumpBufferTimer = 0.0f;
     }
+    else if (jumpBufferTimer > 0.0f && player.airJumpsRemaining > 0)
+    {
+        player.velocity.y = JumpVelocity * 0.92f;
+        player.grounded = false;
+        --player.airJumpsRemaining;
+        jumpBufferTimer = 0.0f;
+    }
     else if (!input.jumpHeld && !input.jumpPressed && player.velocity.y < JumpCutVelocity)
     {
         player.velocity.y = JumpCutVelocity;
@@ -1055,6 +1223,7 @@ void PlatformerApp::UpdatePlayer(float dt, const InputState& input)
     if (player.grounded)
     {
         coyoteTimer = CoyoteTime;
+        player.airJumpsRemaining = MaxAirJumps;
     }
 
     if (player.position.y > static_cast<float>(LevelRows * TileSize + 120))
@@ -1074,6 +1243,7 @@ void PlatformerApp::UpdateEnemies(float dt)
 
         enemy.timeAlive += dt;
         enemy.timeSinceJump += dt;
+        enemy.shootTimer = std::max(0.0f, enemy.shootTimer - dt);
         const bool enemyOnGround = std::abs(enemy.position.y - enemy.groundY) < 0.5f && enemy.velocity.y >= 0.0f;
 
         if (enemy.updateScript.valid())
@@ -1094,6 +1264,11 @@ void PlatformerApp::UpdateEnemies(float dt)
             enemyState["jump_cooldown"] = enemy.jumpCooldown;
             enemyState["jump_velocity"] = enemy.jumpVelocity;
             enemyState["alert_range"] = enemy.alertRange;
+            enemyState["can_shoot"] = enemy.canShoot;
+            enemyState["shoot_timer"] = enemy.shootTimer;
+            enemyState["shoot_cooldown"] = enemy.shootCooldown;
+            enemyState["shoot_range"] = enemy.shootRange;
+            enemyState["projectile_speed"] = enemy.projectileSpeed;
             enemyState["on_ground"] = enemyOnGround;
 
             sol::table playerState = lua.create_table();
@@ -1110,6 +1285,11 @@ void PlatformerApp::UpdateEnemies(float dt)
                 enemy.velocity.y = ReadFloat(enemyState, "velocity_y", enemy.velocity.y);
                 enemy.direction = ReadFloat(enemyState, "direction", enemy.direction) < 0.0f ? -1.0f : 1.0f;
                 enemy.timeSinceJump = ReadFloat(enemyState, "time_since_jump", enemy.timeSinceJump);
+                enemy.canShoot = ReadBool(enemyState, "can_shoot", enemy.canShoot);
+                enemy.shootTimer = ReadFloat(enemyState, "shoot_timer", enemy.shootTimer);
+                enemy.shootCooldown = ReadFloat(enemyState, "shoot_cooldown", enemy.shootCooldown);
+                enemy.shootRange = ReadFloat(enemyState, "shoot_range", enemy.shootRange);
+                enemy.projectileSpeed = ReadFloat(enemyState, "projectile_speed", enemy.projectileSpeed);
             }
             else
             {
@@ -1143,6 +1323,8 @@ void PlatformerApp::UpdateEnemies(float dt)
             enemy.position.y = enemy.groundY;
             enemy.velocity.y = 0.0f;
         }
+
+        TryEnemyShoot(enemy);
     }
 }
 
@@ -1172,22 +1354,31 @@ void PlatformerApp::UpdateProjectiles(float dt)
             continue;
         }
 
-        for (Enemy& enemy : enemies)
+        if (projectile.fromPlayer)
         {
-            if (!enemy.alive || !Intersects(projectileBounds, EnemyRect(enemy)))
+            for (Enemy& enemy : enemies)
             {
-                continue;
-            }
+                if (!enemy.alive || !Intersects(projectileBounds, EnemyRect(enemy)))
+                {
+                    continue;
+                }
 
-            enemy.health -= projectile.damage;
-            enemy.velocity.x += projectile.velocity.x * 0.12f;
-            enemy.velocity.y = std::min(enemy.velocity.y, -120.0f);
-            if (enemy.health <= 0)
-            {
-                enemy.alive = false;
+                enemy.health -= projectile.damage;
+                enemy.velocity.x += projectile.velocity.x * 0.12f;
+                enemy.velocity.y = std::min(enemy.velocity.y, -120.0f);
+                if (enemy.health <= 0)
+                {
+                    enemy.alive = false;
+                }
+                projectile.active = false;
+                break;
             }
+        }
+        else if (Intersects(projectileBounds, PlayerRect()))
+        {
             projectile.active = false;
-            break;
+            ResetPlayer();
+            continue;
         }
 
         if (projectile.active)
@@ -1248,7 +1439,7 @@ void PlatformerApp::StepPhysics(float dt)
         physicsWorld->Update(physicsDt);
     }
 
-    ResolvePlayerPhysicsContacts();
+    ResolvePlayerPhysicsContacts(dt);
 }
 
 void PlatformerApp::UpdateKinematicPhysicsBodies(float dt)
@@ -1280,7 +1471,7 @@ void PlatformerApp::UpdateKinematicPhysicsBodies(float dt)
     }
 }
 
-void PlatformerApp::ResolvePlayerPhysicsContacts()
+void PlatformerApp::ResolvePlayerPhysicsContacts(float dt)
 {
     if (!physicsWorld)
     {
@@ -1291,7 +1482,8 @@ void PlatformerApp::ResolvePlayerPhysicsContacts()
     for (BodyVisual& visual : physicsVisuals)
     {
         AE::Physics::Body* body = visual.body;
-        if (!body || body->IsStatic() || !visual.gameplayBody)
+        const bool isKinematicBody = IsKinematicBody(body);
+        if (!body || !visual.gameplayBody || (body->IsStatic() && !isKinematicBody))
         {
             continue;
         }
@@ -1305,27 +1497,45 @@ void PlatformerApp::ResolvePlayerPhysicsContacts()
         const float playerBottom = playerBounds.y + playerBounds.h;
         const float bodyTop = bodyBounds.y;
         const float overlapFromTop = playerBottom - bodyTop;
-        const bool landingOnBody = player.velocity.y >= 0.0f && playerBounds.y < bodyTop && overlapFromTop >= 0.0f && overlapFromTop < 18.0f;
+        const bool landingOnBody = player.velocity.y >= body->velocity.y - 12.0f &&
+            playerBounds.y < bodyTop &&
+            overlapFromTop >= 0.0f &&
+            overlapFromTop < 24.0f;
 
         if (landingOnBody)
         {
             player.position.y = bodyTop - player.height;
-            player.velocity.y = 0.0f;
+            player.position.x += body->velocity.x * dt;
+            player.velocity.y = std::min(0.0f, body->velocity.y);
             player.grounded = true;
             coyoteTimer = CoyoteTime;
-            body->ApplyImpulseLinear(AE::Physics::Vector2D(player.velocity.x * 0.08f, 0.0f));
+            player.airJumpsRemaining = MaxAirJumps;
+            if (!body->IsStatic())
+            {
+                body->ApplyImpulseLinear(AE::Physics::Vector2D(player.velocity.x * 0.08f, 0.0f));
+            }
         }
         else
         {
             const float playerCenterX = playerBounds.x + playerBounds.w * 0.5f;
             const float bodyCenterX = bodyBounds.x + bodyBounds.w * 0.5f;
             const float pushDirection = playerCenterX < bodyCenterX ? 1.0f : -1.0f;
-            body->ApplyImpulseLinear(AE::Physics::Vector2D(pushDirection * 95.0f, -18.0f));
-            body->angularVelocity += pushDirection * 1.8f;
-            player.position.x -= pushDirection * 2.0f;
+            const float overlapLeft = (playerBounds.x + playerBounds.w) - bodyBounds.x;
+            const float overlapRight = (bodyBounds.x + bodyBounds.w) - playerBounds.x;
+            const float horizontalOverlap = std::min(overlapLeft, overlapRight);
+            player.position.x -= pushDirection * std::min(horizontalOverlap + 0.5f, 12.0f);
+            player.velocity.x = MoveTowardZero(player.velocity.x, 180.0f);
+            if (!body->IsStatic())
+            {
+                body->ApplyImpulseLinear(AE::Physics::Vector2D(pushDirection * 95.0f, -18.0f));
+                body->angularVelocity += pushDirection * 1.8f;
+            }
         }
 
-        physicsWorld->WakeBody(*body);
+        if (!body->IsStatic())
+        {
+            physicsWorld->WakeBody(*body);
+        }
         playerBounds = PlayerRect();
     }
 }
@@ -1491,6 +1701,18 @@ PlatformerApp::RectF PlatformerApp::BodyBounds(const AE::Physics::Body& body) co
     }
 
     return RectF{minX, minY, maxX - minX, maxY - minY};
+}
+
+bool PlatformerApp::IsKinematicBody(const AE::Physics::Body* body) const
+{
+    for (const KinematicBody& kinematic : kinematicBodies)
+    {
+        if (kinematic.body == body)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 int PlatformerApp::AliveEnemyCount() const
@@ -1728,9 +1950,22 @@ void PlatformerApp::RenderDiagnostics()
 
         ImGui::Checkbox("Output Log", &diagnostics.ShowOutputLog());
         ImGui::Separator();
+        int playerProjectileCount = 0;
+        int enemyProjectileCount = 0;
+        for (const Projectile& projectile : projectiles)
+        {
+            if (projectile.fromPlayer)
+            {
+                ++playerProjectileCount;
+            }
+            else
+            {
+                ++enemyProjectileCount;
+            }
+        }
         ImGui::Text("Coins: %d / %zu", collectedCoins, coins.size());
         ImGui::Text("Enemies: %d / %zu", AliveEnemyCount(), enemies.size());
-        ImGui::Text("Projectiles: %zu", projectiles.size());
+        ImGui::Text("Projectiles: %d player / %d enemy", playerProjectileCount, enemyProjectileCount);
         ImGui::Text("Scripted enemies: %s", scriptedEnemiesLoaded ? "yes" : "no");
         ImGui::Text("Physics bodies: %d", PhysicsBodyCount());
         ImGui::Text("Physics constraints: %d", PhysicsConstraintCount());
@@ -1841,10 +2076,10 @@ void PlatformerApp::DrawProjectiles() const
 {
     for (const Projectile& projectile : projectiles)
     {
-        DrawRect(ProjectileRect(projectile), ProjectileColor);
+        DrawRect(ProjectileRect(projectile), projectile.fromPlayer ? ProjectileColor : EnemyProjectileColor);
         DrawRect(
             RectF{projectile.position.x - (projectile.velocity.x > 0.0f ? 7.0f : -7.0f), projectile.position.y + 2.0f, 8.0f, 2.0f},
-            SDL_Color{255, 255, 245, 170});
+            projectile.fromPlayer ? SDL_Color{255, 255, 245, 170} : SDL_Color{255, 190, 202, 170});
     }
 }
 
