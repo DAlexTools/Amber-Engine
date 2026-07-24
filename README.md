@@ -1,17 +1,19 @@
 # AmberEngine
 
-AmberEngine is a work-in-progress 2D C++ engine built around SDL2, ImGui, a custom 2D physics runtime and a growing set of samples. The project is currently focused on engine/module boundaries, physics experiments, diagnostics, editor preparation and clean Visual Studio/CMake workflows.
+AmberEngine is a work-in-progress 2D C++ engine built around SDL2, ImGui, a custom 2D physics runtime and a growing set of samples. The project is currently focused on engine/module boundaries, Unreal-style runtime organization, physics experiments, diagnostics, editor preparation and clean Visual Studio/CMake workflows.
 
 ## Features
 
-- 2D runtime module with ECS, events, asset loading, Lua level loading and SDL rendering.
+- 2D runtime module with `AE::Engine`, ECS, events, asset loading, Lua level loading and SDL rendering.
+- Game-specific startup and gameplay flow isolated in `GameModule`.
 - Custom `AE::Physics` module with rigid bodies, shapes, collision detection, broad phase, solver iterations, sleeping, collision layers and physics stats.
 - Editor-side ImGui utilities behind `WITH_EDITOR`, currently including OutputLog and sample diagnostics overlays.
-- Samples:
+- Game demos:
   - `GameEngineApp` - Lua/content-driven SDL game sample.
+  - `PlatformerApp` - small Mario-like platformer sample.
+- Physics demos:
   - `PhysicsLabApp` - ImGui physics sandbox with container, stack, filter, platform, pinball and bridge/rope scenes.
   - `ContainerSandboxApp` - granular container physics sample.
-  - `PlatformerApp` - small Mario-like platformer sample.
   - Legacy physics demos: angry-birds style scene, ragdoll, chain, soft body and cloth.
 - One-click Windows setup/build through `Setup.bat`.
 - GoogleTest unit tests for runtime logging and physics behavior.
@@ -20,12 +22,14 @@ AmberEngine is a work-in-progress 2D C++ engine built around SDL2, ImGui, a cust
 
 ```text
 Engine/
-  Runtime/              Runtime modules and pure physics code
+  Runtime/              Runtime modules, AE::Engine, GameModule and pure physics code
   Editor/               Editor-only ImGui modules
   ThirdParty/           Bundled headers/sources such as glm, imgui, lua and sol
   Content/              Reserved engine content
 Dependencies/           Local dependency checkouts; vcpkg itself is ignored
 Samples/                Runnable sample apps
+  GamesDemos/           Game-facing demos: GameEngineApp and PlatformerApp
+  PhysicsDemos/         Physics demos, shared physics sample renderer and content
 Tests/                  GoogleTest unit tests
 Content/                Game/project content used by GameEngineApp
 Tools/Setup/            Internal setup/build helper scripts
@@ -125,6 +129,23 @@ After `.\Setup.bat`, run apps from the project root or from the build output fol
 .\Builds\Editor\Samples\Debug\PlatformerApp.exe
 ```
 
+Sample source layout:
+
+```text
+Samples/GamesDemos/Game/                 GameEngineApp entrypoint
+Samples/GamesDemos/Platformer/           PlatformerApp source and sample content
+Samples/PhysicsDemos/PhysicsLab/         PhysicsLabApp source
+Samples/PhysicsDemos/ContainerSandbox/   ContainerSandboxApp source
+Samples/PhysicsDemos/AngryApp/           Legacy angry-birds style physics demo
+Samples/PhysicsDemos/Ragdoll/            Legacy ragdoll demo
+Samples/PhysicsDemos/Chain/              Legacy chain demo
+Samples/PhysicsDemos/SoftBody/           Legacy soft-body demo
+Samples/PhysicsDemos/FabricSimulation/   Legacy cloth/fabric demo
+Samples/PhysicsDemos/Common/             Shared legacy demo utilities
+Samples/PhysicsDemos/Renderer/SDL/       Shared SDL renderer for legacy physics demos
+Samples/PhysicsDemos/Content/            Shared physics demo assets
+```
+
 Useful smoke checks:
 
 ```powershell
@@ -143,9 +164,9 @@ Fullscreen controls:
 - `GameEngineApp.exe --fullscreen` starts in fullscreen desktop mode.
 - `GameEngineApp.exe --windowed` starts windowed.
 
-## Editor Build Flags
+## Build Flags
 
-AmberEngine has two Unreal-style build gates:
+AmberEngine uses Unreal-style compile gates through `Core/BuildConfig.h`:
 
 ```cpp
 #include "Core/BuildConfig.h"
@@ -157,9 +178,20 @@ AmberEngine has two Unreal-style build gates:
 #if WITH_EDITOR_ONLY_DATA
 // Runtime metadata that can be stripped from shipping builds.
 #endif
+
+#if SMOKE_TEST
+// Smoke-test-only code paths and executable modes.
+#endif
+
+#if C_UNIT_TEST
+// GoogleTest-only code.
+#endif
 ```
 
 `WITH_EDITOR` controls editor code and modules. `WITH_EDITOR_ONLY_DATA` controls editor metadata stored in runtime types.
+`SMOKE_TEST` is enabled by the sample and smoke-check targets that expose smoke modes.
+`C_UNIT_TEST` is enabled by the GoogleTest targets.
+All four macros default to `0` when a target does not define them.
 
 ## GitHub Hygiene
 
