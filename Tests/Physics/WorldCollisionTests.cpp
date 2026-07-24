@@ -1,3 +1,7 @@
+#include "Core/BuildConfig.h"
+
+#if C_UNIT_TEST
+
 #include <gtest/gtest.h>
 
 #include <cstdint>
@@ -384,3 +388,5 @@ TEST(WorldCollisionTests, ParallelNarrowPhaseMatchesSequentialContactCount)
 
     threadPool.SetWorkerCount(originalWorkerCount);
 }
+
+#endif

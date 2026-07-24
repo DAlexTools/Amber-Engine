@@ -1,3 +1,7 @@
+#include "Core/BuildConfig.h"
+
+#if C_UNIT_TEST
+
 #include "Logging/LogBus.h"
 #include "Logging/Logger.h"
 
@@ -41,3 +45,5 @@ TEST(LogBusTests, TrimsOldEntriesToLimit)
     AE::LogBus::SetMaxEntries(2000u);
     AE::LogBus::Clear();
 }
+
+#endif

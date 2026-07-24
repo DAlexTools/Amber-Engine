@@ -1,3 +1,7 @@
+#include "Core/BuildConfig.h"
+
+#if C_UNIT_TEST
+
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -60,3 +64,5 @@ TEST(Vector2DTests, RotatesUsingRadians)
     EXPECT_NEAR(up.x, 0.0f, 0.0001f);
     EXPECT_NEAR(up.y, 1.0f, 0.0001f);
 }
+
+#endif
