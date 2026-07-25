@@ -4,6 +4,7 @@
 #include <SDL2/SDL.h>
 
 #include <array>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -118,6 +119,35 @@ private:
         bool shootPressed = false;
     };
 
+    enum class EditorTool
+    {
+        Select,
+        Tile,
+        Erase,
+        Enemy,
+        Lift,
+        PlayerSpawn,
+        Goal
+    };
+
+    enum class EditorSelectionType
+    {
+        None,
+        Tile,
+        Enemy,
+        Lift,
+        PlayerSpawn,
+        Goal
+    };
+
+    struct EditorSelection
+    {
+        EditorSelectionType type = EditorSelectionType::None;
+        int x = 0;
+        int y = 0;
+        std::size_t index = 0;
+    };
+
     static constexpr int WindowWidth = 960;
     static constexpr int WindowHeight = 540;
     static constexpr int SourceTileSize = 16;
@@ -130,15 +160,35 @@ private:
     SDL_Renderer* renderer = nullptr;
     SDL_Texture* tilemapTexture = nullptr;
     bool imageSystemInitialized = false;
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+    bool imguiReady = false;
+#endif
     bool running = false;
     bool fullscreen = false;
     bool paused = false;
+    bool jumpKeyWasDown = false;
+    bool shootKeyWasDown = false;
+    bool pendingJumpPressed = false;
+    bool pendingShootPressed = false;
     float cameraX = 0.0f;
     float cameraY = 0.0f;
     float worldTime = 0.0f;
     float coyoteTimer = 0.0f;
     float jumpBufferTimer = 0.0f;
     float shootCooldownTimer = 0.0f;
+    bool forceDefaultMap = false;
+
+    bool editorMode = false;
+    bool editorShowGrid = true;
+    bool editorShowPalette = true;
+    bool editorMouseWasDown = false;
+    bool editorRightMouseWasDown = false;
+    bool editorWasPausedBeforeOpen = false;
+    int editorTool = static_cast<int>(EditorTool::Select);
+    int editorTileKind = static_cast<int>(TileKind::Solid);
+    int editorTileVisual = 160;
+    EditorSelection editorSelection;
+    std::string editorStatus;
 
     std::array<std::array<TileCell, LevelCols>, LevelRows> level;
     Player player;
@@ -152,10 +202,14 @@ private:
     bool LoadContent();
     void Shutdown();
     void ToggleFullscreen();
+    void ToggleEditorMode();
 
     void ResetGame();
     void ResetPlayer();
     void BuildLevel();
+    void BuildDefaultLevel();
+    bool LoadMap();
+    bool SaveMap() const;
     void SetTile(int x, int y, TileKind kind, int visual);
     void FillRectTiles(int x, int y, int width, int height, TileKind kind, int visual);
     void FillPlatform(int xStart, int xEnd, int y);
@@ -163,7 +217,11 @@ private:
     void AddSpikes(int xStart, int xEnd, int y);
     void AddCoinLine(int xStart, int xEnd, int y);
     void AddEnemy(int xTile, int platformY, int leftTile, int rightTile, float speed);
+    void AddEnemyAtWorld(float x, float y, float leftBound, float rightBound, float speed);
     void AddLift(float x, float y, Vec2 axis, float amplitude, float speed, float phase);
+    void AddLiftAtWorld(float x, float y, Vec2 axis, float width, float height, float amplitude, float speed, float phase);
+    void ClearGoalTiles();
+    void SetGoalTilesFromFinish();
 
     void PollEvents(InputState& input);
     void Step(float dt, const InputState& input);
@@ -190,6 +248,7 @@ private:
     static int ClampInt(int value, int minValue, int maxValue);
     static float ClampFloat(float value, float minValue, float maxValue);
     static float MoveTowardZero(float value, float amount);
+    const char* TileKindName(TileKind kind) const;
 
     void Render();
     void DrawBackground() const;
@@ -199,6 +258,20 @@ private:
     void DrawProjectiles() const;
     void DrawPlayer() const;
     void DrawHud() const;
+    void DrawEditorOverlay() const;
+    void DrawEditorTilePalette() const;
+    bool PickEditorPaletteTile(float logicalX, float logicalY, int& tileId) const;
+    TileKind GuessTileKindForVisual(int tileId) const;
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+    void BeginEditorFrame();
+    void RenderEditor();
+    void DrawEditorWindows();
+    void ApplyEditorMouse();
+    void SelectAtWorld(float worldX, float worldY);
+    void DeleteEditorSelection();
+    const char* EditorToolName(EditorTool tool) const;
+    const char* SelectionName() const;
+#endif
     void DrawTile(int tileId, float worldX, float worldY, int width = WorldTileSize, int height = WorldTileSize, bool flip = false) const;
     void DrawScreenTile(int tileId, int x, int y, int width = WorldTileSize, int height = WorldTileSize) const;
     void DrawWorldRect(const RectF& rect, SDL_Color color) const;

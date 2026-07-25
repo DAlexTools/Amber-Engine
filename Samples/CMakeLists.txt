@@ -51,6 +51,10 @@ if(SDL2_TARGET_FOUND)
             ${SDL2_LINK_TARGETS}
             ${SDL2_IMAGE_TARGET}
         )
+        if(TARGET ImGuiSDL)
+            target_compile_definitions(Platformer2App PRIVATE AMBER_ENABLE_PLATFORMER2_EDITOR)
+            target_link_libraries(Platformer2App PRIVATE ImGuiSDL)
+        endif()
         amber_target_folder(Platformer2App "Samples/GamesDemos/Platformer2")
         amber_add_header_tree(Platformer2App "${PLATFORMER2_DIR}")
         amber_group_sources(Platformer2App "${CMAKE_CURRENT_SOURCE_DIR}")

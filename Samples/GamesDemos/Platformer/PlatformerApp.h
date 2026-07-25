@@ -149,6 +149,10 @@ private:
 #endif
     bool fullscreen = false;
     bool paused = false;
+    bool jumpKeyWasDown = false;
+    bool shootKeyWasDown = false;
+    bool pendingJumpPressed = false;
+    bool pendingShootPressed = false;
     float cameraX = 0.0f;
     float coyoteTimer = 0.0f;
     float jumpBufferTimer = 0.0f;

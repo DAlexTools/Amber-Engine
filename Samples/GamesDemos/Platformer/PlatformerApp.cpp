@@ -191,6 +191,8 @@ int PlatformerApp::Run()
         {
             input.jumpPressed = false;
             input.shootPressed = false;
+            pendingJumpPressed = false;
+            pendingShootPressed = false;
         }
         lastUpdateMs = ElapsedMs(updateStart, SDL_GetPerformanceCounter());
 
@@ -954,6 +956,8 @@ void PlatformerApp::ResetLevel()
     }
     projectiles.clear();
     shootCooldownTimer = 0.0f;
+    pendingJumpPressed = false;
+    pendingShootPressed = false;
     BuildPhysicsScene();
     ResetPlayer();
 }
@@ -972,6 +976,9 @@ void PlatformerApp::ResetPlayer()
 
 void PlatformerApp::PollEvents(InputState& input)
 {
+    input.jumpPressed = false;
+    input.shootPressed = false;
+
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
@@ -1021,25 +1028,6 @@ void PlatformerApp::PollEvents(InputState& input)
                 case SDLK_p:
                     paused = !paused;
                     break;
-                case SDLK_a:
-                case SDLK_LEFT:
-                    input.moveLeft = true;
-                    break;
-                case SDLK_d:
-                case SDLK_RIGHT:
-                    input.moveRight = true;
-                    break;
-                case SDLK_w:
-                case SDLK_UP:
-                case SDLK_SPACE:
-                    input.jumpPressed = true;
-                    input.jumpHeld = true;
-                    break;
-                case SDLK_j:
-                case SDLK_LCTRL:
-                case SDLK_RCTRL:
-                    input.shootPressed = true;
-                    break;
                 case SDLK_r:
                     ResetLevel();
                     break;
@@ -1047,35 +1035,45 @@ void PlatformerApp::PollEvents(InputState& input)
                     break;
             }
         }
-        else if (event.type == SDL_KEYUP)
-        {
+    }
+
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
-            if (diagnostics.WantsKeyboard())
-            {
-                continue;
-            }
+    if (diagnostics.WantsKeyboard())
+    {
+        input = InputState{};
+        jumpKeyWasDown = false;
+        shootKeyWasDown = false;
+        pendingJumpPressed = false;
+        pendingShootPressed = false;
+        return;
+    }
 #endif
 
-            switch (event.key.keysym.sym)
-            {
-                case SDLK_a:
-                case SDLK_LEFT:
-                    input.moveLeft = false;
-                    break;
-                case SDLK_d:
-                case SDLK_RIGHT:
-                    input.moveRight = false;
-                    break;
-                case SDLK_w:
-                case SDLK_UP:
-                case SDLK_SPACE:
-                    input.jumpHeld = false;
-                    break;
-                default:
-                    break;
-            }
-        }
+    const Uint8* keys = SDL_GetKeyboardState(nullptr);
+    const bool jumpDown = keys[SDL_SCANCODE_W] != 0 ||
+        keys[SDL_SCANCODE_UP] != 0 ||
+        keys[SDL_SCANCODE_SPACE] != 0;
+    const bool shootDown = keys[SDL_SCANCODE_J] != 0 ||
+        keys[SDL_SCANCODE_LCTRL] != 0 ||
+        keys[SDL_SCANCODE_RCTRL] != 0;
+
+    input.moveLeft = keys[SDL_SCANCODE_A] != 0 || keys[SDL_SCANCODE_LEFT] != 0;
+    input.moveRight = keys[SDL_SCANCODE_D] != 0 || keys[SDL_SCANCODE_RIGHT] != 0;
+    if (jumpDown && !jumpKeyWasDown)
+    {
+        pendingJumpPressed = true;
     }
+    if (shootDown && !shootKeyWasDown)
+    {
+        pendingShootPressed = true;
+    }
+
+    input.jumpPressed = pendingJumpPressed;
+    input.jumpHeld = jumpDown;
+    input.shootPressed = pendingShootPressed;
+
+    jumpKeyWasDown = jumpDown;
+    shootKeyWasDown = shootDown;
 }
 
 void PlatformerApp::Step(float dt, const InputState& input)

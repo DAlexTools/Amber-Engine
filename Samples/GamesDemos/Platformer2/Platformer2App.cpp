@@ -6,8 +6,15 @@
 #include <array>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sstream>
+
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+#include "imgui.h"
+#include "imgui_impl_sdl.h"
+#include "imgui_sdl.h"
+#endif
 
 namespace
 {
@@ -90,6 +97,56 @@ namespace
         return {};
     }
 
+    std::filesystem::path FindPlatformer2ContentRoot()
+    {
+        namespace fs = std::filesystem;
+
+        const fs::path relativePath = fs::path("Samples") / "GamesDemos" / "Platformer2" / "Content";
+        const std::array<fs::path, 10> candidateRoots = {
+            fs::current_path(),
+            fs::current_path() / "AmberEngine",
+            fs::current_path() / "..",
+            fs::current_path() / ".." / "..",
+            fs::current_path() / ".." / ".." / "..",
+            fs::current_path() / ".." / ".." / ".." / "..",
+            fs::current_path() / ".." / "AmberEngine",
+            fs::current_path() / ".." / ".." / "AmberEngine",
+            fs::current_path() / ".." / ".." / ".." / "AmberEngine",
+            fs::current_path() / ".." / ".." / ".." / ".." / "AmberEngine"
+        };
+
+        for (const fs::path& root : candidateRoots)
+        {
+            const fs::path candidate = root / relativePath;
+            std::error_code error;
+            if (fs::exists(candidate, error) && fs::is_directory(candidate, error))
+            {
+                return fs::weakly_canonical(candidate, error);
+            }
+        }
+
+        return {};
+    }
+
+    std::filesystem::path Platformer2MapPath()
+    {
+        namespace fs = std::filesystem;
+
+        const fs::path existingMap = FindPlatformer2Asset(fs::path("Maps") / "Platformer2Level.txt");
+        if (!existingMap.empty())
+        {
+            return existingMap;
+        }
+
+        const fs::path contentRoot = FindPlatformer2ContentRoot();
+        if (!contentRoot.empty())
+        {
+            return contentRoot / "Maps" / "Platformer2Level.txt";
+        }
+
+        return fs::current_path() / "Samples" / "GamesDemos" / "Platformer2" / "Content" / "Maps" / "Platformer2Level.txt";
+    }
+
     bool IsFullscreenToggleKey(const SDL_KeyboardEvent& keyEvent)
     {
         const SDL_Keycode key = keyEvent.keysym.sym;
@@ -125,15 +182,22 @@ int Platformer2App::Run()
 
         PollEvents(input);
         InputState stepInput = input;
+        bool stepped = false;
         while (!paused && accumulator >= FixedTimeStep)
         {
             Step(FixedTimeStep, stepInput);
             stepInput.jumpPressed = false;
             stepInput.shootPressed = false;
             accumulator -= FixedTimeStep;
+            stepped = true;
         }
-        input.jumpPressed = false;
-        input.shootPressed = false;
+        if (stepped)
+        {
+            input.jumpPressed = false;
+            input.shootPressed = false;
+            pendingJumpPressed = false;
+            pendingShootPressed = false;
+        }
 
         Render();
     }
@@ -145,6 +209,7 @@ int Platformer2App::Run()
 #if SMOKE_TEST
 bool Platformer2App::RunSmokeTest()
 {
+    forceDefaultMap = true;
     ResetGame();
 
     const float startX = player.position.x;
@@ -237,6 +302,7 @@ bool Platformer2App::RunSmokeTest()
             << std::endl;
     }
 
+    forceDefaultMap = false;
     return passed;
 }
 #endif
@@ -288,6 +354,14 @@ bool Platformer2App::Initialize()
 
     SDL_RenderSetLogicalSize(renderer, WindowWidth, WindowHeight);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+    ImGui_ImplSDL2_InitForD3D(window);
+    ImGuiSDL::Initialize(renderer, WindowWidth, WindowHeight);
+    imguiReady = true;
+#endif
     if (!LoadContent())
     {
         Shutdown();
@@ -334,6 +408,15 @@ void Platformer2App::Shutdown()
         SDL_DestroyTexture(tilemapTexture);
         tilemapTexture = nullptr;
     }
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+    if (imguiReady)
+    {
+        ImGuiSDL::Deinitialize();
+        ImGui_ImplSDL2_Shutdown();
+        ImGui::DestroyContext();
+        imguiReady = false;
+    }
+#endif
     if (renderer)
     {
         SDL_DestroyRenderer(renderer);
@@ -363,6 +446,25 @@ void Platformer2App::ToggleFullscreen()
     SDL_SetWindowFullscreen(window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
 }
 
+void Platformer2App::ToggleEditorMode()
+{
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+    editorMode = !editorMode;
+    if (editorMode)
+    {
+        editorWasPausedBeforeOpen = paused;
+        paused = true;
+        editorStatus = "Editor opened";
+    }
+    else
+    {
+        paused = editorWasPausedBeforeOpen;
+        editorSelection = EditorSelection{};
+        editorStatus = "Editor closed";
+    }
+#endif
+}
+
 void Platformer2App::ResetGame()
 {
     BuildLevel();
@@ -371,6 +473,8 @@ void Platformer2App::ResetGame()
     coyoteTimer = 0.0f;
     jumpBufferTimer = 0.0f;
     shootCooldownTimer = 0.0f;
+    pendingJumpPressed = false;
+    pendingShootPressed = false;
     projectiles.clear();
     ResetPlayer();
     player.won = false;
@@ -390,6 +494,16 @@ void Platformer2App::ResetPlayer()
 }
 
 void Platformer2App::BuildLevel()
+{
+    if (!forceDefaultMap && LoadMap())
+    {
+        return;
+    }
+
+    BuildDefaultLevel();
+}
+
+void Platformer2App::BuildDefaultLevel()
 {
     for (auto& row : level)
     {
@@ -460,6 +574,135 @@ void Platformer2App::BuildLevel()
     AddEnemy(100, 13, 92, 103, 78.0f);
 }
 
+bool Platformer2App::LoadMap()
+{
+    const std::filesystem::path mapPath = Platformer2MapPath();
+    std::ifstream input(mapPath);
+    if (!input)
+    {
+        return false;
+    }
+
+    for (auto& row : level)
+    {
+        for (TileCell& cell : row)
+        {
+            cell = TileCell{};
+        }
+    }
+    enemies.clear();
+    lifts.clear();
+    projectiles.clear();
+    finish = RectF{114.0f * WorldTileSize, 15.0f * WorldTileSize, 2.0f * WorldTileSize, 2.0f * WorldTileSize};
+    playerSpawn = Vec2{2.0f * WorldTileSize, 19.0f * WorldTileSize - player.height};
+
+    std::string line;
+    while (std::getline(input, line))
+    {
+        if (line.empty() || line[0] == '#')
+        {
+            continue;
+        }
+
+        std::istringstream stream(line);
+        std::string token;
+        stream >> token;
+        if (token == "tile")
+        {
+            int x = 0;
+            int y = 0;
+            std::string kindToken;
+            int visual = -1;
+            stream >> x >> y >> kindToken >> visual;
+
+            TileKind kind = TileKind::Empty;
+            if (kindToken == "Solid") kind = TileKind::Solid;
+            else if (kindToken == "Ladder") kind = TileKind::Ladder;
+            else if (kindToken == "Spike") kind = TileKind::Spike;
+            else if (kindToken == "Coin") kind = TileKind::Coin;
+            else if (kindToken == "Goal") kind = TileKind::Goal;
+            else if (kindToken == "Decor") kind = TileKind::Decor;
+
+            SetTile(x, y, kind, visual);
+        }
+        else if (token == "enemy")
+        {
+            Enemy enemy;
+            stream >> enemy.spawnPosition.x >> enemy.spawnPosition.y >> enemy.leftBound >> enemy.rightBound >>
+                enemy.speed >> enemy.health;
+            enemy.position = enemy.spawnPosition;
+            enemy.velocity = Vec2{};
+            enemies.push_back(enemy);
+        }
+        else if (token == "lift")
+        {
+            Lift lift;
+            stream >> lift.basePosition.x >> lift.basePosition.y >> lift.axis.x >> lift.axis.y >>
+                lift.width >> lift.height >> lift.amplitude >> lift.speed >> lift.phase;
+            lift.previousPosition = lift.basePosition;
+            lift.position = lift.basePosition;
+            lifts.push_back(lift);
+        }
+        else if (token == "player")
+        {
+            stream >> playerSpawn.x >> playerSpawn.y;
+        }
+        else if (token == "finish")
+        {
+            stream >> finish.x >> finish.y >> finish.w >> finish.h;
+        }
+    }
+
+    editorStatus = "Loaded " + mapPath.string();
+    return true;
+}
+
+bool Platformer2App::SaveMap() const
+{
+    const std::filesystem::path mapPath = Platformer2MapPath();
+    std::error_code error;
+    std::filesystem::create_directories(mapPath.parent_path(), error);
+
+    std::ofstream output(mapPath);
+    if (!output)
+    {
+        return false;
+    }
+
+    output << "# Platformer2 map\n";
+    output << "version 1\n";
+    output << "player " << playerSpawn.x << ' ' << playerSpawn.y << '\n';
+    output << "finish " << finish.x << ' ' << finish.y << ' ' << finish.w << ' ' << finish.h << '\n';
+
+    for (int y = 0; y < LevelRows; ++y)
+    {
+        for (int x = 0; x < LevelCols; ++x)
+        {
+            const TileCell& cell = level[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)];
+            if (cell.kind == TileKind::Empty)
+            {
+                continue;
+            }
+            output << "tile " << x << ' ' << y << ' ' << TileKindName(cell.kind) << ' ' << cell.visual << '\n';
+        }
+    }
+
+    for (const Enemy& enemy : enemies)
+    {
+        output << "enemy " << enemy.spawnPosition.x << ' ' << enemy.spawnPosition.y << ' ' <<
+            enemy.leftBound << ' ' << enemy.rightBound << ' ' << enemy.speed << ' ' << std::max(1, enemy.health) << '\n';
+    }
+
+    for (const Lift& lift : lifts)
+    {
+        output << "lift " << lift.basePosition.x << ' ' << lift.basePosition.y << ' ' <<
+            lift.axis.x << ' ' << lift.axis.y << ' ' << lift.width << ' ' << lift.height << ' ' <<
+            lift.amplitude << ' ' << lift.speed << ' ' << lift.phase << '\n';
+    }
+
+    return true;
+}
+
 void Platformer2App::SetTile(int x, int y, TileKind kind, int visual)
 {
     if (x < 0 || x >= LevelCols || y < 0 || y >= LevelRows)
@@ -524,11 +767,21 @@ void Platformer2App::AddCoinLine(int xStart, int xEnd, int y)
 
 void Platformer2App::AddEnemy(int xTile, int platformY, int leftTile, int rightTile, float speed)
 {
+    AddEnemyAtWorld(
+        xTile * static_cast<float>(WorldTileSize),
+        platformY * static_cast<float>(WorldTileSize) - 28.0f,
+        leftTile * static_cast<float>(WorldTileSize),
+        rightTile * static_cast<float>(WorldTileSize),
+        speed);
+}
+
+void Platformer2App::AddEnemyAtWorld(float x, float y, float leftBound, float rightBound, float speed)
+{
     Enemy enemy;
-    enemy.spawnPosition = Vec2{xTile * static_cast<float>(WorldTileSize), platformY * static_cast<float>(WorldTileSize) - enemy.height};
+    enemy.spawnPosition = Vec2{x, y};
     enemy.position = enemy.spawnPosition;
-    enemy.leftBound = leftTile * static_cast<float>(WorldTileSize);
-    enemy.rightBound = rightTile * static_cast<float>(WorldTileSize);
+    enemy.leftBound = std::min(leftBound, rightBound - enemy.width);
+    enemy.rightBound = std::max(rightBound, enemy.leftBound + enemy.width);
     enemy.speed = speed;
     enemy.facing = -1;
     enemies.push_back(enemy);
@@ -536,15 +789,48 @@ void Platformer2App::AddEnemy(int xTile, int platformY, int leftTile, int rightT
 
 void Platformer2App::AddLift(float x, float y, Vec2 axis, float amplitude, float speed, float phase)
 {
+    AddLiftAtWorld(x, y, axis, 96.0f, 16.0f, amplitude, speed, phase);
+}
+
+void Platformer2App::AddLiftAtWorld(float x, float y, Vec2 axis, float width, float height, float amplitude, float speed, float phase)
+{
     Lift lift;
     lift.basePosition = Vec2{x, y};
     lift.previousPosition = lift.basePosition;
     lift.position = lift.basePosition;
     lift.axis = axis;
+    lift.width = width;
+    lift.height = height;
     lift.amplitude = amplitude;
     lift.speed = speed;
     lift.phase = phase;
     lifts.push_back(lift);
+}
+
+void Platformer2App::ClearGoalTiles()
+{
+    for (auto& row : level)
+    {
+        for (TileCell& cell : row)
+        {
+            if (cell.kind == TileKind::Goal)
+            {
+                cell = TileCell{};
+            }
+        }
+    }
+}
+
+void Platformer2App::SetGoalTilesFromFinish()
+{
+    ClearGoalTiles();
+    const int x = ClampInt(static_cast<int>(std::floor(finish.x / WorldTileSize)), 0, LevelCols - 2);
+    const int y = ClampInt(static_cast<int>(std::floor(finish.y / WorldTileSize)), 0, LevelRows - 2);
+    finish = RectF{x * static_cast<float>(WorldTileSize), y * static_cast<float>(WorldTileSize), 2.0f * WorldTileSize, 2.0f * WorldTileSize};
+    SetTile(x, y, TileKind::Goal, TileDoorTopLeft);
+    SetTile(x + 1, y, TileKind::Goal, TileDoorTopRight);
+    SetTile(x, y + 1, TileKind::Goal, TileDoorBottomLeft);
+    SetTile(x + 1, y + 1, TileKind::Goal, TileDoorBottomRight);
 }
 
 void Platformer2App::PollEvents(InputState& input)
@@ -555,12 +841,25 @@ void Platformer2App::PollEvents(InputState& input)
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+        if (imguiReady)
+        {
+            ImGui_ImplSDL2_ProcessEvent(&event);
+        }
+#endif
         if (event.type == SDL_QUIT)
         {
             running = false;
         }
         else if (event.type == SDL_KEYDOWN)
         {
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+            if (!event.key.repeat && event.key.keysym.sym == SDLK_F1)
+            {
+                ToggleEditorMode();
+                continue;
+            }
+#endif
             if (IsFullscreenToggleKey(event.key))
             {
                 ToggleFullscreen();
@@ -573,30 +872,55 @@ void Platformer2App::PollEvents(InputState& input)
             else if (event.key.keysym.sym == SDLK_r)
             {
                 ResetGame();
+                pendingJumpPressed = false;
+                pendingShootPressed = false;
             }
             else if (event.key.keysym.sym == SDLK_p)
             {
                 paused = !paused;
             }
-            else if (!event.key.repeat && (event.key.keysym.sym == SDLK_SPACE ||
-                event.key.keysym.sym == SDLK_w || event.key.keysym.sym == SDLK_UP))
-            {
-                input.jumpPressed = true;
-            }
-            else if (!event.key.repeat && (event.key.keysym.sym == SDLK_j ||
-                event.key.keysym.sym == SDLK_LCTRL || event.key.keysym.sym == SDLK_RCTRL))
-            {
-                input.shootPressed = true;
-            }
         }
     }
 
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+    if (editorMode)
+    {
+        input = InputState{};
+        jumpKeyWasDown = false;
+        shootKeyWasDown = false;
+        pendingJumpPressed = false;
+        pendingShootPressed = false;
+        return;
+    }
+#endif
+
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
+    const bool climbUpDown = keys[SDL_SCANCODE_W] != 0 || keys[SDL_SCANCODE_UP] != 0;
+    const bool ladderOverlap = IsKindInRect(PlayerRect(), TileKind::Ladder);
+    const bool jumpDown = keys[SDL_SCANCODE_SPACE] != 0 || (climbUpDown && !ladderOverlap);
+    const bool shootDown = keys[SDL_SCANCODE_J] != 0 ||
+        keys[SDL_SCANCODE_LCTRL] != 0 ||
+        keys[SDL_SCANCODE_RCTRL] != 0;
+
     input.moveLeft = keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT];
     input.moveRight = keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT];
-    input.climbUp = keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP];
+    input.climbUp = climbUpDown;
     input.climbDown = keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN];
-    input.jumpHeld = keys[SDL_SCANCODE_SPACE] || keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP];
+    if (jumpDown && !jumpKeyWasDown)
+    {
+        pendingJumpPressed = true;
+    }
+    if (shootDown && !shootKeyWasDown)
+    {
+        pendingShootPressed = true;
+    }
+
+    input.jumpPressed = pendingJumpPressed;
+    input.jumpHeld = jumpDown;
+    input.shootPressed = pendingShootPressed;
+
+    jumpKeyWasDown = jumpDown;
+    shootKeyWasDown = shootDown;
 }
 
 void Platformer2App::Step(float dt, const InputState& input)
@@ -1155,6 +1479,20 @@ float Platformer2App::MoveTowardZero(float value, float amount)
     return 0.0f;
 }
 
+const char* Platformer2App::TileKindName(TileKind kind) const
+{
+    switch (kind)
+    {
+        case TileKind::Solid: return "Solid";
+        case TileKind::Ladder: return "Ladder";
+        case TileKind::Spike: return "Spike";
+        case TileKind::Coin: return "Coin";
+        case TileKind::Goal: return "Goal";
+        case TileKind::Decor: return "Decor";
+        default: return "Empty";
+    }
+}
+
 void Platformer2App::Render()
 {
     DrawBackground();
@@ -1163,7 +1501,14 @@ void Platformer2App::Render()
     DrawProjectiles();
     DrawEnemies();
     DrawPlayer();
-    DrawHud();
+    if (!editorMode)
+    {
+        DrawHud();
+    }
+    DrawEditorOverlay();
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+    RenderEditor();
+#endif
     SDL_RenderPresent(renderer);
 }
 
@@ -1293,6 +1638,607 @@ void Platformer2App::DrawHud() const
         }
     }
 }
+
+void Platformer2App::DrawEditorOverlay() const
+{
+    if (!editorMode)
+    {
+        return;
+    }
+
+    if (editorShowGrid)
+    {
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 42);
+        const int firstCol = ClampInt(static_cast<int>(std::floor(cameraX / WorldTileSize)), 0, LevelCols - 1);
+        const int lastCol = ClampInt(static_cast<int>(std::ceil((cameraX + WindowWidth) / WorldTileSize)) + 1, 0, LevelCols);
+        const int firstRow = ClampInt(static_cast<int>(std::floor(cameraY / WorldTileSize)), 0, LevelRows - 1);
+        const int lastRow = ClampInt(static_cast<int>(std::ceil((cameraY + WindowHeight) / WorldTileSize)) + 1, 0, LevelRows);
+
+        for (int x = firstCol; x <= lastCol; ++x)
+        {
+            const int screenX = RoundToInt(x * static_cast<float>(WorldTileSize) - cameraX);
+            SDL_RenderDrawLine(renderer, screenX, 0, screenX, WindowHeight);
+        }
+        for (int y = firstRow; y <= lastRow; ++y)
+        {
+            const int screenY = RoundToInt(y * static_cast<float>(WorldTileSize) - cameraY);
+            SDL_RenderDrawLine(renderer, 0, screenY, WindowWidth, screenY);
+        }
+    }
+
+    if (editorSelection.type == EditorSelectionType::Tile)
+    {
+        DrawWorldRect(
+            RectF{
+                editorSelection.x * static_cast<float>(WorldTileSize),
+                editorSelection.y * static_cast<float>(WorldTileSize),
+                static_cast<float>(WorldTileSize),
+                static_cast<float>(WorldTileSize)
+            },
+            SDL_Color{255, 255, 255, 72});
+    }
+    else if (editorSelection.type == EditorSelectionType::Enemy && editorSelection.index < enemies.size())
+    {
+        DrawWorldRect(EnemyRect(enemies[editorSelection.index]), SDL_Color{255, 220, 80, 88});
+    }
+    else if (editorSelection.type == EditorSelectionType::Lift && editorSelection.index < lifts.size())
+    {
+        DrawWorldRect(LiftRect(lifts[editorSelection.index]), SDL_Color{80, 180, 255, 88});
+    }
+    else if (editorSelection.type == EditorSelectionType::PlayerSpawn)
+    {
+        DrawWorldRect(RectF{playerSpawn.x, playerSpawn.y, player.width, player.height}, SDL_Color{80, 255, 150, 88});
+    }
+    else if (editorSelection.type == EditorSelectionType::Goal)
+    {
+        DrawWorldRect(finish, SDL_Color{255, 255, 80, 88});
+    }
+
+    DrawEditorTilePalette();
+}
+
+void Platformer2App::DrawEditorTilePalette() const
+{
+    if (!editorMode || !editorShowPalette || !tilemapTexture)
+    {
+        return;
+    }
+
+    const int tileDisplaySize = SourceTileSize;
+    const int paletteColumns = SheetColumns;
+    const int paletteRows = 20;
+    const int paletteWidth = paletteColumns * tileDisplaySize;
+    const int paletteHeight = paletteRows * tileDisplaySize;
+    const int paletteX = (WindowWidth - paletteWidth) / 2;
+    const int paletteY = 14;
+
+    DrawScreenRect(
+        paletteX - 8,
+        paletteY - 8,
+        paletteWidth + 16,
+        paletteHeight + 16,
+        SDL_Color{0, 0, 0, 190});
+
+    for (int tileId = 0; tileId < paletteColumns * paletteRows; ++tileId)
+    {
+        const SDL_Rect source{
+            (tileId % SheetColumns) * SourceTileSize,
+            (tileId / SheetColumns) * SourceTileSize,
+            SourceTileSize,
+            SourceTileSize
+        };
+        const SDL_Rect destination{
+            paletteX + (tileId % paletteColumns) * tileDisplaySize,
+            paletteY + (tileId / paletteColumns) * tileDisplaySize,
+            tileDisplaySize,
+            tileDisplaySize
+        };
+        SDL_RenderCopy(renderer, tilemapTexture, &source, &destination);
+    }
+
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 70);
+    const SDL_Rect paletteBorder{paletteX - 1, paletteY - 1, paletteWidth + 2, paletteHeight + 2};
+    SDL_RenderDrawRect(renderer, &paletteBorder);
+
+    if (editorTileVisual >= 0 && editorTileVisual < paletteColumns * paletteRows)
+    {
+        const SDL_Rect selected{
+            paletteX + (editorTileVisual % paletteColumns) * tileDisplaySize - 2,
+            paletteY + (editorTileVisual / paletteColumns) * tileDisplaySize - 2,
+            tileDisplaySize + 4,
+            tileDisplaySize + 4
+        };
+        SDL_SetRenderDrawColor(renderer, 255, 216, 80, 255);
+        SDL_RenderDrawRect(renderer, &selected);
+
+        const int previewX = paletteX;
+        const int previewY = paletteY + paletteHeight + 12;
+        DrawScreenRect(previewX - 4, previewY - 4, 72, 72, SDL_Color{0, 0, 0, 190});
+        DrawScreenTile(editorTileVisual, previewX, previewY, 64, 64);
+        SDL_SetRenderDrawColor(renderer, 255, 216, 80, 180);
+        const SDL_Rect previewBorder{previewX - 4, previewY - 4, 72, 72};
+        SDL_RenderDrawRect(renderer, &previewBorder);
+    }
+}
+
+bool Platformer2App::PickEditorPaletteTile(float logicalX, float logicalY, int& tileId) const
+{
+    if (!editorMode || !editorShowPalette)
+    {
+        return false;
+    }
+
+    const int tileDisplaySize = SourceTileSize;
+    const int paletteColumns = SheetColumns;
+    const int paletteRows = 20;
+    const int paletteWidth = paletteColumns * tileDisplaySize;
+    const int paletteHeight = paletteRows * tileDisplaySize;
+    const int paletteX = (WindowWidth - paletteWidth) / 2;
+    const int paletteY = 14;
+
+    if (logicalX < paletteX || logicalX >= paletteX + paletteWidth ||
+        logicalY < paletteY || logicalY >= paletteY + paletteHeight)
+    {
+        return false;
+    }
+
+    const int col = ClampInt(static_cast<int>((logicalX - paletteX) / tileDisplaySize), 0, paletteColumns - 1);
+    const int row = ClampInt(static_cast<int>((logicalY - paletteY) / tileDisplaySize), 0, paletteRows - 1);
+    tileId = row * paletteColumns + col;
+    return true;
+}
+
+Platformer2App::TileKind Platformer2App::GuessTileKindForVisual(int tileId) const
+{
+    if (tileId == TileLadder || tileId == 81 || tileId == 100 || tileId == 101 || tileId == 120 || tileId == 121)
+    {
+        return TileKind::Ladder;
+    }
+    if (tileId == TileSpike || tileId == 184)
+    {
+        return TileKind::Spike;
+    }
+    if (tileId >= TileCoin && tileId <= TileCoin + 2)
+    {
+        return TileKind::Coin;
+    }
+    if (tileId == TileDoorTopLeft || tileId == TileDoorTopRight ||
+        tileId == TileDoorBottomLeft || tileId == TileDoorBottomRight)
+    {
+        return TileKind::Goal;
+    }
+    if (tileId >= 14 && tileId <= 19)
+    {
+        return TileKind::Decor;
+    }
+
+    return TileKind::Solid;
+}
+
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+void Platformer2App::BeginEditorFrame()
+{
+    if (!imguiReady)
+    {
+        return;
+    }
+
+    ImGui_ImplSDL2_NewFrame(window);
+    ImGuiSDL::ApplyLogicalDisplaySize(window, renderer, WindowWidth, WindowHeight);
+    ImGui::NewFrame();
+}
+
+void Platformer2App::RenderEditor()
+{
+    if (!imguiReady)
+    {
+        return;
+    }
+
+    BeginEditorFrame();
+    if (editorMode)
+    {
+        DrawEditorWindows();
+        ApplyEditorMouse();
+    }
+    else
+    {
+        ImGui::SetNextWindowPos(ImVec2(16.0f, 64.0f), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Platformer2", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
+        ImGui::Text("F1: Map Editor");
+        ImGui::End();
+    }
+
+    ImGui::Render();
+    ImGuiSDL::Render(ImGui::GetDrawData());
+}
+
+void Platformer2App::DrawEditorWindows()
+{
+    ImGui::SetNextWindowPos(ImVec2(12.0f, 72.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(280.0f, 430.0f), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Map Editor");
+
+    if (ImGui::Button("Save"))
+    {
+        editorStatus = SaveMap() ? "Saved map" : "Save failed";
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load"))
+    {
+        if (LoadMap())
+        {
+            ResetPlayer();
+            editorStatus = "Loaded map";
+        }
+        else
+        {
+            editorStatus = "Load failed";
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Default"))
+    {
+        BuildDefaultLevel();
+        ResetPlayer();
+        editorStatus = "Default level restored";
+    }
+
+    if (ImGui::Button(editorWasPausedBeforeOpen ? "Resume On Close" : "Stay Paused On Close"))
+    {
+        editorWasPausedBeforeOpen = !editorWasPausedBeforeOpen;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Play From Here"))
+    {
+        editorMode = false;
+        paused = false;
+        editorSelection = EditorSelection{};
+    }
+
+    ImGui::Checkbox("Grid", &editorShowGrid);
+    ImGui::Checkbox("Tileset Palette", &editorShowPalette);
+    ImGui::SliderFloat("Camera X", &cameraX, 0.0f, std::max(0.0f, LevelCols * static_cast<float>(WorldTileSize) - WindowWidth));
+    ImGui::SliderFloat("Camera Y", &cameraY, 0.0f, std::max(0.0f, LevelRows * static_cast<float>(WorldTileSize) - WindowHeight));
+
+    const char* tools[] = {"Select", "Tile", "Erase", "Enemy", "Lift", "Player Spawn", "Goal"};
+    ImGui::Combo("Tool", &editorTool, tools, IM_ARRAYSIZE(tools));
+
+    const char* tileKinds[] = {"Empty", "Solid", "Ladder", "Spike", "Coin", "Goal", "Decor"};
+    ImGui::Combo("Tile Kind", &editorTileKind, tileKinds, IM_ARRAYSIZE(tileKinds));
+    ImGui::SliderInt("Tile ID", &editorTileVisual, 0, 399);
+    ImGui::Text("Selected: %s / tile_%04d", TileKindName(static_cast<TileKind>(editorTileKind)), editorTileVisual);
+    if (ImGui::Button("Use solid"))
+    {
+        editorTileKind = static_cast<int>(TileKind::Solid);
+        editorTileVisual = TileGroundMiddle;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Use ladder"))
+    {
+        editorTileKind = static_cast<int>(TileKind::Ladder);
+        editorTileVisual = TileLadder;
+    }
+    if (ImGui::Button("Use spike"))
+    {
+        editorTileKind = static_cast<int>(TileKind::Spike);
+        editorTileVisual = TileSpike;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Use coin"))
+    {
+        editorTileKind = static_cast<int>(TileKind::Coin);
+        editorTileVisual = TileCoin;
+    }
+
+    if (!editorStatus.empty())
+    {
+        ImGui::Separator();
+        ImGui::TextWrapped("%s", editorStatus.c_str());
+    }
+    ImGui::End();
+
+    ImGui::SetNextWindowPos(ImVec2(WindowWidth - 310.0f, 72.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(292.0f, 430.0f), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Scene Outliner");
+
+    if (ImGui::Selectable("Player Spawn", editorSelection.type == EditorSelectionType::PlayerSpawn))
+    {
+        editorSelection = EditorSelection{EditorSelectionType::PlayerSpawn};
+    }
+    if (ImGui::Selectable("Goal", editorSelection.type == EditorSelectionType::Goal))
+    {
+        editorSelection = EditorSelection{EditorSelectionType::Goal};
+    }
+
+    if (ImGui::TreeNode("Enemies"))
+    {
+        for (std::size_t i = 0; i < enemies.size(); ++i)
+        {
+            std::string label = "Enemy " + std::to_string(i);
+            if (ImGui::Selectable(label.c_str(), editorSelection.type == EditorSelectionType::Enemy && editorSelection.index == i))
+            {
+                editorSelection = EditorSelection{EditorSelectionType::Enemy, 0, 0, i};
+            }
+        }
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNode("Lifts"))
+    {
+        for (std::size_t i = 0; i < lifts.size(); ++i)
+        {
+            std::string label = "Lift " + std::to_string(i);
+            if (ImGui::Selectable(label.c_str(), editorSelection.type == EditorSelectionType::Lift && editorSelection.index == i))
+            {
+                editorSelection = EditorSelection{EditorSelectionType::Lift, 0, 0, i};
+            }
+        }
+        ImGui::TreePop();
+    }
+
+    if (editorSelection.type != EditorSelectionType::None)
+    {
+        ImGui::Separator();
+        ImGui::Text("Selection: %s", SelectionName());
+        if (ImGui::Button("Delete"))
+        {
+            DeleteEditorSelection();
+        }
+    }
+
+    ImGui::Separator();
+    if (editorSelection.type == EditorSelectionType::Tile &&
+        editorSelection.x >= 0 && editorSelection.x < LevelCols &&
+        editorSelection.y >= 0 && editorSelection.y < LevelRows)
+    {
+        TileCell& cell = level[static_cast<std::size_t>(editorSelection.y)][static_cast<std::size_t>(editorSelection.x)];
+        int kind = static_cast<int>(cell.kind);
+        int visual = cell.visual;
+        ImGui::Text("Tile: %d, %d", editorSelection.x, editorSelection.y);
+        if (ImGui::Combo("Kind", &kind, tileKinds, IM_ARRAYSIZE(tileKinds)))
+        {
+            cell.kind = static_cast<TileKind>(kind);
+        }
+        if (ImGui::InputInt("Visual", &visual))
+        {
+            cell.visual = ClampInt(visual, -1, 399);
+        }
+    }
+    else if (editorSelection.type == EditorSelectionType::Enemy && editorSelection.index < enemies.size())
+    {
+        Enemy& enemy = enemies[editorSelection.index];
+        ImGui::InputFloat("X", &enemy.spawnPosition.x);
+        ImGui::InputFloat("Y", &enemy.spawnPosition.y);
+        ImGui::InputFloat("Left", &enemy.leftBound);
+        ImGui::InputFloat("Right", &enemy.rightBound);
+        ImGui::InputFloat("Speed", &enemy.speed);
+        ImGui::InputInt("Health", &enemy.health);
+        if (ImGui::Button("Move live to spawn"))
+        {
+            enemy.position = enemy.spawnPosition;
+            enemy.velocity = Vec2{};
+            enemy.alive = true;
+        }
+    }
+    else if (editorSelection.type == EditorSelectionType::Lift && editorSelection.index < lifts.size())
+    {
+        Lift& lift = lifts[editorSelection.index];
+        ImGui::InputFloat("X", &lift.basePosition.x);
+        ImGui::InputFloat("Y", &lift.basePosition.y);
+        ImGui::InputFloat("Axis X", &lift.axis.x);
+        ImGui::InputFloat("Axis Y", &lift.axis.y);
+        ImGui::InputFloat("Width", &lift.width);
+        ImGui::InputFloat("Height", &lift.height);
+        ImGui::InputFloat("Amplitude", &lift.amplitude);
+        ImGui::InputFloat("Speed", &lift.speed);
+        ImGui::InputFloat("Phase", &lift.phase);
+        lift.position = lift.basePosition;
+        lift.previousPosition = lift.position;
+    }
+    else if (editorSelection.type == EditorSelectionType::PlayerSpawn)
+    {
+        ImGui::InputFloat("Spawn X", &playerSpawn.x);
+        ImGui::InputFloat("Spawn Y", &playerSpawn.y);
+        if (ImGui::Button("Move player here"))
+        {
+            ResetPlayer();
+        }
+    }
+    else if (editorSelection.type == EditorSelectionType::Goal)
+    {
+        ImGui::InputFloat("Goal X", &finish.x);
+        ImGui::InputFloat("Goal Y", &finish.y);
+        if (ImGui::Button("Snap goal tiles"))
+        {
+            SetGoalTilesFromFinish();
+        }
+    }
+
+    ImGui::End();
+}
+
+void Platformer2App::ApplyEditorMouse()
+{
+    const ImGuiIO& io = ImGui::GetIO();
+    int mouseX = 0;
+    int mouseY = 0;
+    const Uint32 mouseButtons = SDL_GetMouseState(&mouseX, &mouseY);
+    float logicalX = static_cast<float>(mouseX);
+    float logicalY = static_cast<float>(mouseY);
+    SDL_RenderWindowToLogical(renderer, mouseX, mouseY, &logicalX, &logicalY);
+
+    const bool mouseDown = (mouseButtons & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
+    const bool rightMouseDown = (mouseButtons & SDL_BUTTON(SDL_BUTTON_RIGHT)) != 0;
+    const bool mousePressed = mouseDown && !editorMouseWasDown;
+    const bool rightMousePressed = rightMouseDown && !editorRightMouseWasDown;
+    bool consumedByPalette = false;
+
+    if (!io.WantCaptureMouse && mousePressed)
+    {
+        int pickedTile = -1;
+        if (PickEditorPaletteTile(logicalX, logicalY, pickedTile))
+        {
+            editorTileVisual = pickedTile;
+            editorTileKind = static_cast<int>(GuessTileKindForVisual(pickedTile));
+            editorTool = static_cast<int>(EditorTool::Tile);
+            editorStatus = "Selected tile_" + std::to_string(pickedTile);
+            consumedByPalette = true;
+        }
+    }
+
+    if (!consumedByPalette && !io.WantCaptureMouse &&
+        logicalX >= 0.0f && logicalX < WindowWidth && logicalY >= 0.0f && logicalY < WindowHeight)
+    {
+        const float worldX = logicalX + cameraX;
+        const float worldY = logicalY + cameraY;
+        const int tileX = ClampInt(static_cast<int>(std::floor(worldX / WorldTileSize)), 0, LevelCols - 1);
+        const int tileY = ClampInt(static_cast<int>(std::floor(worldY / WorldTileSize)), 0, LevelRows - 1);
+        const EditorTool tool = static_cast<EditorTool>(editorTool);
+
+        if (rightMouseDown)
+        {
+            SetTile(tileX, tileY, TileKind::Empty, -1);
+            if (rightMousePressed)
+            {
+                editorSelection = EditorSelection{EditorSelectionType::Tile, tileX, tileY};
+            }
+        }
+        else if (mouseDown && tool == EditorTool::Tile)
+        {
+            SetTile(tileX, tileY, static_cast<TileKind>(editorTileKind), editorTileVisual);
+            editorSelection = EditorSelection{EditorSelectionType::Tile, tileX, tileY};
+        }
+        else if (mouseDown && tool == EditorTool::Erase)
+        {
+            SetTile(tileX, tileY, TileKind::Empty, -1);
+            editorSelection = EditorSelection{EditorSelectionType::Tile, tileX, tileY};
+        }
+        else if (mousePressed && tool == EditorTool::Enemy)
+        {
+            const float x = tileX * static_cast<float>(WorldTileSize) + 4.0f;
+            const float y = (tileY + 1) * static_cast<float>(WorldTileSize) - 28.0f;
+            AddEnemyAtWorld(x, y, std::max(0.0f, x - 128.0f), std::min(LevelCols * static_cast<float>(WorldTileSize), x + 192.0f), 78.0f);
+            editorSelection = EditorSelection{EditorSelectionType::Enemy, 0, 0, enemies.size() - 1};
+        }
+        else if (mousePressed && tool == EditorTool::Lift)
+        {
+            AddLiftAtWorld(
+                tileX * static_cast<float>(WorldTileSize),
+                tileY * static_cast<float>(WorldTileSize),
+                Vec2{0.0f, -1.0f},
+                96.0f,
+                16.0f,
+                120.0f,
+                1.0f,
+                0.0f);
+            editorSelection = EditorSelection{EditorSelectionType::Lift, 0, 0, lifts.size() - 1};
+        }
+        else if (mousePressed && tool == EditorTool::PlayerSpawn)
+        {
+            playerSpawn = Vec2{tileX * static_cast<float>(WorldTileSize), (tileY + 1) * static_cast<float>(WorldTileSize) - player.height};
+            player.position = playerSpawn;
+            editorSelection = EditorSelection{EditorSelectionType::PlayerSpawn};
+        }
+        else if (mousePressed && tool == EditorTool::Goal)
+        {
+            finish = RectF{tileX * static_cast<float>(WorldTileSize), tileY * static_cast<float>(WorldTileSize), 2.0f * WorldTileSize, 2.0f * WorldTileSize};
+            SetGoalTilesFromFinish();
+            editorSelection = EditorSelection{EditorSelectionType::Goal};
+        }
+        else if (mousePressed && tool == EditorTool::Select)
+        {
+            SelectAtWorld(worldX, worldY);
+        }
+    }
+
+    editorMouseWasDown = mouseDown;
+    editorRightMouseWasDown = rightMouseDown;
+}
+
+void Platformer2App::SelectAtWorld(float worldX, float worldY)
+{
+    const RectF point{worldX, worldY, 1.0f, 1.0f};
+    for (std::size_t i = 0; i < enemies.size(); ++i)
+    {
+        if (Intersects(point, EnemyRect(enemies[i])))
+        {
+            editorSelection = EditorSelection{EditorSelectionType::Enemy, 0, 0, i};
+            return;
+        }
+    }
+    for (std::size_t i = 0; i < lifts.size(); ++i)
+    {
+        if (Intersects(point, LiftRect(lifts[i])))
+        {
+            editorSelection = EditorSelection{EditorSelectionType::Lift, 0, 0, i};
+            return;
+        }
+    }
+    if (Intersects(point, RectF{playerSpawn.x, playerSpawn.y, player.width, player.height}))
+    {
+        editorSelection = EditorSelection{EditorSelectionType::PlayerSpawn};
+        return;
+    }
+    if (Intersects(point, finish))
+    {
+        editorSelection = EditorSelection{EditorSelectionType::Goal};
+        return;
+    }
+
+    const int tileX = ClampInt(static_cast<int>(std::floor(worldX / WorldTileSize)), 0, LevelCols - 1);
+    const int tileY = ClampInt(static_cast<int>(std::floor(worldY / WorldTileSize)), 0, LevelRows - 1);
+    editorSelection = EditorSelection{EditorSelectionType::Tile, tileX, tileY};
+}
+
+void Platformer2App::DeleteEditorSelection()
+{
+    if (editorSelection.type == EditorSelectionType::Enemy && editorSelection.index < enemies.size())
+    {
+        enemies.erase(enemies.begin() + static_cast<std::ptrdiff_t>(editorSelection.index));
+    }
+    else if (editorSelection.type == EditorSelectionType::Lift && editorSelection.index < lifts.size())
+    {
+        lifts.erase(lifts.begin() + static_cast<std::ptrdiff_t>(editorSelection.index));
+    }
+    else if (editorSelection.type == EditorSelectionType::Tile)
+    {
+        SetTile(editorSelection.x, editorSelection.y, TileKind::Empty, -1);
+    }
+    else if (editorSelection.type == EditorSelectionType::Goal)
+    {
+        ClearGoalTiles();
+    }
+
+    editorSelection = EditorSelection{};
+}
+
+const char* Platformer2App::EditorToolName(EditorTool tool) const
+{
+    switch (tool)
+    {
+        case EditorTool::Tile: return "Tile";
+        case EditorTool::Erase: return "Erase";
+        case EditorTool::Enemy: return "Enemy";
+        case EditorTool::Lift: return "Lift";
+        case EditorTool::PlayerSpawn: return "Player Spawn";
+        case EditorTool::Goal: return "Goal";
+        default: return "Select";
+    }
+}
+
+const char* Platformer2App::SelectionName() const
+{
+    switch (editorSelection.type)
+    {
+        case EditorSelectionType::Tile: return "Tile";
+        case EditorSelectionType::Enemy: return "Enemy";
+        case EditorSelectionType::Lift: return "Lift";
+        case EditorSelectionType::PlayerSpawn: return "Player Spawn";
+        case EditorSelectionType::Goal: return "Goal";
+        default: return "None";
+    }
+}
+#endif
 
 void Platformer2App::DrawTile(int tileId, float worldX, float worldY, int width, int height, bool flip) const
 {
