@@ -114,16 +114,16 @@ Vector2D& Vector2D::Normalize()
  */
 Vector2D Vector2D::UnitVector() const
 {
-    Vector2D result = Vector2D(0, 0);
+    Vector2D Result = Vector2D(0, 0);
     float length = Magnitude();
 
     if (length != 0.0)
     {
-        result.x = x / length;
-        result.y = y / length;
+        Result.x = x / length;
+        Result.y = y / length;
     }
 
-    return result;
+    return Result;
 }
 
 /**
@@ -197,11 +197,11 @@ bool Vector2D::operator!=(const Vector2D& v) const
  */
 Vector2D Vector2D::operator+(const Vector2D& v) const
 {
-    Vector2D result;
-    result.x = x + v.x;
-    result.y = y + v.y;
+    Vector2D Result;
+    Result.x = x + v.x;
+    Result.y = y + v.y;
 
-    return result;
+    return Result;
 }
 
 /**
@@ -209,11 +209,11 @@ Vector2D Vector2D::operator+(const Vector2D& v) const
  */
 Vector2D Vector2D::operator-(const Vector2D& v) const
 {
-    Vector2D result;
-    result.x = x - v.x;
-    result.y = y - v.y;
+    Vector2D Result;
+    Result.x = x - v.x;
+    Result.y = y - v.y;
 
-    return result;
+    return Result;
 }
 
 /**
@@ -221,12 +221,11 @@ Vector2D Vector2D::operator-(const Vector2D& v) const
  */
 Vector2D Vector2D::operator*(const float n) const
 {
-    Vector2D result;
+    Vector2D Result;
+    Result.x = x * n;
+    Result.y = y * n;
 
-    result.x = x * n;
-    result.y = y * n;
-
-    return result;
+    return Result;
 }
 
 /**
@@ -234,11 +233,11 @@ Vector2D Vector2D::operator*(const float n) const
  */
 Vector2D Vector2D::operator/(const float n) const
 {
-    Vector2D result;
-    result.x = x / n;
-    result.y = y / n;
+    Vector2D Result;
+    Result.x = x / n;
+    Result.y = y / n;
 
-    return result;
+    return Result;
 }
 
 /**
@@ -290,11 +289,11 @@ Vector2D& Vector2D::operator/=(const float n)
  */
 Vector2D Vector2D::operator-()
 {
-    Vector2D result;
-    result.x = x * -1;
-    result.y = y * -1;
+    Vector2D Result;
+    Result.x = x * -1;
+    Result.y = y * -1;
 
-    return result;
+    return Result;
 }
 
 }
