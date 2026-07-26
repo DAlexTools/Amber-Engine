@@ -8,6 +8,10 @@
 #include <limits>
 #include <sstream>
 
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+#include <SDL2/SDL_image.h>
+#endif
+
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
 #include "imgui.h"
 #endif
@@ -15,6 +19,11 @@
 #include "Logging/Logger.h"
 #include "Physics/Constraint.h"
 #include "Physics/Objects/Shape.h"
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+#include "PlatformerSceneObjects.h"
+#include "Scene/ObjectFactory.h"
+#include "Scene/SceneAsset.h"
+#endif
 
 namespace
 {
@@ -130,6 +139,75 @@ namespace
 
         return {};
     }
+
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    std::filesystem::path FindProjectContentRoot()
+    {
+        namespace fs = std::filesystem;
+
+        const fs::path markerPath = fs::path("Content") / "scripts" / "Level1.lua";
+        const std::array<fs::path, 10> candidateRoots = {
+            fs::current_path(),
+            fs::current_path() / "AmberEngine",
+            fs::current_path() / "..",
+            fs::current_path() / ".." / "..",
+            fs::current_path() / ".." / ".." / "..",
+            fs::current_path() / ".." / ".." / ".." / "..",
+            fs::current_path() / ".." / "AmberEngine",
+            fs::current_path() / ".." / ".." / "AmberEngine",
+            fs::current_path() / ".." / ".." / ".." / "AmberEngine",
+            fs::current_path() / ".." / ".." / ".." / ".." / "AmberEngine"
+        };
+
+        for (const fs::path& root : candidateRoots)
+        {
+            const fs::path marker = root / markerPath;
+            std::error_code error;
+            if (fs::exists(marker, error))
+            {
+                return fs::weakly_canonical(root / "Content", error);
+            }
+        }
+
+        return {};
+    }
+
+    std::filesystem::path FindEngineContentRoot()
+    {
+        namespace fs = std::filesystem;
+
+        const fs::path relativePath = fs::path("Engine") / "Content";
+        const std::array<fs::path, 10> candidateRoots = {
+            fs::current_path(),
+            fs::current_path() / "AmberEngine",
+            fs::current_path() / "..",
+            fs::current_path() / ".." / "..",
+            fs::current_path() / ".." / ".." / "..",
+            fs::current_path() / ".." / ".." / ".." / "..",
+            fs::current_path() / ".." / "AmberEngine",
+            fs::current_path() / ".." / ".." / "AmberEngine",
+            fs::current_path() / ".." / ".." / ".." / "AmberEngine",
+            fs::current_path() / ".." / ".." / ".." / ".." / "AmberEngine"
+        };
+
+        for (const fs::path& root : candidateRoots)
+        {
+            const fs::path candidate = root / relativePath;
+            std::error_code error;
+            if (fs::exists(candidate, error) && fs::is_directory(candidate, error))
+            {
+                return fs::weakly_canonical(candidate, error);
+            }
+        }
+
+        return {};
+    }
+
+    bool HasPrefix(const std::string& value, const std::string& prefix)
+    {
+        return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
+    }
+#endif
 }
 
 PlatformerApp::PlatformerApp()
@@ -411,9 +489,72 @@ bool PlatformerApp::RunSmokeTest()
         physicsWorld &&
         physicsWorld->GetLastStats().bodyCount > 0;
 
+    bool editorSceneFileLoads = true;
+    bool editorSceneGameplayObjectsWork = true;
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    std::size_t editorScenePropCount = 0;
+    std::size_t editorSceneSpawnCount = 0;
+    std::size_t editorSceneGoalCount = 0;
+    std::size_t editorSceneCoinCount = 0;
+    std::size_t editorSceneSolidPlatformCount = 0;
+    std::size_t editorRuntimeObjectCount = 0;
+    editorSceneFileLoads = false;
+    editorSceneGameplayObjectsWork = false;
+    const std::filesystem::path projectRoot = FindProjectContentRoot();
+    if (!projectRoot.empty())
+    {
+        AE::Scene::Document editorScene;
+        if (AE::Scene::LoadScene(projectRoot / "Scenes" / "PlatformerTest.amber.scene", editorScene))
+        {
+            for (const AE::Scene::ObjectData& object : editorScene.objects)
+            {
+                if (object.kind == AE::Scene::ObjectKind::AssetInstance && object.visible)
+                {
+                    ++editorScenePropCount;
+                }
+                if (object.className == "PlayerSpawnObject")
+                {
+                    ++editorSceneSpawnCount;
+                }
+                else if (object.className == "GoalObject")
+                {
+                    ++editorSceneGoalCount;
+                }
+                else if (object.className == "CoinObject")
+                {
+                    ++editorSceneCoinCount;
+                }
+                else if (object.className == "SolidPlatformObject")
+                {
+                    ++editorSceneSolidPlatformCount;
+                }
+            }
+
+            AE::Scene::ObjectFactory factory;
+            PlatformerScene::RegisterPlatformerSceneObjects(factory);
+            Registry registry;
+            const std::vector<std::unique_ptr<AE::Scene::Object>> runtimeObjects = factory.CreateObjects(editorScene, &registry);
+            registry.Update();
+            for (const std::unique_ptr<AE::Scene::Object>& object : runtimeObjects)
+            {
+                if (object && object->HasEntity())
+                {
+                    ++editorRuntimeObjectCount;
+                }
+            }
+            editorSceneFileLoads = editorScenePropCount >= 3;
+            editorSceneGameplayObjectsWork = editorSceneSpawnCount >= 1 &&
+                editorSceneGoalCount >= 1 &&
+                editorSceneCoinCount >= 1 &&
+                editorSceneSolidPlatformCount >= 1 &&
+                editorRuntimeObjectCount == editorScene.objects.size();
+        }
+    }
+#endif
+
     const bool passed = movedRight && stayedInWorld && hasGroundState && coinCollected && hazardResetsPlayer && finishWorks &&
         bufferedJumpWorks && coyoteJumpWorks && doubleJumpWorks && scriptedEnemiesWork && shootingWorks && physicsSceneWorks &&
-        physicsBodyReacts && movingPlatformLandingWorks && enemyShootingWorks;
+        physicsBodyReacts && movingPlatformLandingWorks && enemyShootingWorks && editorSceneFileLoads && editorSceneGameplayObjectsWork;
     if (!passed)
     {
         std::cerr
@@ -433,6 +574,16 @@ bool PlatformerApp::RunSmokeTest()
             << " physicsSceneWorks=" << physicsSceneWorks
             << " physicsBodyReacts=" << physicsBodyReacts
             << " movingPlatformLandingWorks=" << movingPlatformLandingWorks
+            << " editorSceneFileLoads=" << editorSceneFileLoads
+            << " editorSceneGameplayObjectsWork=" << editorSceneGameplayObjectsWork
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+            << " editorScenePropCount=" << editorScenePropCount
+            << " editorSceneSpawnCount=" << editorSceneSpawnCount
+            << " editorSceneGoalCount=" << editorSceneGoalCount
+            << " editorSceneCoinCount=" << editorSceneCoinCount
+            << " editorSceneSolidPlatformCount=" << editorSceneSolidPlatformCount
+            << " editorRuntimeObjectCount=" << editorRuntimeObjectCount
+#endif
             << " enemies=" << enemies.size()
             << " alive=" << AliveEnemyCount()
             << " bodies=" << PhysicsBodyCount()
@@ -480,6 +631,17 @@ bool PlatformerApp::Initialize()
         return false;
     }
 
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    if ((IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG) & IMG_INIT_PNG) != 0)
+    {
+        imageSystemInitialized = true;
+    }
+    else
+    {
+        std::cerr << "IMG_Init failed for editor scene props: " << IMG_GetError() << std::endl;
+    }
+#endif
+
     if (!CreateFrameTexture())
     {
         Shutdown();
@@ -490,6 +652,10 @@ bool PlatformerApp::Initialize()
     diagnostics.Initialize(window, renderer, WindowWidth, WindowHeight);
 #endif
 
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    LoadEditorSceneProps();
+#endif
+
     ResetLevel();
     return true;
 }
@@ -498,6 +664,10 @@ void PlatformerApp::Shutdown()
 {
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
     diagnostics.Shutdown();
+#endif
+
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    ClearEditorSceneProps();
 #endif
 
     if (frameTexture)
@@ -515,6 +685,13 @@ void PlatformerApp::Shutdown()
         SDL_DestroyWindow(window);
         window = nullptr;
     }
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    if (imageSystemInitialized)
+    {
+        IMG_Quit();
+        imageSystemInitialized = false;
+    }
+#endif
     SDL_Quit();
 }
 
@@ -818,6 +995,16 @@ void PlatformerApp::BuildPhysicsScene()
         body->collisionCategory = PhysicsCategoryTerrain;
         body->collisionMask = PhysicsCategoryDynamic | PhysicsCategorySensor;
     }
+
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    for (const RectF& platform : editorSolidPlatforms)
+    {
+        const AE::Physics::Vector2D center(platform.x + platform.w * 0.5f, platform.y + platform.h * 0.5f);
+        AE::Physics::Body* body = AddPhysicsBox(center, platform.w, platform.h, 0.0f, SDL_Color{72, 124, 55, 95}, SDL_Color{55, 82, 46, 150}, 0.0f, false);
+        body->collisionCategory = PhysicsCategoryTerrain;
+        body->collisionMask = PhysicsCategoryDynamic | PhysicsCategorySensor;
+    }
+#endif
 
     for (int row = 0; row < 3; ++row)
     {
@@ -1352,6 +1539,23 @@ void PlatformerApp::UpdateProjectiles(float dt)
             continue;
         }
 
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+        bool hitEditorSolidPlatform = false;
+        for (const RectF& platform : editorSolidPlatforms)
+        {
+            if (Intersects(projectileBounds, platform))
+            {
+                hitEditorSolidPlatform = true;
+                break;
+            }
+        }
+        if (hitEditorSolidPlatform)
+        {
+            projectile.active = false;
+            continue;
+        }
+#endif
+
         if (projectile.fromPlayer)
         {
             for (Enemy& enemy : enemies)
@@ -1634,6 +1838,46 @@ void PlatformerApp::ResolveTileCollisions(bool horizontal)
             playerBounds = PlayerRect();
         }
     }
+
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    for (const RectF& platformBounds : editorSolidPlatforms)
+    {
+        if (!Intersects(playerBounds, platformBounds))
+        {
+            continue;
+        }
+
+        if (horizontal)
+        {
+            if (player.velocity.x > 0.0f)
+            {
+                player.position.x = platformBounds.x - player.width;
+            }
+            else if (player.velocity.x < 0.0f)
+            {
+                player.position.x = platformBounds.x + platformBounds.w;
+            }
+            player.velocity.x = 0.0f;
+        }
+        else
+        {
+            if (player.velocity.y > 0.0f)
+            {
+                player.position.y = platformBounds.y - player.height;
+                player.grounded = true;
+                coyoteTimer = CoyoteTime;
+                player.airJumpsRemaining = MaxAirJumps;
+            }
+            else if (player.velocity.y < 0.0f)
+            {
+                player.position.y = platformBounds.y + platformBounds.h;
+            }
+            player.velocity.y = 0.0f;
+        }
+
+        playerBounds = PlayerRect();
+    }
+#endif
 }
 
 void PlatformerApp::UpdateCamera()
@@ -1833,6 +2077,9 @@ void PlatformerApp::Render()
     BeginFrameTexture();
     DrawBackground();
     DrawLevel();
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    DrawEditorSceneProps();
+#endif
     DrawPhysics();
     DrawCoins();
     DrawFinish();
@@ -1927,7 +2174,12 @@ void PlatformerApp::RenderDiagnostics()
         " y " + std::to_string(static_cast<int>(player.position.y)) +
         " | coins " + std::to_string(collectedCoins) + "/" + std::to_string(coins.size()) +
         " | enemies " + std::to_string(AliveEnemyCount()) + "/" + std::to_string(enemies.size()) +
-        " | bodies " + std::to_string(PhysicsBodyCount());
+        " | bodies " + std::to_string(PhysicsBodyCount())
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+        + " | editor props " + std::to_string(editorSceneProps.size()) +
+        " | editor solids " + std::to_string(editorSolidPlatforms.size())
+#endif
+        ;
 
     diagnostics.Draw(data, [this, collectedCoins]()
     {
@@ -1965,6 +2217,10 @@ void PlatformerApp::RenderDiagnostics()
         ImGui::Text("Enemies: %d / %zu", AliveEnemyCount(), enemies.size());
         ImGui::Text("Projectiles: %d player / %d enemy", playerProjectileCount, enemyProjectileCount);
         ImGui::Text("Scripted enemies: %s", scriptedEnemiesLoaded ? "yes" : "no");
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+        ImGui::Text("Editor scene props: %zu", editorSceneProps.size());
+        ImGui::Text("Editor solid platforms: %zu", editorSolidPlatforms.size());
+#endif
         ImGui::Text("Physics bodies: %d", PhysicsBodyCount());
         ImGui::Text("Physics constraints: %d", PhysicsConstraintCount());
         if (physicsWorld)
@@ -2030,6 +2286,15 @@ void PlatformerApp::DrawLevel() const
             DrawScreenRect(screenX, screenY, 2, TileSize, SDL_Color{205, 137, 96, 255});
         }
     }
+
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    for (const RectF& platform : editorSolidPlatforms)
+    {
+        DrawRect(platform, Brick);
+        DrawRect(RectF{platform.x, platform.y, platform.w, 4.0f}, Ground);
+        DrawRect(RectF{platform.x, platform.y, 2.0f, platform.h}, SDL_Color{205, 137, 96, 255});
+    }
+#endif
 }
 
 void PlatformerApp::DrawCoins() const
@@ -2137,6 +2402,211 @@ void PlatformerApp::DrawPhysics() const
         DrawFilledCircle(RoundToInt(contact.start.x - cameraX), RoundToInt(contact.start.y), 2, SDL_Color{255, 245, 145, 190});
     }
 }
+
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+PlatformerApp::RectF PlatformerApp::EditorSceneObjectBounds(const AE::Scene::ObjectData& objectData) const
+{
+    const float width = std::max(1.0f, std::abs(objectData.size.x * objectData.transform.scale.x));
+    const float height = std::max(1.0f, std::abs(objectData.size.y * objectData.transform.scale.y));
+    return RectF{
+        objectData.transform.position.x - width * 0.5f,
+        objectData.transform.position.y - height * 0.5f,
+        width,
+        height
+    };
+}
+
+void PlatformerApp::LoadEditorSceneProps()
+{
+    ClearEditorSceneProps();
+
+    projectContentRoot = FindProjectContentRoot();
+    if (projectContentRoot.empty())
+    {
+        return;
+    }
+
+    const std::filesystem::path scenePath = projectContentRoot / "Scenes" / "PlatformerTest.amber.scene";
+    std::error_code errorCode;
+    if (!std::filesystem::exists(scenePath, errorCode))
+    {
+        return;
+    }
+
+    AE::Scene::Document document;
+    std::string error;
+    if (!AE::Scene::LoadScene(scenePath, document, &error))
+    {
+        std::cerr << "Platformer editor scene load failed: " << error << std::endl;
+        return;
+    }
+
+    AE::Scene::ObjectFactory factory;
+    PlatformerScene::RegisterPlatformerSceneObjects(factory);
+    editorSceneRegistry = std::make_unique<Registry>();
+    editorSceneObjects = factory.CreateObjects(document, editorSceneRegistry.get());
+    editorSceneRegistry->Update();
+
+    std::vector<Coin> sceneCoins;
+    std::vector<RectF> sceneSolidPlatforms;
+    std::size_t gameplayObjectCount = 0;
+
+    for (const std::unique_ptr<AE::Scene::Object>& object : editorSceneObjects)
+    {
+        if (!object)
+        {
+            continue;
+        }
+
+        const AE::Scene::ObjectData& objectData = object->GetData();
+        const RectF bounds = EditorSceneObjectBounds(objectData);
+        if (objectData.className == "PlayerSpawnObject")
+        {
+            playerSpawn = AE::Physics::Vector2D(bounds.x, bounds.y);
+            ++gameplayObjectCount;
+            continue;
+        }
+        if (objectData.className == "GoalObject")
+        {
+            finish = bounds;
+            ++gameplayObjectCount;
+            continue;
+        }
+        if (objectData.className == "CoinObject")
+        {
+            sceneCoins.push_back(Coin{bounds, false});
+            ++gameplayObjectCount;
+            continue;
+        }
+        if (objectData.className == "SolidPlatformObject")
+        {
+            sceneSolidPlatforms.push_back(bounds);
+            ++gameplayObjectCount;
+            continue;
+        }
+        if (PlatformerScene::IsPlatformerGameplayClass(objectData.className))
+        {
+            ++gameplayObjectCount;
+            continue;
+        }
+
+        if (!objectData.visible || objectData.kind != AE::Scene::ObjectKind::AssetInstance || objectData.assetId.empty())
+        {
+            continue;
+        }
+
+        const std::filesystem::path assetPath = ResolveEditorSceneAssetPath(objectData.assetId);
+
+        EditorSceneProp prop;
+        prop.name = objectData.name;
+        prop.assetId = objectData.assetId;
+        prop.bounds = bounds;
+        prop.rotationDegrees = objectData.transform.rotationDegrees;
+        prop.texture = GetEditorSceneTexture(objectData.assetId, assetPath);
+        editorSceneProps.push_back(prop);
+    }
+
+    if (!sceneCoins.empty())
+    {
+        coins = std::move(sceneCoins);
+    }
+    editorSolidPlatforms = std::move(sceneSolidPlatforms);
+
+    if (!editorSceneProps.empty() || gameplayObjectCount > 0)
+    {
+        std::cout
+            << "Loaded Platformer editor scene: props=" << editorSceneProps.size()
+            << " gameplayObjects=" << gameplayObjectCount
+            << " solidPlatforms=" << editorSolidPlatforms.size()
+            << std::endl;
+    }
+}
+
+void PlatformerApp::ClearEditorSceneProps()
+{
+    editorSceneProps.clear();
+    editorSolidPlatforms.clear();
+    editorSceneObjects.clear();
+    editorSceneRegistry.reset();
+    for (auto& texture : editorSceneTextures)
+    {
+        if (texture.second)
+        {
+            SDL_DestroyTexture(texture.second);
+        }
+    }
+    editorSceneTextures.clear();
+}
+
+std::filesystem::path PlatformerApp::ResolveEditorSceneAssetPath(const std::string& assetId) const
+{
+    const std::string projectPrefix = "Project/";
+    const std::string enginePrefix = "Engine/";
+
+    if (HasPrefix(assetId, projectPrefix))
+    {
+        return projectContentRoot / assetId.substr(projectPrefix.size());
+    }
+    if (HasPrefix(assetId, enginePrefix))
+    {
+        const std::filesystem::path engineContentRoot = FindEngineContentRoot();
+        if (!engineContentRoot.empty())
+        {
+            return engineContentRoot / assetId.substr(enginePrefix.size());
+        }
+    }
+
+    return projectContentRoot / assetId;
+}
+
+SDL_Texture* PlatformerApp::GetEditorSceneTexture(const std::string& assetId, const std::filesystem::path& path)
+{
+    const auto cached = editorSceneTextures.find(assetId);
+    if (cached != editorSceneTextures.end())
+    {
+        return cached->second;
+    }
+
+    SDL_Texture* texture = nullptr;
+    if (imageSystemInitialized && renderer && !path.empty())
+    {
+        SDL_Surface* surface = IMG_Load(path.string().c_str());
+        if (surface)
+        {
+            texture = SDL_CreateTextureFromSurface(renderer, surface);
+            SDL_FreeSurface(surface);
+            if (texture)
+            {
+                SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+            }
+        }
+    }
+
+    editorSceneTextures[assetId] = texture;
+    return texture;
+}
+
+void PlatformerApp::DrawEditorSceneProps() const
+{
+    for (const EditorSceneProp& prop : editorSceneProps)
+    {
+        if (prop.texture)
+        {
+            SDL_Rect destination{
+                RoundToInt(prop.bounds.x - cameraX),
+                RoundToInt(prop.bounds.y),
+                RoundToInt(prop.bounds.w),
+                RoundToInt(prop.bounds.h)
+            };
+            SDL_RenderCopyEx(renderer, prop.texture, nullptr, &destination, prop.rotationDegrees, nullptr, SDL_FLIP_NONE);
+        }
+        else
+        {
+            DrawRect(prop.bounds, SDL_Color{92, 153, 214, 185});
+        }
+    }
+}
+#endif
 
 void PlatformerApp::DrawPlayer() const
 {

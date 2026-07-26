@@ -2,7 +2,8 @@
 
 `Engine` is the top-level engine container. Runtime code lives under `Runtime`, editor-only code will live under `Editor`, and bundled third-party dependencies live under `ThirdParty`.
 
-- `Runtime` owns shipped-game code split into runtime modules: `Core/Math`, `Classes`, `Logging`, `EntityComponentSystem`, `Components`, `Systems`, `AssetManager`, `FileManager`, `Game`, `EventBus`, `Events`, `EnginePhysicsBridge` and `Physics`.
+- `Runtime` owns shipped-game code split into runtime modules: `Core/Math`, `Classes`, `Logging`, `EntityComponentSystem`, `Scene`, `Components`, `Systems`, `AssetManager`, `FileManager`, `Game`, `EventBus`, `Events`, `EnginePhysicsBridge` and `Physics`.
+- `Runtime/Scene` owns runtime scene data and object authoring glue: `.amber.scene` load/save, `Object`, `SpriteObject`, `ObjectFactory` and lightweight scene ECS components.
 - `Runtime/Physics` owns renderer-free physics simulation objects, collision detection, particles, constraints and its smoke tests.
 - `Content` is reserved for built-in engine resources, not project/game assets.
 - `ThirdParty` owns bundled dependencies such as `glm`, `imgui`, `lua` headers and `sol`.

@@ -5,8 +5,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <sol/sol.hpp>
@@ -15,6 +17,10 @@
 #include "Core/BuildConfig.h"
 #include "Core/Math/Vector2D.h"
 #include "Physics/Objects/Body.h"
+
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+#include "Scene/Object.h"
+#endif
 
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
 #include "Editor/Diagnostics/SampleDiagnosticsOverlay.h"
@@ -125,6 +131,17 @@ private:
         float phase = 0.0f;
     };
 
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    struct EditorSceneProp
+    {
+        std::string name;
+        std::string assetId;
+        RectF bounds;
+        float rotationDegrees = 0.0f;
+        SDL_Texture* texture = nullptr;
+    };
+#endif
+
     struct InputState
     {
         bool moveLeft = false;
@@ -143,6 +160,9 @@ private:
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_Texture* frameTexture = nullptr;
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    bool imageSystemInitialized = false;
+#endif
     bool running = false;
 #if SMOKE_TEST
     bool smokeMode = false;
@@ -179,6 +199,14 @@ private:
     std::vector<Projectile> projectiles;
     std::vector<BodyVisual> physicsVisuals;
     std::vector<KinematicBody> kinematicBodies;
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    std::filesystem::path projectContentRoot;
+    std::unique_ptr<Registry> editorSceneRegistry;
+    std::vector<std::unique_ptr<AE::Scene::Object>> editorSceneObjects;
+    std::vector<EditorSceneProp> editorSceneProps;
+    std::vector<RectF> editorSolidPlatforms;
+    std::unordered_map<std::string, SDL_Texture*> editorSceneTextures;
+#endif
     RectF finish;
 
     bool Initialize();
@@ -233,6 +261,14 @@ private:
     void DrawEnemies() const;
     void DrawProjectiles() const;
     void DrawPhysics() const;
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    void LoadEditorSceneProps();
+    void ClearEditorSceneProps();
+    RectF EditorSceneObjectBounds(const AE::Scene::ObjectData& objectData) const;
+    std::filesystem::path ResolveEditorSceneAssetPath(const std::string& assetId) const;
+    SDL_Texture* GetEditorSceneTexture(const std::string& assetId, const std::filesystem::path& path);
+    void DrawEditorSceneProps() const;
+#endif
     void DrawPlayer() const;
     void DrawFinish() const;
     void DrawHud() const;

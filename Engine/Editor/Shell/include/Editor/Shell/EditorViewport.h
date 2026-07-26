@@ -3,10 +3,24 @@
 
 #include "Editor/Shell/SceneDocument.h"
 
+#include <cstdint>
+#include <optional>
+#include <string>
+
 namespace AE::Editor
 {
 
+class AssetRegistry;
 class SelectionService;
+class TextureCache;
+
+enum class EditorTool
+{
+    Select,
+    Move,
+    Rotate,
+    Scale
+};
 
 class EditorViewport
 {
@@ -19,7 +33,20 @@ public:
         float h = 0.0f;
     };
 
-    void Draw(SceneDocument& sceneDocument, SelectionService& selection, bool playing, bool paused);
+    struct AssetDropRequest
+    {
+        std::string assetId;
+        EditorVec2 worldPosition;
+    };
+
+    std::optional<AssetDropRequest> Draw(
+        SceneDocument& sceneDocument,
+        SelectionService& selection,
+        const AssetRegistry& assetRegistry,
+        TextureCache& textureCache,
+        EditorTool activeTool,
+        bool playing,
+        bool paused);
 
     float GetZoom() const;
     void SetZoom(float value);
@@ -30,6 +57,22 @@ private:
     float cameraY = 0.0f;
     float zoom = 1.0f;
     bool showGrid = true;
+    bool panning = false;
+    EditorVec2 panStartMouseScreen;
+    EditorVec2 panStartCamera;
+
+    enum class GizmoAxis
+    {
+        None,
+        X,
+        Y,
+        XY
+    };
+
+    GizmoAxis activeGizmoAxis = GizmoAxis::None;
+    std::uint32_t activeGizmoObjectId = 0;
+    EditorVec2 dragStartMouseWorld;
+    EditorVec2 dragStartObjectPosition;
 
     ObjectBounds GetObjectBounds(const SceneObject& object) const;
 };

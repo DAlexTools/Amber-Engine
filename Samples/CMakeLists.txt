@@ -10,6 +10,7 @@ if(SDL2_TARGET_FOUND)
     add_executable(PlatformerApp
         ${PLATFORMER_DIR}/main.cpp
         ${PLATFORMER_DIR}/PlatformerApp.cpp
+        ${PLATFORMER_DIR}/PlatformerSceneObjects.cpp
     )
 
     target_compile_definitions(PlatformerApp PRIVATE SDL_MAIN_HANDLED SMOKE_TEST=1)
@@ -22,10 +23,16 @@ if(SDL2_TARGET_FOUND)
 
     target_link_libraries(PlatformerApp PRIVATE
         AmberBuildConfig
+        EngineRuntimeCore
+        EngineRuntimeECS
         Physics
         ${LUA_LINK_TARGETS}
         ${SDL2_LINK_TARGETS}
     )
+    if(SDL2_IMAGE_TARGET_FOUND)
+        target_compile_definitions(PlatformerApp PRIVATE AMBER_ENABLE_PLATFORMER_EDITOR_SCENE=1)
+        target_link_libraries(PlatformerApp PRIVATE ${SDL2_IMAGE_TARGET})
+    endif()
     if(TARGET EditorDiagnostics)
         target_compile_definitions(PlatformerApp PRIVATE AMBER_ENABLE_SAMPLE_DIAGNOSTICS)
         target_link_libraries(PlatformerApp PRIVATE EditorDiagnostics)

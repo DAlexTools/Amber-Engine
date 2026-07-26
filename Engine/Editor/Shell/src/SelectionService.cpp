@@ -17,11 +17,11 @@ void SelectionService::SelectSceneObject(std::uint32_t objectId)
     selection.objectId = objectId;
 }
 
-void SelectionService::SelectAsset(std::string assetPath)
+void SelectionService::SelectAsset(std::string assetId)
 {
     selection = EditorSelection{};
     selection.type = EditorSelectionType::Asset;
-    selection.assetPath = std::move(assetPath);
+    selection.assetId = std::move(assetId);
 }
 
 const EditorSelection& SelectionService::GetSelection() const
@@ -34,9 +34,9 @@ bool SelectionService::IsSceneObjectSelected(std::uint32_t objectId) const
     return selection.type == EditorSelectionType::SceneObject && selection.objectId == objectId;
 }
 
-bool SelectionService::IsAssetSelected(const std::string& assetPath) const
+bool SelectionService::IsAssetSelected(const std::string& assetId) const
 {
-    return selection.type == EditorSelectionType::Asset && selection.assetPath == assetPath;
+    return selection.type == EditorSelectionType::Asset && selection.assetId == assetId;
 }
 
 }

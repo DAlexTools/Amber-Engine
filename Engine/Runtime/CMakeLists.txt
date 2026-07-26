@@ -9,6 +9,7 @@ add_library(EngineRuntimeCore STATIC
     ${ENGINE_RUNTIME_DIR}/Core/Math/VecN.cpp
     ${ENGINE_RUNTIME_DIR}/Core/Math/Vector2D.cpp
     ${ENGINE_RUNTIME_DIR}/Core/Threading/ThreadPool.cpp
+    ${ENGINE_RUNTIME_DIR}/Scene/SceneAsset.cpp
 )
 
 target_include_directories(EngineRuntimeCore PUBLIC
@@ -22,6 +23,7 @@ target_link_libraries(EngineRuntimeCore PUBLIC
 )
 amber_target_folder(EngineRuntimeCore "Engine/Runtime/Core")
 amber_add_header_tree(EngineRuntimeCore "${ENGINE_RUNTIME_DIR}/Core")
+amber_add_header_tree(EngineRuntimeCore "${ENGINE_RUNTIME_DIR}/Scene")
 amber_group_sources(EngineRuntimeCore "${ENGINE_RUNTIME_DIR}")
 
 add_library(EngineRuntimeLogging STATIC
@@ -39,6 +41,29 @@ target_link_libraries(EngineRuntimeLogging PUBLIC
 amber_target_folder(EngineRuntimeLogging "Engine/Runtime/Logging")
 amber_add_header_tree(EngineRuntimeLogging "${ENGINE_RUNTIME_DIR}/Logging")
 amber_group_sources(EngineRuntimeLogging "${ENGINE_RUNTIME_DIR}")
+
+add_library(EngineRuntimeECS STATIC
+    ${ENGINE_RUNTIME_DIR}/EntityComponentSystem/ECS.cpp
+    ${ENGINE_RUNTIME_DIR}/Scene/Object.cpp
+    ${ENGINE_RUNTIME_DIR}/Scene/ObjectFactory.cpp
+    ${ENGINE_RUNTIME_DIR}/Scene/SceneObjectComponents.cpp
+    ${ENGINE_RUNTIME_DIR}/Scene/SpriteObject.cpp
+)
+
+target_include_directories(EngineRuntimeECS PUBLIC
+    ${ENGINE_RUNTIME_DIR}
+    ${ENGINE_THIRD_PARTY_DIR}
+)
+
+target_link_libraries(EngineRuntimeECS PUBLIC
+    AmberBuildConfig
+    EngineRuntimeCore
+    EngineRuntimeLogging
+)
+amber_target_folder(EngineRuntimeECS "Engine/Runtime/ECS")
+amber_add_header_tree(EngineRuntimeECS "${ENGINE_RUNTIME_DIR}/EntityComponentSystem")
+amber_add_header_tree(EngineRuntimeECS "${ENGINE_RUNTIME_DIR}/Scene")
+amber_group_sources(EngineRuntimeECS "${ENGINE_RUNTIME_DIR}")
 
 add_subdirectory(Physics)
 
@@ -99,7 +124,6 @@ amber_target_folder(EnginePhysicsBridge "Engine/Runtime/EnginePhysicsBridge")
 
 add_library(EnginePhysicsBridgeCheck STATIC
     ${ENGINE_RUNTIME_DIR}/Systems/PhysicsBridgeCompileCheck.cpp
-    ${ENGINE_RUNTIME_DIR}/EntityComponentSystem/ECS.cpp
 )
 target_sources(EnginePhysicsBridgeCheck PRIVATE
     ${ENGINE_PHYSICS_BRIDGE_HEADERS}
@@ -113,6 +137,7 @@ target_include_directories(EnginePhysicsBridgeCheck PUBLIC
 target_link_libraries(EnginePhysicsBridgeCheck PUBLIC
     AmberBuildConfig
     EngineRuntimeLogging
+    EngineRuntimeECS
     EnginePhysicsBridge
 )
 amber_target_folder(EnginePhysicsBridgeCheck "Engine/Runtime/EnginePhysicsBridge")
@@ -127,7 +152,6 @@ if(BUILD_SDL_MODULES)
         add_library(Engine STATIC
             ${ENGINE_RUNTIME_DIR}/AssetManager/AssetManager.cpp
             ${ENGINE_RUNTIME_DIR}/Classes/Engine.cpp
-            ${ENGINE_RUNTIME_DIR}/EntityComponentSystem/ECS.cpp
             ${ENGINE_RUNTIME_DIR}/FileManager/FileManager.cpp
             ${ENGINE_RUNTIME_DIR}/Game/GameModule.cpp
             ${ENGINE_RUNTIME_DIR}/Game/LevelLoader.cpp
@@ -145,6 +169,7 @@ if(BUILD_SDL_MODULES)
         target_link_libraries(Engine PUBLIC
             AmberBuildConfig
             EngineRuntimeCore
+            EngineRuntimeECS
             EngineRuntimeLogging
             EnginePhysicsBridge
             ImGuiSDL

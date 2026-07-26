@@ -2,6 +2,7 @@
 #define AMBER_EDITOR_SHELL_SCENE_DOCUMENT_H
 
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -13,6 +14,7 @@ enum class SceneObjectKind
     Camera,
     Grid,
     RuntimeWorld,
+    AssetInstance,
     Empty
 };
 
@@ -33,8 +35,11 @@ struct SceneObject
 {
     std::uint32_t id = 0;
     std::string name;
+    std::string assetId;
+    std::string className = "Object";
     SceneObjectKind kind = SceneObjectKind::Empty;
     EditorTransform transform;
+    EditorVec2 size{80.0f, 80.0f};
     bool visible = true;
     bool locked = false;
 };
@@ -52,6 +57,11 @@ public:
     const std::vector<SceneObject>& GetObjects() const;
     SceneObject* FindObject(std::uint32_t id);
     const SceneObject* FindObject(std::uint32_t id) const;
+    SceneObject& AddAssetInstance(std::string name, std::string assetId, EditorTransform transform);
+    bool RemoveObject(std::uint32_t id);
+    bool IsObjectRemovable(std::uint32_t id) const;
+    bool SaveToFile(const std::filesystem::path& path, std::string* error = nullptr);
+    bool LoadFromFile(const std::filesystem::path& path, std::string* error = nullptr);
 
     static const char* KindName(SceneObjectKind kind);
 

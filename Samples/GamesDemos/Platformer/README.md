@@ -30,6 +30,12 @@ Physics playground:
 - Rope/chain segments use `JointConstraint`.
 - Moving platforms use kinematic static bodies updated before the physics step and are valid player landing surfaces.
 
+Editor scene bridge:
+
+- `Content/Scenes/PlatformerTest.amber.scene` is loaded at startup when `SDL2_image` is available.
+- The current bridge creates runtime `AE::Scene::Object` instances through `ObjectFactory`, configures ECS entities, then renders visible `SpriteObject` instances as Platformer scene props.
+- This is a visual integration pass only for now; editor props do not create gameplay collision or scripts yet.
+
 Build:
 
 ```powershell

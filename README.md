@@ -129,7 +129,7 @@ Build and run the standalone editor shell:
 .\Builds\Editor\Engine\Editor\Shell\Debug\AmberEditor.exe
 ```
 
-The first editor milestone opens a dock-like Unreal-style layout with a top toolbar, `Scene View`, `Asset Browser`, `Scene Outliner`, `Details` and `Output Log`. The current `Scene View` is an editor shell viewport; real engine scene rendering, picking, asset drag/drop and scene serialization are tracked in [ENGINE_ROADMAP.md](ENGINE_ROADMAP.md).
+The first editor milestone opens a dock-like Unreal-style layout with a top toolbar, `Scene View`, `Asset Browser`, `Scene Outliner`, `Details` and `Output Log`. `Asset Browser` exposes `Project` content from `AmberEngine/Content` and engine content from `AmberEngine/Engine/Content`; texture assets show previews and can be dragged into `Scene View`. Real engine scene rendering, full asset import and scene serialization are tracked in [ENGINE_ROADMAP.md](ENGINE_ROADMAP.md).
 
 ## Running Samples
 

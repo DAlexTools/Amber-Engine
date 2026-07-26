@@ -1,9 +1,11 @@
-if(TARGET ImGuiSDL AND TARGET EditorOutputLog AND SDL2_TARGET_FOUND)
+if(TARGET ImGuiSDL AND TARGET EditorOutputLog AND SDL2_TARGET_FOUND AND SDL2_IMAGE_TARGET_FOUND)
     add_library(EditorShell STATIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/AssetRegistry.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/EditorViewport.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/EditorApplication.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/SceneDocument.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/SelectionService.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/TextureCache.cpp
     )
 
     target_include_directories(EditorShell PUBLIC
@@ -12,9 +14,11 @@ if(TARGET ImGuiSDL AND TARGET EditorOutputLog AND SDL2_TARGET_FOUND)
 
     target_link_libraries(EditorShell PUBLIC
         AmberBuildConfig
+        EngineRuntimeCore
         EditorOutputLog
         ImGuiSDL
         ${SDL2_LINK_TARGETS}
+        ${SDL2_IMAGE_TARGET}
     )
     if(TARGET Engine)
         target_link_libraries(EditorShell PUBLIC Engine)
@@ -35,6 +39,6 @@ if(TARGET ImGuiSDL AND TARGET EditorOutputLog AND SDL2_TARGET_FOUND)
     amber_group_sources(AmberEditor "${CMAKE_CURRENT_SOURCE_DIR}")
 elseif(BUILD_SDL_MODULES)
     message(WARNING
-        "AmberEditor target is disabled because ImGuiSDL, EditorOutputLog or SDL2 is not available."
+        "AmberEditor target is disabled because ImGuiSDL, EditorOutputLog, SDL2 or SDL2_image is not available."
     )
 endif()

@@ -1,0 +1,18 @@
+AmberScene 1
+name "Platformer Test Scene"
+object Camera "Editor Camera" "" "Object" 0.000 0.000 0.000 1.000 1.000 88.000 60.000 1 1
+object Grid "Grid" "" "Object" 0.000 0.000 0.000 1.000 1.000 80.000 80.000 1 1
+object RuntimeWorld "Runtime World" "" "Object" 180.000 96.000 0.000 1.000 1.000 224.000 144.000 1 1
+object Empty "Player Spawn" "" "PlayerSpawnObject" 78.000 459.000 0.000 1.000 1.000 28.000 42.000 1 0
+object Empty "Finish Goal" "" "GoalObject" 2928.000 432.000 0.000 1.000 1.000 32.000 96.000 1 0
+object Empty "Editor Coin 1" "" "CoinObject" 345.000 386.600 0.000 1.000 1.000 18.000 18.000 1 0
+object Empty "Editor Coin 2" "" "CoinObject" 873.000 393.000 0.000 1.000 1.000 18.000 18.000 1 0
+object Empty "Editor Coin 3" "" "CoinObject" 1273.000 354.600 0.000 1.000 1.000 18.000 18.000 1 0
+object Empty "Editor Jump Ledge 1" "" "SolidPlatformObject" 392.000 334.000 0.000 1.000 1.000 104.000 18.000 1 0
+object Empty "Editor Jump Ledge 2" "" "SolidPlatformObject" 610.000 286.000 0.000 1.000 1.000 96.000 18.000 1 0
+object Empty "Editor High Ledge" "" "SolidPlatformObject" 850.000 236.000 0.000 1.000 1.000 112.000 18.000 1 0
+object AssetInstance "Editor Tree 1" "Project/images/tree-5.png" "SpriteObject" 420.000 416.000 0.000 1.000 1.000 84.000 128.000 1 0
+object AssetInstance "Editor Tree 2" "Project/images/tree-14.png" "SpriteObject" 760.000 416.000 0.000 1.000 1.000 92.000 128.000 1 0
+object AssetInstance "Editor Radar" "Project/images/radar.png" "SpriteObject" 1160.000 424.000 0.000 1.000 1.000 96.000 112.000 1 0
+object AssetInstance "Editor Obstacle" "Project/images/obstacles-2.png" "SpriteObject" 1510.000 438.000 0.000 1.000 1.000 148.000 84.000 1 0
+object AssetInstance "Editor Tree 3" "Project/images/tree-18.png" "SpriteObject" 2020.000 406.000 0.000 1.000 1.000 104.000 148.000 1 0

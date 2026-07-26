@@ -1,9 +1,11 @@
 #ifndef AMBER_EDITOR_SHELL_EDITOR_APPLICATION_H
 #define AMBER_EDITOR_SHELL_EDITOR_APPLICATION_H
 
+#include "Editor/Shell/AssetRegistry.h"
 #include "Editor/Shell/EditorViewport.h"
 #include "Editor/Shell/SceneDocument.h"
 #include "Editor/Shell/SelectionService.h"
+#include "Editor/Shell/TextureCache.h"
 #include "Editor/OutputLog/OutputLogWidget.h"
 
 #include <SDL2/SDL.h>
@@ -26,6 +28,7 @@ private:
     {
         std::filesystem::path path;
         bool directory = false;
+        const AssetRecord* asset = nullptr;
     };
 
     bool Initialize(bool hiddenWindow);
@@ -46,11 +49,18 @@ private:
 
     void RefreshAssets();
     void OpenAssetDirectory(const std::filesystem::path& path);
+    void SwitchContentRoot(const std::filesystem::path& path);
+    bool DeleteSelectedSceneObject();
+    bool SaveCurrentScene();
+    bool OpenSceneFile(const std::filesystem::path& path);
+    std::filesystem::path DefaultScenePath() const;
+    std::vector<AssetRoot> BuildAssetRoots() const;
     std::string RelativeAssetLabel(const std::filesystem::path& path) const;
 
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     bool imguiReady = false;
+    bool imageSystemInitialized = false;
     bool running = false;
     bool playing = false;
     bool paused = false;
@@ -62,13 +72,19 @@ private:
     bool showDetails = true;
     bool showOutputLog = true;
 
+    std::filesystem::path projectContentRoot;
+    std::filesystem::path engineContentRoot;
     std::filesystem::path contentRoot;
     std::filesystem::path currentAssetPath;
+    std::filesystem::path currentScenePath;
     std::vector<AssetEntry> assetEntries;
 
+    AssetRegistry assetRegistry;
+    TextureCache textureCache;
     SceneDocument sceneDocument;
     SelectionService selectionService;
     EditorViewport editorViewport;
+    EditorTool activeTool = EditorTool::Move;
     OutputLogWidget outputLog;
 };
 
