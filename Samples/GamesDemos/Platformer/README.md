@@ -33,8 +33,9 @@ Physics playground:
 Editor scene bridge:
 
 - `Content/Scenes/PlatformerTest.amber.scene` is loaded at startup when `SDL2_image` is available.
-- The current bridge creates runtime `AE::Scene::Object` instances through `ObjectFactory`, configures ECS entities, then renders visible `SpriteObject` instances as Platformer scene props.
-- This is a visual integration pass only for now; editor props do not create gameplay collision or scripts yet.
+- Platformer-specific scene object classes live in this sample (`PlatformerSceneObjects.h/.cpp`), not in the engine module.
+- `PlayerSpawnObject`, `GoalObject`, `CoinObject` and `SolidPlatformObject` are registered into `ObjectFactory`, configured as ECS entities, then mapped into the sample's spawn point, finish trigger, collectible coins and extra solid platforms.
+- Visible `SpriteObject` instances still render as decorative scene props from the editor scene.
 
 Build:
 
