@@ -14,6 +14,8 @@ enum class ObjectKind
     Grid,
     RuntimeWorld,
     AssetInstance,
+    Box,
+    Circle,
     Empty
 };
 

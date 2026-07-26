@@ -1,0 +1,27 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "editor",
+      "displayName": "Editor build",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/Builds/Editor",
+      "toolchainFile": "C:/Users/admin/Documents/GitProjects/SDL_GameProgramming-master/AmberEngine/Dependencies/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "AMBER_ENGINE_ROOT": "C:/Users/admin/Documents/GitProjects/SDL_GameProgramming-master/AmberEngine",
+        "BUILD_SDL_MODULES": "ON",
+        "BUILD_UNIT_TESTS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "editor",
+      "configurePreset": "editor",
+      "targets": [
+        "MyGameLauncher"
+      ]
+    }
+  ]
+}

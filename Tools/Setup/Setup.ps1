@@ -3,6 +3,7 @@ param(
     [switch]$Clean,
     [switch]$RemoveVcpkg,
     [switch]$DepsOnly,
+    [switch]$RegisterProjectFiles,
 
     [ValidateSet("Editor", "NoEditor", "Core")]
     [string]$Mode = "Editor",
@@ -37,6 +38,66 @@ function Invoke-ToolScript {
     }
 }
 
+function Set-DefaultRegistryValue {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SubKey,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Value
+    )
+
+    $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($SubKey)
+    if ($null -eq $key) {
+        throw "Failed to open registry key HKCU:\$SubKey."
+    }
+
+    try {
+        $key.SetValue("", $Value, [Microsoft.Win32.RegistryValueKind]::String)
+    }
+    finally {
+        $key.Dispose()
+    }
+}
+
+function Register-AmberProjectFiles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root,
+
+        [Parameter(Mandatory = $true)]
+        [string]$BuildConfiguration
+    )
+
+    $editorExe = Join-Path $Root "Builds\Editor\Engine\Editor\Shell\$BuildConfiguration\AmberEditor.exe"
+    if (-not (Test-Path $editorExe)) {
+        Invoke-ToolScript (Join-Path $PSScriptRoot "Build.ps1") @(
+            "-Mode", "Editor",
+            "-Target", "Editor",
+            "-Configuration", $BuildConfiguration
+        )
+    }
+
+    if (-not (Test-Path $editorExe)) {
+        throw "AmberEditor.exe was not found at '$editorExe'."
+    }
+
+    $extensionKey = "Software\Classes\.amberproject"
+    $projectKey = "Software\Classes\AmberEngine.Project"
+    $commandKey = "Software\Classes\AmberEngine.Project\shell\open\command"
+    $iconKey = "Software\Classes\AmberEngine.Project\DefaultIcon"
+    $openCommand = "`"$editorExe`" `"%1`""
+
+    Set-DefaultRegistryValue $extensionKey "AmberEngine.Project"
+    Set-DefaultRegistryValue $projectKey "Amber Project"
+    Set-DefaultRegistryValue $iconKey "`"$editorExe`",0"
+    Set-DefaultRegistryValue $commandKey $openCommand
+
+    Write-Host ""
+    Write-Host ".amberproject files are registered for this Windows user." -ForegroundColor Green
+    Write-Host "Open command: $openCommand"
+}
+
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 Set-Location $root
 
@@ -52,6 +113,11 @@ if ($Clean) {
 
 if ($DepsOnly) {
     Invoke-ToolScript (Join-Path $PSScriptRoot "SetupDependencies.ps1")
+    exit 0
+}
+
+if ($RegisterProjectFiles) {
+    Register-AmberProjectFiles $root $Configuration
     exit 0
 }
 

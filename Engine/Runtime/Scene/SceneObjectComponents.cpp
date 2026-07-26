@@ -24,4 +24,11 @@ SceneSpriteComponent::SceneSpriteComponent(std::string spriteAssetId, float spri
 {
 }
 
+SceneShapeComponent::SceneShapeComponent(SceneShapeType sceneShapeType, float shapeWidth, float shapeHeight)
+    : shapeType(sceneShapeType),
+      width(shapeWidth),
+      height(shapeHeight)
+{
+}
+
 }

@@ -1,7 +1,7 @@
 #ifndef PLATFORMER_SCENE_OBJECTS_H
 #define PLATFORMER_SCENE_OBJECTS_H
 
-#include "Scene/Object.h"
+#include "Scene/PrimitiveObjects.h"
 
 #include <string>
 
@@ -29,7 +29,7 @@ struct SolidPlatformComponent
 {
 };
 
-class PlayerSpawnObject final : public AE::Scene::Object
+class PlayerSpawnObject final : public AE::Scene::BoxObject
 {
 public:
     explicit PlayerSpawnObject(AE::Scene::ObjectData data);
@@ -38,7 +38,7 @@ public:
     void ConfigureEntity(Registry& ownerRegistry) override;
 };
 
-class GoalObject final : public AE::Scene::Object
+class GoalObject final : public AE::Scene::BoxObject
 {
 public:
     explicit GoalObject(AE::Scene::ObjectData data);
@@ -47,7 +47,7 @@ public:
     void ConfigureEntity(Registry& ownerRegistry) override;
 };
 
-class CoinObject final : public AE::Scene::Object
+class CoinObject final : public AE::Scene::CircleObject
 {
 public:
     explicit CoinObject(AE::Scene::ObjectData data);
@@ -56,7 +56,7 @@ public:
     void ConfigureEntity(Registry& ownerRegistry) override;
 };
 
-class SolidPlatformObject final : public AE::Scene::Object
+class SolidPlatformObject final : public AE::Scene::BoxObject
 {
 public:
     explicit SolidPlatformObject(AE::Scene::ObjectData data);

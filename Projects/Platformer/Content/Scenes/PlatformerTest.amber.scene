@@ -1,0 +1,41 @@
+AmberScene 1
+name "Platformer Test Scene"
+object Camera "Editor Camera" "" "Object" 0.000 0.000 0.000 1.000 1.000 88.000 60.000 1 1
+object Grid "Grid" "" "Object" 0.000 0.000 0.000 1.000 1.000 80.000 80.000 1 1
+object RuntimeWorld "Runtime World" "" "Object" 180.000 96.000 0.000 1.000 1.000 224.000 144.000 1 1
+object Box "Player Spawn" "" "PlayerSpawnObject" 78.000 459.000 0.000 1.000 1.000 28.000 42.000 1 0
+object Box "Finish Goal" "" "GoalObject" 2928.000 432.000 0.000 1.000 1.000 32.000 96.000 1 0
+object Circle "Editor Coin 1" "" "CoinObject" 186.243 198.340 0.000 1.000 1.000 18.000 18.000 1 0
+object Circle "Editor Coin 2" "" "CoinObject" 694.574 393.000 0.000 1.000 1.000 18.000 18.000 1 0
+object Circle "Editor Coin 3" "" "CoinObject" 1273.000 354.600 0.000 1.000 1.000 18.000 18.000 1 0
+object Circle "Editor Coin 4" "" "CoinObject" 1705.000 322.600 0.000 1.000 1.000 18.000 18.000 1 0
+object Circle "Editor Coin 5" "" "CoinObject" 2153.000 386.600 0.000 1.000 1.000 18.000 18.000 1 0
+object Circle "Editor Coin 6" "" "CoinObject" 2569.000 290.600 0.000 1.000 1.000 18.000 18.000 1 0
+object Box "Ground Main" "" "SolidPlatformObject" 1536.000 512.000 0.000 1.000 1.000 3072.000 64.000 1 0
+object Box "Ground Ledge 1" "" "SolidPlatformObject" 544.000 464.000 0.000 1.000 1.000 192.000 32.000 1 0
+object Box "Ground Ledge 2" "" "SolidPlatformObject" 896.000 432.000 0.000 1.000 1.000 192.000 32.000 1 0
+object Box "Ground Ledge 3" "" "SolidPlatformObject" 1264.000 400.000 0.000 1.000 1.000 224.000 32.000 1 0
+object Box "Ground Ledge 4" "" "SolidPlatformObject" 1696.000 368.000 0.000 1.000 1.000 192.000 32.000 1 0
+object Box "Ground Ledge 5" "" "SolidPlatformObject" 2144.000 432.000 0.000 1.000 1.000 256.000 32.000 1 0
+object Box "Ground Ledge 6" "" "SolidPlatformObject" 2576.000 336.000 0.000 1.000 1.000 160.000 32.000 1 0
+object Box "Low Step 1" "" "SolidPlatformObject" 1904.000 464.000 0.000 1.000 1.000 96.000 32.000 1 0
+object Box "Low Step 2" "" "SolidPlatformObject" 2368.000 464.000 0.000 1.000 1.000 128.000 32.000 1 0
+object Box "Floating Platform 1" "" "SolidPlatformObject" 400.000 400.000 0.000 1.000 1.000 96.000 32.000 1 0
+object Box "Floating Platform 2" "" "SolidPlatformObject" 560.000 336.000 0.000 1.000 1.000 96.000 32.000 1 0
+object Box "Floating Platform 3" "" "SolidPlatformObject" 736.000 272.000 0.000 1.000 1.000 128.000 32.000 1 0
+object Box "Floating Platform 4" "" "SolidPlatformObject" 1024.000 336.000 0.000 1.000 1.000 128.000 32.000 1 0
+object Box "Floating Platform 5" "" "SolidPlatformObject" 1504.000 304.000 0.000 1.000 1.000 128.000 32.000 1 0
+object Box "Floating Platform 6" "" "SolidPlatformObject" 1824.000 272.000 0.000 1.000 1.000 128.000 32.000 1 0
+object Box "Floating Platform 7" "" "SolidPlatformObject" 2240.000 304.000 0.000 1.000 1.000 128.000 32.000 1 0
+object Box "Floating Platform 8" "" "SolidPlatformObject" 2416.000 240.000 0.000 1.000 1.000 96.000 32.000 1 0
+object Box "Floating Platform 9" "" "SolidPlatformObject" 2752.000 272.000 0.000 1.000 1.000 128.000 32.000 1 0
+object Box "Left Stair 1" "" "SolidPlatformObject" 240.000 464.000 0.000 1.000 1.000 32.000 32.000 1 0
+object Box "Left Stair 3" "" "SolidPlatformObject" 304.000 432.000 0.000 1.000 1.000 32.000 96.000 1 0
+object Box "Right Stair 1" "" "SolidPlatformObject" 2768.000 464.000 0.000 1.000 1.000 32.000 32.000 1 0
+object Box "Right Stair 2" "" "SolidPlatformObject" 2800.000 448.000 0.000 1.000 1.000 32.000 64.000 1 0
+object Box "Right Stair 3" "" "SolidPlatformObject" 2832.000 432.000 0.000 1.000 1.000 32.000 96.000 1 0
+object Box "Editor Jump Ledge 2" "" "SolidPlatformObject" 610.000 286.000 0.000 1.000 1.000 96.000 18.000 1 0
+object Box "Editor High Ledge" "" "SolidPlatformObject" 850.000 236.000 0.000 1.000 1.000 112.000 18.000 1 0
+object Box "Editor Jump Ledge 1" "" "SolidPlatformObject" 378.560 334.000 0.000 1.000 1.000 104.000 18.000 1 0
+object Box "Box" "" "BoxObject" 1924.325 629.165 0.000 1.000 1.000 128.000 32.000 1 0
+object AssetInstance "tree-5" "Project/images/tree-5.png" "SpriteObject" 117.505 279.921 0.000 1.000 1.000 160.000 160.000 1 0

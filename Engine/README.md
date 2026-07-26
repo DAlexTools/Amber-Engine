@@ -4,7 +4,7 @@
 
 - `Runtime` owns shipped-game code split into runtime modules: `Core/Math`, `Classes`, `Logging`, `EntityComponentSystem`, `Scene`, `Components`, `Systems`, `AssetManager`, `FileManager`, `Game`, `EventBus`, `Events`, `EnginePhysicsBridge` and `Physics`.
 - `Runtime/Scene` owns runtime scene data and object authoring glue: `.amber.scene` load/save, `Object`, `SpriteObject`, `ObjectFactory` and lightweight scene ECS components.
-- Game-specific object classes should be registered by the game/sample target that owns their behavior; for example `PlatformerApp` owns its spawn, goal, coin and solid-platform object classes under `Samples/GamesDemos/Platformer`.
+- Game-specific object classes should be registered by the game/project target that owns their behavior; for example `PlatformerApp` owns its spawn, goal, coin and solid-platform object classes under `Projects/Platformer`.
 - `Runtime/Physics` owns renderer-free physics simulation objects, collision detection, particles, constraints and its smoke tests.
 - `Content` is reserved for built-in engine resources, not project/game assets.
 - `ThirdParty` owns bundled dependencies such as `glm`, `imgui`, `lua` headers and `sol`.

@@ -1,5 +1,6 @@
 #include "Editor/Shell/EditorApplication.h"
 
+#include "Editor/Shell/ProjectGenerator.h"
 #include "Logging/LogBus.h"
 #include <SDL2/SDL_image.h>
 #include "imgui.h"
@@ -8,9 +9,12 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <iostream>
+#include <system_error>
 
 namespace AE::Editor
 {
@@ -124,19 +128,101 @@ namespace
         }
         return clicked;
     }
+
+    template<std::size_t Size>
+    void CopyToBuffer(std::array<char, Size>& buffer, const std::string& value)
+    {
+        buffer.fill('\0');
+        const std::size_t count = std::min(buffer.size() - 1, value.size());
+        std::memcpy(buffer.data(), value.data(), count);
+    }
+
+    bool LooksLikeEngineRoot(const std::filesystem::path& path)
+    {
+        if (path.empty())
+        {
+            return false;
+        }
+        std::error_code error;
+        return std::filesystem::exists(path / "CMakeLists.txt", error) &&
+            std::filesystem::exists(path / "Engine" / "Runtime", error);
+    }
+
+    bool RunProjectGeneratorSmoke(const std::filesystem::path& engineRoot)
+    {
+        const auto stamp = std::chrono::steady_clock::now().time_since_epoch().count();
+        const std::filesystem::path parent =
+            std::filesystem::temp_directory_path() /
+            ("AmberEditorProjectSmoke_" + std::to_string(stamp));
+
+        std::error_code cleanupError;
+        std::filesystem::remove_all(parent, cleanupError);
+
+        ProjectGenerationRequest request;
+        request.projectName = "SmokeBlank";
+        request.parentDirectory = parent;
+        request.engineRoot = engineRoot;
+        request.projectTemplate = ProjectTemplate::BlankCppGame;
+
+        ProjectGenerationResult result;
+        std::string error;
+        if (!ProjectGenerator::CreateProject(request, result, &error))
+        {
+            std::cerr << "Project generator smoke failed: " << error << std::endl;
+            return false;
+        }
+
+        ProjectDescriptor descriptor;
+        if (!LoadProjectDescriptor(result.projectFilePath, descriptor, &error))
+        {
+            std::cerr << "Project descriptor smoke failed: " << error << std::endl;
+            std::filesystem::remove_all(parent, cleanupError);
+            return false;
+        }
+
+        const bool valid =
+            descriptor.name == "SmokeBlank" &&
+            descriptor.gameModuleTarget == "SmokeBlankModule" &&
+            descriptor.playTarget == "SmokeBlankLauncher" &&
+            descriptor.solutionPath == (std::filesystem::path("Builds") / "Editor" / "SmokeBlank.sln") &&
+            ProjectGenerator::GetConfigureCommand(descriptor) == "cmake --preset editor" &&
+            ProjectGenerator::GetExpectedSolutionPath(descriptor) == (result.projectRoot / "Builds" / "Editor" / "SmokeBlank.sln") &&
+            std::filesystem::exists(result.projectRoot / "CMakeLists.txt") &&
+            std::filesystem::exists(result.projectRoot / "CMakePresets.json") &&
+            std::filesystem::exists(result.projectRoot / "Source" / "SmokeBlank" / "SmokeBlankModule.cpp") &&
+            std::filesystem::exists(result.projectRoot / "Source" / "SmokeBlank" / "SmokeBlankModulePlugin.cpp") &&
+            std::filesystem::exists(result.projectRoot / "Content" / "Scenes" / "Startup.amber.scene");
+
+        std::filesystem::remove_all(parent, cleanupError);
+        if (!valid)
+        {
+            std::cerr << "Project generator smoke failed: generated project is incomplete." << std::endl;
+        }
+        return valid;
+    }
 }
 
-int EditorApplication::Run()
+int EditorApplication::Run(const std::filesystem::path& startupProjectFile)
 {
     if (!Initialize(false))
     {
         return 1;
     }
 
+    if (!startupProjectFile.empty())
+    {
+        CopyToBuffer(openProjectPath, startupProjectFile.string());
+        if (!OpenProjectFile(startupProjectFile))
+        {
+            std::cerr << "Project open failed: " << startupProjectFile.string() << std::endl;
+        }
+    }
+
     running = true;
     while (running)
     {
         PollEvents();
+        playSession.Update();
         BeginFrame();
         DrawLayout();
         RenderFrame();
@@ -146,10 +232,86 @@ int EditorApplication::Run()
     return 0;
 }
 
-bool EditorApplication::RunSmokeTest()
+bool EditorApplication::RunSmokeTest(const std::filesystem::path& startupProjectFile)
 {
     if (!Initialize(true))
     {
+        return false;
+    }
+
+    if (!RunProjectGeneratorSmoke(FindEngineRoot()))
+    {
+        Shutdown();
+        return false;
+    }
+
+    if (!startupProjectFile.empty())
+    {
+        if (!OpenProjectFile(startupProjectFile))
+        {
+            std::cerr << "Editor smoke failed: project file did not open: "
+                << startupProjectFile.string() << std::endl;
+            Shutdown();
+            return false;
+        }
+    }
+    else if (!OpenLegacyWorkspaceProject())
+    {
+        Shutdown();
+        return false;
+    }
+
+    const std::size_t editObjectCount = sceneDocument.GetObjects().size();
+    const bool editSceneDirty = sceneDocument.IsDirty();
+    if (!PlayInPIE() || !playSession.IsPlaying() || playSession.GetRuntimeObjectCount() != editObjectCount)
+    {
+        std::cerr << "Editor PIE smoke failed: runtime world did not start." << std::endl;
+        Shutdown();
+        return false;
+    }
+
+    playSession.Update();
+    playSession.Update();
+    playSession.Render();
+    if (playSession.GetFrameCount() < 2)
+    {
+        std::cerr << "Editor PIE smoke failed: runtime world did not tick." << std::endl;
+        Shutdown();
+        return false;
+    }
+    if (playSession.GetRenderCount() < 1 || std::string(playSession.GetRuntimeModuleName()).empty())
+    {
+        std::cerr << "Editor PIE smoke failed: game module render hook did not run." << std::endl;
+        Shutdown();
+        return false;
+    }
+    if (!playSession.IsRuntimeModuleDynamic() ||
+        std::string(playSession.GetRuntimeModuleName()) != "PlatformerGameModule")
+    {
+        std::cerr << "Editor PIE smoke failed: Platformer game module plugin was not loaded." << std::endl;
+        Shutdown();
+        return false;
+    }
+
+    playSession.SetPaused(true);
+    const unsigned long pausedFrameCount = playSession.GetFrameCount();
+    playSession.Update();
+    if (playSession.GetFrameCount() != pausedFrameCount)
+    {
+        std::cerr << "Editor PIE smoke failed: paused runtime world ticked." << std::endl;
+        Shutdown();
+        return false;
+    }
+
+    playSession.SetPaused(false);
+    playSession.Stop();
+    if (playSession.IsPlaying() ||
+        playSession.GetRuntimeObjectCount() != 0 ||
+        sceneDocument.GetObjects().size() != editObjectCount ||
+        sceneDocument.IsDirty() != editSceneDirty)
+    {
+        std::cerr << "Editor PIE smoke failed: stop did not restore editor state." << std::endl;
+        Shutdown();
         return false;
     }
 
@@ -229,6 +391,10 @@ bool EditorApplication::Initialize(bool hiddenWindow)
     }
     engineContentRoot = FindContentRoot(std::filesystem::path("Engine") / "Content");
 
+    const std::filesystem::path defaultProjectsRoot = FindEngineRoot() / "Projects";
+    CopyToBuffer(newProjectName, std::string("MyGame"));
+    CopyToBuffer(newProjectLocation, defaultProjectsRoot.string());
+
     contentRoot = projectContentRoot;
     assetRegistry.ScanRoots(BuildAssetRoots());
     currentAssetPath = contentRoot;
@@ -259,6 +425,7 @@ bool EditorApplication::Initialize(bool hiddenWindow)
 
 void EditorApplication::Shutdown()
 {
+    playSession.Stop();
     textureCache.Clear();
 
     if (imguiReady)
@@ -317,20 +484,15 @@ void EditorApplication::PollEvents()
             }
             else if (key == SDLK_F5)
             {
-                playing = true;
-                paused = false;
-                LogBus::Add(LogLevel::Info, "Editor", "Play requested.");
+                PlayInPIE();
             }
             else if (key == SDLK_F6)
             {
-                paused = !paused;
-                LogBus::Add(LogLevel::Info, "Editor", paused ? "Editor paused." : "Editor resumed.");
+                playSession.SetPaused(!playSession.IsPaused());
             }
             else if (key == SDLK_F7)
             {
-                playing = false;
-                paused = false;
-                LogBus::Add(LogLevel::Info, "Editor", "Play stopped.");
+                playSession.Stop();
             }
             else if (key == SDLK_DELETE && !textInputActive)
             {
@@ -395,6 +557,12 @@ void EditorApplication::DrawLayout()
     DrawMainMenuBar();
 
     const float menuHeight = ImGui::GetFrameHeight();
+    if (showProjectBrowser && !activeProjectLoaded)
+    {
+        DrawProjectBrowser();
+        return;
+    }
+
     const float toolbarHeight = 42.0f;
     const float rightWidth = std::max(280.0f, std::min(360.0f, windowWidth * 0.24f));
     const float bottomHeight = std::max(180.0f, std::min(260.0f, windowHeight * 0.31f));
@@ -435,6 +603,17 @@ void EditorApplication::DrawMainMenuBar()
 
     if (ImGui::BeginMenu("File"))
     {
+        if (ImGui::MenuItem("Project Browser"))
+        {
+            showProjectBrowser = true;
+            activeProjectLoaded = false;
+        }
+        const bool canGenerateSolution = activeProjectLoaded && !activeProject.projectRoot.empty();
+        if (ImGui::MenuItem("Generate Solution", nullptr, false, canGenerateSolution))
+        {
+            GenerateSolutionForActiveProject();
+        }
+        ImGui::Separator();
         if (ImGui::MenuItem("New Scene"))
         {
             sceneDocument.NewScene();
@@ -478,6 +657,45 @@ void EditorApplication::DrawMainMenuBar()
         ImGui::EndMenu();
     }
 
+    if (ImGui::BeginMenu("Add"))
+    {
+        const bool canEditScene = !playSession.IsPlaying() && activeProjectLoaded;
+        if (ImGui::MenuItem("Box", nullptr, false, canEditScene))
+        {
+            EditorTransform transform;
+            transform.position = editorViewport.GetViewCenter();
+            SceneObject& object = sceneDocument.AddBoxObject("Box", transform, EditorVec2{128.0f, 32.0f});
+            selectionService.SelectSceneObject(object.id);
+            LogBus::Add(LogLevel::Info, "Editor", "Added Box object.");
+        }
+        if (ImGui::MenuItem("Circle", nullptr, false, canEditScene))
+        {
+            EditorTransform transform;
+            transform.position = editorViewport.GetViewCenter();
+            SceneObject& object = sceneDocument.AddCircleObject("Circle", transform, EditorVec2{64.0f, 64.0f});
+            selectionService.SelectSceneObject(object.id);
+            LogBus::Add(LogLevel::Info, "Editor", "Added Circle object.");
+        }
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Play"))
+    {
+        if (ImGui::MenuItem("Play In PIE", "F5"))
+        {
+            PlayInPIE();
+        }
+        if (ImGui::MenuItem("Pause View", "F6", playSession.IsPaused(), playSession.IsPlaying()))
+        {
+            playSession.SetPaused(!playSession.IsPaused());
+        }
+        if (ImGui::MenuItem("Stop PIE", "F7", false, playSession.IsPlaying()))
+        {
+            playSession.Stop();
+        }
+        ImGui::EndMenu();
+    }
+
     if (ImGui::BeginMenu("Window"))
     {
         ImGui::MenuItem("Asset Browser", nullptr, &showAssetBrowser);
@@ -488,6 +706,73 @@ void EditorApplication::DrawMainMenuBar()
     }
 
     ImGui::EndMainMenuBar();
+}
+
+void EditorApplication::DrawProjectBrowser()
+{
+    const float menuHeight = ImGui::GetFrameHeight();
+    SetPanelBounds(0.0f, menuHeight, static_cast<float>(windowWidth), static_cast<float>(windowHeight) - menuHeight);
+    ImGui::Begin(
+        "Project Browser",
+        nullptr,
+        FixedPanelFlags() | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings);
+
+    ImGui::Text("Amber Project Browser");
+    ImGui::Separator();
+
+    const float columnWidth = std::max(320.0f, ImGui::GetContentRegionAvail().x * 0.48f);
+    ImGui::BeginChild("NewProjectPanel", ImVec2(columnWidth, 0.0f), true);
+    ImGui::Text("New Project");
+    ImGui::Separator();
+    ImGui::InputText("Name", newProjectName.data(), newProjectName.size());
+    ImGui::InputText("Location", newProjectLocation.data(), newProjectLocation.size());
+
+    const char* templates[] = {"Blank C++ Game"};
+    ImGui::Combo("Template", &newProjectTemplateIndex, templates, 1);
+
+    if (ImGui::Button("Create Project"))
+    {
+        CreateProjectFromBrowser(false);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Create + Generate Solution"))
+    {
+        CreateProjectFromBrowser(true);
+    }
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    ImGui::BeginChild("OpenProjectPanel", ImVec2(0.0f, 0.0f), true);
+    ImGui::Text("Open Project");
+    ImGui::Separator();
+    ImGui::InputText("Project File", openProjectPath.data(), openProjectPath.size());
+
+    if (ImGui::Button("Open Project"))
+    {
+        OpenProjectFile(openProjectPath.data());
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Open Current Workspace"))
+    {
+        OpenLegacyWorkspaceProject();
+    }
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Recent Projects");
+    ImGui::TextDisabled("No recent projects yet.");
+
+    if (!projectBrowserStatus.empty())
+    {
+        ImGui::Separator();
+        const ImVec4 color = projectBrowserStatusIsError ?
+            ImVec4(0.95f, 0.34f, 0.32f, 1.0f) :
+            ImVec4(0.42f, 0.82f, 0.50f, 1.0f);
+        ImGui::TextColored(color, "%s", projectBrowserStatus.c_str());
+    }
+    ImGui::EndChild();
+
+    ImGui::End();
 }
 
 void EditorApplication::DrawToolbar(float menuHeight, float toolbarHeight)
@@ -521,28 +806,25 @@ void EditorApplication::DrawToolbar(float menuHeight, float toolbarHeight)
     ImGui::SameLine(ImGui::GetWindowWidth() * 0.44f);
     if (ImGui::Button("Play"))
     {
-        playing = true;
-        paused = false;
-        LogBus::Add(LogLevel::Info, "Editor", "Play requested.");
+        PlayInPIE();
     }
     ImGui::SameLine();
     if (ImGui::Button("Pause"))
     {
-        if (playing)
+        if (playSession.IsPlaying())
         {
-            paused = !paused;
-            LogBus::Add(LogLevel::Info, "Editor", paused ? "Editor paused." : "Editor resumed.");
+            playSession.SetPaused(!playSession.IsPaused());
         }
     }
     ImGui::SameLine();
     if (ImGui::Button("Stop"))
     {
-        playing = false;
-        paused = false;
-        LogBus::Add(LogLevel::Info, "Editor", "Play stopped.");
+        playSession.Stop();
     }
 
     ImGui::SameLine();
+    const bool playing = playSession.IsPlaying();
+    const bool paused = playSession.IsPaused();
     const char* state = playing ? (paused ? "Paused" : "Playing") : "Editing";
     ImGui::TextDisabled("%s", state);
 
@@ -553,9 +835,15 @@ void EditorApplication::DrawSceneView(float x, float y, float width, float heigh
 {
     SetPanelBounds(x, y, width, height);
     ImGui::Begin("Scene View", nullptr, FixedPanelFlags() | ImGuiWindowFlags_NoScrollbar);
+    SceneDocument* viewportSceneDocument = &sceneDocument;
+    if (SceneDocument* runtimeSceneDocument = playSession.GetRuntimeSceneDocument())
+    {
+        viewportSceneDocument = runtimeSceneDocument;
+    }
+
     const std::optional<EditorViewport::AssetDropRequest> dropRequest =
-        editorViewport.Draw(sceneDocument, selectionService, assetRegistry, textureCache, activeTool, playing, paused);
-    if (dropRequest)
+        editorViewport.Draw(*viewportSceneDocument, selectionService, assetRegistry, textureCache, activeTool, playSession.IsPlaying(), playSession.IsPaused());
+    if (dropRequest && !playSession.IsPlaying())
     {
         const AssetRecord* asset = assetRegistry.FindAssetById(dropRequest->assetId);
         if (asset && AssetRegistry::CanInstantiate(asset->type))
@@ -582,6 +870,7 @@ void EditorApplication::DrawSceneView(float x, float y, float width, float heigh
             LogBus::Add(LogLevel::Warning, "Editor", "Dropped asset cannot be placed in the scene.");
         }
     }
+    playSession.Render();
     ImGui::End();
 }
 
@@ -713,6 +1002,19 @@ void EditorApplication::DrawDetailsPanel(float x, float y, float width, float he
     SetPanelBounds(x, y, width, height);
     ImGui::Begin("Details", &showDetails, FixedPanelFlags());
 
+    if (playSession.IsPlaying())
+    {
+        ImGui::TextDisabled("PIE is running. Stop PIE to edit scene data.");
+        ImGui::Text("Game module: %s", playSession.GetRuntimeModuleName());
+        ImGui::Text("Module source: %s", playSession.IsRuntimeModuleDynamic() ? "Dynamic plugin" : "Editor fallback");
+        ImGui::Text("Requested target: %s", playSession.GetRequestedGameModuleTarget().c_str());
+        ImGui::Text("Runtime objects: %zu", playSession.GetRuntimeObjectCount());
+        ImGui::Text("Runtime frames: %lu", playSession.GetFrameCount());
+        ImGui::Text("Runtime renders: %lu", playSession.GetRenderCount());
+        ImGui::End();
+        return;
+    }
+
     const EditorSelection& selection = selectionService.GetSelection();
     if (selection.type == EditorSelectionType::SceneObject)
     {
@@ -758,7 +1060,9 @@ void EditorApplication::DrawDetailsPanel(float x, float y, float width, float he
             changed |= ImGui::InputFloat2("Position", &object->transform.position.x);
             changed |= ImGui::InputFloat("Rotation", &object->transform.rotationDegrees);
             changed |= ImGui::InputFloat2("Scale", &object->transform.scale.x);
-            if (object->kind == SceneObjectKind::AssetInstance)
+            if (object->kind == SceneObjectKind::AssetInstance ||
+                object->kind == SceneObjectKind::Box ||
+                object->kind == SceneObjectKind::Circle)
             {
                 changed |= ImGui::InputFloat2("Size", &object->size.x);
             }
@@ -897,8 +1201,164 @@ void EditorApplication::SwitchContentRoot(const std::filesystem::path& path)
     RefreshAssets();
 }
 
+bool EditorApplication::CreateProjectFromBrowser(bool generateSolutionAfterCreate)
+{
+    ProjectGenerationRequest request;
+    request.projectName = newProjectName.data();
+    request.parentDirectory = newProjectLocation.data();
+    request.engineRoot = FindEngineRoot();
+    request.projectTemplate = ProjectTemplate::BlankCppGame;
+
+    ProjectGenerationResult result;
+    std::string error;
+    if (!ProjectGenerator::CreateProject(request, result, &error))
+    {
+        projectBrowserStatus = error;
+        projectBrowserStatusIsError = true;
+        LogBus::Add(LogLevel::Error, "Editor", "Project creation failed: " + error);
+        return false;
+    }
+
+    CopyToBuffer(openProjectPath, result.projectFilePath.string());
+    projectBrowserStatus =
+        "Created " + result.descriptor.name +
+        ". Configure command: " + result.configureCommand;
+    projectBrowserStatusIsError = false;
+    LogBus::Add(LogLevel::Info, "Editor", "Project created: " + result.projectRoot.string());
+    if (!ApplyProjectDescriptor(result.descriptor))
+    {
+        return false;
+    }
+
+    if (generateSolutionAfterCreate)
+    {
+        return GenerateSolutionForActiveProject();
+    }
+    return true;
+}
+
+bool EditorApplication::GenerateSolutionForActiveProject()
+{
+    if (!activeProjectLoaded)
+    {
+        projectBrowserStatus = "No active project is open.";
+        projectBrowserStatusIsError = true;
+        LogBus::Add(LogLevel::Warning, "Editor", projectBrowserStatus);
+        return false;
+    }
+
+    ProjectConfigureResult result;
+    std::string error;
+    LogBus::Add(LogLevel::Info, "Editor", "Generating solution: " + ProjectGenerator::GetConfigureCommand(activeProject));
+    if (!ProjectGenerator::ConfigureProject(activeProject, result, &error))
+    {
+        projectBrowserStatus = error;
+        projectBrowserStatusIsError = true;
+        LogBus::Add(LogLevel::Error, "Editor", "Solution generation failed: " + error);
+        return false;
+    }
+
+    projectBrowserStatus = "Generated solution: " + result.expectedSolutionPath.string();
+    projectBrowserStatusIsError = false;
+    LogBus::Add(LogLevel::Info, "Editor", projectBrowserStatus);
+    return true;
+}
+
+bool EditorApplication::OpenProjectFile(const std::filesystem::path& path)
+{
+    ProjectDescriptor descriptor;
+    std::string error;
+    if (!LoadProjectDescriptor(path, descriptor, &error))
+    {
+        projectBrowserStatus = error;
+        projectBrowserStatusIsError = true;
+        LogBus::Add(LogLevel::Error, "Editor", "Project open failed: " + error);
+        return false;
+    }
+
+    CopyToBuffer(openProjectPath, descriptor.projectFilePath.string());
+    return ApplyProjectDescriptor(descriptor);
+}
+
+bool EditorApplication::OpenLegacyWorkspaceProject()
+{
+    const std::filesystem::path engineRoot = FindEngineRoot();
+    const std::filesystem::path platformerProjectFile =
+        engineRoot / "Projects" / "Platformer" / "Platformer.amberproject";
+
+    ProjectDescriptor loadedDescriptor;
+    std::string loadError;
+    if (LoadProjectDescriptor(platformerProjectFile, loadedDescriptor, &loadError))
+    {
+        return ApplyProjectDescriptor(loadedDescriptor);
+    }
+
+    ProjectDescriptor descriptor;
+    descriptor.name = "Platformer";
+    descriptor.projectRoot = engineRoot / "Projects" / "Platformer";
+    descriptor.engineRoot = engineRoot;
+    descriptor.gameModuleTarget = "PlatformerGameModule";
+    descriptor.playTarget = "PlatformerApp";
+    descriptor.startupScene = std::filesystem::path("Content") / "Scenes" / "PlatformerTest.amber.scene";
+    descriptor.contentRoot = "Content";
+    descriptor.buildPreset = "full-local-vcpkg";
+    descriptor.solutionPath = std::filesystem::path("Builds") / "Editor" / "AmberEngine.sln";
+    return ApplyProjectDescriptor(descriptor);
+}
+
+bool EditorApplication::ApplyProjectDescriptor(const ProjectDescriptor& descriptor)
+{
+    const std::filesystem::path resolvedContentRoot = descriptor.ResolveProjectPath(descriptor.contentRoot);
+    std::error_code errorCode;
+    if (!std::filesystem::exists(resolvedContentRoot, errorCode) ||
+        !std::filesystem::is_directory(resolvedContentRoot, errorCode))
+    {
+        projectBrowserStatus = "Project content root does not exist: " + resolvedContentRoot.string();
+        projectBrowserStatusIsError = true;
+        return false;
+    }
+
+    activeProject = descriptor;
+    activeProjectLoaded = true;
+    showProjectBrowser = false;
+    projectBrowserStatus.clear();
+    projectBrowserStatusIsError = false;
+
+    projectContentRoot = resolvedContentRoot;
+    if (!activeProject.engineRoot.empty())
+    {
+        engineContentRoot = activeProject.engineRoot / "Engine" / "Content";
+    }
+    contentRoot = projectContentRoot;
+    currentAssetPath = contentRoot;
+    assetRegistry.ScanRoots(BuildAssetRoots());
+    RefreshAssets();
+
+    currentScenePath = DefaultScenePath();
+    std::error_code scenePathError;
+    if (!currentScenePath.empty() && std::filesystem::exists(currentScenePath, scenePathError))
+    {
+        OpenSceneFile(currentScenePath);
+    }
+    else
+    {
+        sceneDocument.NewScene();
+        selectionService.Clear();
+    }
+
+    LogBus::Add(LogLevel::Info, "Editor", "Project opened: " + activeProject.name);
+    LogBus::Add(LogLevel::Info, "Editor", "Project root: " + activeProject.projectRoot.string());
+    return true;
+}
+
 bool EditorApplication::DeleteSelectedSceneObject()
 {
+    if (playSession.IsPlaying())
+    {
+        LogBus::Add(LogLevel::Warning, "Editor", "Stop PIE before deleting scene objects.");
+        return false;
+    }
+
     const EditorSelection& selection = selectionService.GetSelection();
     if (selection.type != EditorSelectionType::SceneObject)
     {
@@ -977,8 +1437,90 @@ bool EditorApplication::OpenSceneFile(const std::filesystem::path& path)
     return true;
 }
 
+bool EditorApplication::PlayInPIE()
+{
+    if (!activeProjectLoaded)
+    {
+        LogBus::Add(
+            LogLevel::Warning,
+            "Editor",
+            "No active project is open. Open a project before starting PIE.");
+        showProjectBrowser = true;
+        return false;
+    }
+
+    const std::filesystem::path scenePath = currentScenePath.empty() ? DefaultScenePath() : currentScenePath;
+    PlayInPIERequest request;
+    request.projectName = activeProject.name;
+    request.projectRoot = activeProject.projectRoot;
+    request.scenePath = scenePath;
+    request.gameModuleTarget = activeProject.gameModuleTarget;
+    request.playTarget = activeProject.playTarget;
+    return playSession.PlayInPIE(request, sceneDocument);
+}
+
+std::filesystem::path EditorApplication::FindEngineRoot() const
+{
+    if (LooksLikeEngineRoot(activeProject.engineRoot))
+    {
+        return activeProject.engineRoot;
+    }
+
+    if (!engineContentRoot.empty())
+    {
+        const std::filesystem::path candidate = engineContentRoot.parent_path().parent_path();
+        if (LooksLikeEngineRoot(candidate))
+        {
+            return candidate;
+        }
+    }
+
+    if (!projectContentRoot.empty())
+    {
+        const std::filesystem::path candidate = projectContentRoot.parent_path();
+        if (LooksLikeEngineRoot(candidate))
+        {
+            return candidate;
+        }
+    }
+
+    std::error_code error;
+    std::filesystem::path current = std::filesystem::weakly_canonical(std::filesystem::current_path(), error);
+    if (current.empty())
+    {
+        current = std::filesystem::current_path();
+    }
+
+    for (int depth = 0; depth < 10; ++depth)
+    {
+        if (LooksLikeEngineRoot(current))
+        {
+            return current;
+        }
+
+        const std::filesystem::path nested = current / "AmberEngine";
+        if (LooksLikeEngineRoot(nested))
+        {
+            return nested;
+        }
+
+        if (!current.has_parent_path() || current.parent_path() == current)
+        {
+            break;
+        }
+        current = current.parent_path();
+    }
+
+    return std::filesystem::current_path();
+}
+
 std::filesystem::path EditorApplication::DefaultScenePath() const
 {
+    if (activeProjectLoaded && !activeProject.startupScene.empty())
+    {
+        return activeProject.ResolveProjectPath(activeProject.startupScene);
+    }
+
     if (projectContentRoot.empty())
     {
         return {};
@@ -994,7 +1536,10 @@ std::vector<AssetRoot> EditorApplication::BuildAssetRoots() const
     {
         roots.push_back(AssetRoot{"Project", projectContentRoot});
     }
-    if (!engineContentRoot.empty())
+    std::error_code error;
+    if (!engineContentRoot.empty() &&
+        std::filesystem::exists(engineContentRoot, error) &&
+        std::filesystem::is_directory(engineContentRoot, error))
     {
         roots.push_back(AssetRoot{"Engine", engineContentRoot});
     }

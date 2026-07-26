@@ -21,6 +21,10 @@ namespace
                 return AE::Scene::ObjectKind::RuntimeWorld;
             case SceneObjectKind::AssetInstance:
                 return AE::Scene::ObjectKind::AssetInstance;
+            case SceneObjectKind::Box:
+                return AE::Scene::ObjectKind::Box;
+            case SceneObjectKind::Circle:
+                return AE::Scene::ObjectKind::Circle;
             default:
                 return AE::Scene::ObjectKind::Empty;
         }
@@ -38,6 +42,10 @@ namespace
                 return SceneObjectKind::RuntimeWorld;
             case AE::Scene::ObjectKind::AssetInstance:
                 return SceneObjectKind::AssetInstance;
+            case AE::Scene::ObjectKind::Box:
+                return SceneObjectKind::Box;
+            case AE::Scene::ObjectKind::Circle:
+                return SceneObjectKind::Circle;
             default:
                 return SceneObjectKind::Empty;
         }
@@ -116,6 +124,24 @@ SceneObject& SceneDocument::AddAssetInstance(std::string objectName, std::string
     return object;
 }
 
+SceneObject& SceneDocument::AddBoxObject(std::string objectName, EditorTransform transform, EditorVec2 size)
+{
+    SceneObject& object = AddObject(std::move(objectName), SceneObjectKind::Box, transform);
+    object.className = "BoxObject";
+    object.size = size;
+    dirty = true;
+    return object;
+}
+
+SceneObject& SceneDocument::AddCircleObject(std::string objectName, EditorTransform transform, EditorVec2 size)
+{
+    SceneObject& object = AddObject(std::move(objectName), SceneObjectKind::Circle, transform);
+    object.className = "CircleObject";
+    object.size = size;
+    dirty = true;
+    return object;
+}
+
 bool SceneDocument::RemoveObject(std::uint32_t id)
 {
     const auto it = std::find_if(objects.begin(), objects.end(), [id](const SceneObject& object) {
@@ -140,10 +166,26 @@ bool SceneDocument::IsObjectRemovable(std::uint32_t id) const
         return false;
     }
 
-    return object->kind == SceneObjectKind::AssetInstance || object->kind == SceneObjectKind::Empty;
+    return object->kind == SceneObjectKind::AssetInstance ||
+        object->kind == SceneObjectKind::Box ||
+        object->kind == SceneObjectKind::Circle ||
+        object->kind == SceneObjectKind::Empty;
 }
 
 bool SceneDocument::SaveToFile(const std::filesystem::path& path, std::string* error)
+{
+    AE::Scene::Document document = ToRuntimeDocument();
+
+    if (!AE::Scene::SaveScene(document, path, error))
+    {
+        return false;
+    }
+
+    dirty = false;
+    return true;
+}
+
+AE::Scene::Document SceneDocument::ToRuntimeDocument() const
 {
     AE::Scene::Document document;
     document.name = name;
@@ -155,7 +197,10 @@ bool SceneDocument::SaveToFile(const std::filesystem::path& path, std::string* e
         sceneObject.name = object.name;
         sceneObject.assetId = object.assetId;
         sceneObject.className = object.className.empty() ?
-            (object.kind == SceneObjectKind::AssetInstance ? "SpriteObject" : "Object") :
+            (object.kind == SceneObjectKind::AssetInstance ? "SpriteObject" :
+                object.kind == SceneObjectKind::Box ? "BoxObject" :
+                object.kind == SceneObjectKind::Circle ? "CircleObject" :
+                "Object") :
             object.className;
         sceneObject.kind = ToRuntimeKind(object.kind);
         sceneObject.transform.position = AE::Scene::Vec2{object.transform.position.x, object.transform.position.y};
@@ -167,13 +212,7 @@ bool SceneDocument::SaveToFile(const std::filesystem::path& path, std::string* e
         document.objects.push_back(std::move(sceneObject));
     }
 
-    if (!AE::Scene::SaveScene(document, path, error))
-    {
-        return false;
-    }
-
-    dirty = false;
-    return true;
+    return document;
 }
 
 bool SceneDocument::LoadFromFile(const std::filesystem::path& path, std::string* error)
@@ -204,7 +243,10 @@ bool SceneDocument::LoadFromFile(const std::filesystem::path& path, std::string*
         SceneObject& object = AddObject(sceneObject.name, kind, transform);
         object.assetId = sceneObject.assetId;
         object.className = sceneObject.className.empty() ?
-            (kind == SceneObjectKind::AssetInstance ? "SpriteObject" : "Object") :
+            (kind == SceneObjectKind::AssetInstance ? "SpriteObject" :
+                kind == SceneObjectKind::Box ? "BoxObject" :
+                kind == SceneObjectKind::Circle ? "CircleObject" :
+                "Object") :
             sceneObject.className;
         object.size = EditorVec2{sceneObject.size.x, sceneObject.size.y};
         object.visible = sceneObject.visible;
@@ -244,6 +286,10 @@ const char* SceneDocument::KindName(SceneObjectKind kind)
             return "Runtime World";
         case SceneObjectKind::AssetInstance:
             return "Asset Instance";
+        case SceneObjectKind::Box:
+            return "Box";
+        case SceneObjectKind::Circle:
+            return "Circle";
         default:
             return "Empty";
     }

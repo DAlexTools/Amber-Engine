@@ -45,6 +45,10 @@ const char* ObjectKindName(ObjectKind kind)
             return "RuntimeWorld";
         case ObjectKind::AssetInstance:
             return "AssetInstance";
+        case ObjectKind::Box:
+            return "Box";
+        case ObjectKind::Circle:
+            return "Circle";
         default:
             return "Empty";
     }
@@ -70,6 +74,16 @@ bool TryParseObjectKind(const std::string& value, ObjectKind& kind)
     if (value == "AssetInstance" || value == "Asset Instance")
     {
         kind = ObjectKind::AssetInstance;
+        return true;
+    }
+    if (value == "Box")
+    {
+        kind = ObjectKind::Box;
+        return true;
+    }
+    if (value == "Circle")
+    {
+        kind = ObjectKind::Circle;
         return true;
     }
     if (value == "Empty")

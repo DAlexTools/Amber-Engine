@@ -1,46 +1,10 @@
 set(PHYSICS_DEMOS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/PhysicsDemos)
 set(GAMES_DEMOS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/GamesDemos)
-set(ENGINE_THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Engine/ThirdParty)
-set(PLATFORMER_DIR ${GAMES_DEMOS_DIR}/Platformer)
 set(PLATFORMER2_DIR ${GAMES_DEMOS_DIR}/Platformer2)
 set(CONTAINER_SANDBOX_DIR ${PHYSICS_DEMOS_DIR}/ContainerSandbox)
 set(PHYSICS_LAB_DIR ${PHYSICS_DEMOS_DIR}/PhysicsLab)
 
 if(SDL2_TARGET_FOUND)
-    add_executable(PlatformerApp
-        ${PLATFORMER_DIR}/main.cpp
-        ${PLATFORMER_DIR}/PlatformerApp.cpp
-        ${PLATFORMER_DIR}/PlatformerSceneObjects.cpp
-    )
-
-    target_compile_definitions(PlatformerApp PRIVATE SDL_MAIN_HANDLED SMOKE_TEST=1)
-
-    target_include_directories(PlatformerApp PRIVATE
-        ${PLATFORMER_DIR}
-        ${ENGINE_THIRD_PARTY_DIR}
-        ${LUA_INCLUDE_DIRS_EFFECTIVE}
-    )
-
-    target_link_libraries(PlatformerApp PRIVATE
-        AmberBuildConfig
-        EngineRuntimeCore
-        EngineRuntimeECS
-        Physics
-        ${LUA_LINK_TARGETS}
-        ${SDL2_LINK_TARGETS}
-    )
-    if(SDL2_IMAGE_TARGET_FOUND)
-        target_compile_definitions(PlatformerApp PRIVATE AMBER_ENABLE_PLATFORMER_EDITOR_SCENE=1)
-        target_link_libraries(PlatformerApp PRIVATE ${SDL2_IMAGE_TARGET})
-    endif()
-    if(TARGET EditorDiagnostics)
-        target_compile_definitions(PlatformerApp PRIVATE AMBER_ENABLE_SAMPLE_DIAGNOSTICS)
-        target_link_libraries(PlatformerApp PRIVATE EditorDiagnostics)
-    endif()
-    amber_target_folder(PlatformerApp "Samples/GamesDemos/Platformer")
-    amber_add_header_tree(PlatformerApp "${PLATFORMER_DIR}")
-    amber_group_sources(PlatformerApp "${CMAKE_CURRENT_SOURCE_DIR}")
-
     if(SDL2_IMAGE_TARGET_FOUND)
         add_executable(Platformer2App
             ${PLATFORMER2_DIR}/main.cpp
@@ -127,7 +91,7 @@ if(SDL2_TARGET_FOUND)
     endif()
 else()
     message(WARNING
-        "PlatformerApp, ContainerSandboxApp and PhysicsLabApp targets are disabled because SDL2 was not found."
+        "Platformer2App, ContainerSandboxApp and PhysicsLabApp targets are disabled because SDL2 was not found."
     )
 endif()
 

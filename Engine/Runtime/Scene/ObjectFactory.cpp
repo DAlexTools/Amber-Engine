@@ -1,11 +1,29 @@
 #include "Scene/ObjectFactory.h"
 
+#include "Scene/PrimitiveObjects.h"
 #include "Scene/SpriteObject.h"
 
 #include <utility>
 
 namespace AE::Scene
 {
+namespace
+{
+    const char* DefaultClassNameForKind(ObjectKind kind)
+    {
+        switch (kind)
+        {
+            case ObjectKind::AssetInstance:
+                return "SpriteObject";
+            case ObjectKind::Box:
+                return "BoxObject";
+            case ObjectKind::Circle:
+                return "CircleObject";
+            default:
+                return "Object";
+        }
+    }
+}
 
 ObjectFactory::ObjectFactory()
 {
@@ -14,6 +32,12 @@ ObjectFactory::ObjectFactory()
     });
     RegisterClass("SpriteObject", [](ObjectData data) {
         return std::make_unique<SpriteObject>(std::move(data));
+    });
+    RegisterClass("BoxObject", [](ObjectData data) {
+        return std::make_unique<BoxObject>(std::move(data));
+    });
+    RegisterClass("CircleObject", [](ObjectData data) {
+        return std::make_unique<CircleObject>(std::move(data));
     });
 }
 
@@ -27,13 +51,22 @@ std::unique_ptr<Object> ObjectFactory::CreateObject(const ObjectData& data, Regi
     ObjectData objectData = data;
     if (objectData.className.empty())
     {
-        objectData.className = objectData.kind == ObjectKind::AssetInstance ? "SpriteObject" : "Object";
+        objectData.className = DefaultClassNameForKind(objectData.kind);
     }
 
     const auto creator = creators.find(objectData.className);
-    std::unique_ptr<Object> object = creator != creators.end() ?
-        creator->second(std::move(objectData)) :
-        std::make_unique<Object>(std::move(objectData));
+    std::unique_ptr<Object> object;
+    if (creator != creators.end())
+    {
+        object = creator->second(std::move(objectData));
+    }
+    else
+    {
+        const auto defaultCreator = creators.find(DefaultClassNameForKind(objectData.kind));
+        object = defaultCreator != creators.end() ?
+            defaultCreator->second(std::move(objectData)) :
+            std::make_unique<Object>(std::move(objectData));
+    }
 
     if (registry)
     {

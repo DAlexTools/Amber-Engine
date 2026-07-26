@@ -3,6 +3,8 @@
 
 #include "Editor/Shell/AssetRegistry.h"
 #include "Editor/Shell/EditorViewport.h"
+#include "Editor/Shell/EditorPlaySession.h"
+#include "Editor/Shell/ProjectDescriptor.h"
 #include "Editor/Shell/SceneDocument.h"
 #include "Editor/Shell/SelectionService.h"
 #include "Editor/Shell/TextureCache.h"
@@ -10,6 +12,7 @@
 
 #include <SDL2/SDL.h>
 
+#include <array>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -20,8 +23,8 @@ namespace AE::Editor
 class EditorApplication
 {
 public:
-    int Run();
-    bool RunSmokeTest();
+    int Run(const std::filesystem::path& startupProjectFile = {});
+    bool RunSmokeTest(const std::filesystem::path& startupProjectFile = {});
 
 private:
     struct AssetEntry
@@ -46,13 +49,21 @@ private:
     void DrawSceneOutliner(float x, float y, float width, float height);
     void DrawDetailsPanel(float x, float y, float width, float height);
     void DrawOutputLog(float x, float y, float width, float height);
+    void DrawProjectBrowser();
 
     void RefreshAssets();
     void OpenAssetDirectory(const std::filesystem::path& path);
     void SwitchContentRoot(const std::filesystem::path& path);
+    bool CreateProjectFromBrowser(bool generateSolutionAfterCreate = false);
+    bool GenerateSolutionForActiveProject();
+    bool OpenProjectFile(const std::filesystem::path& path);
+    bool OpenLegacyWorkspaceProject();
+    bool ApplyProjectDescriptor(const ProjectDescriptor& descriptor);
     bool DeleteSelectedSceneObject();
     bool SaveCurrentScene();
     bool OpenSceneFile(const std::filesystem::path& path);
+    bool PlayInPIE();
+    std::filesystem::path FindEngineRoot() const;
     std::filesystem::path DefaultScenePath() const;
     std::vector<AssetRoot> BuildAssetRoots() const;
     std::string RelativeAssetLabel(const std::filesystem::path& path) const;
@@ -62,8 +73,6 @@ private:
     bool imguiReady = false;
     bool imageSystemInitialized = false;
     bool running = false;
-    bool playing = false;
-    bool paused = false;
     int windowWidth = 1280;
     int windowHeight = 720;
 
@@ -71,7 +80,17 @@ private:
     bool showSceneOutliner = true;
     bool showDetails = true;
     bool showOutputLog = true;
+    bool showProjectBrowser = true;
+    bool activeProjectLoaded = false;
 
+    std::array<char, 128> newProjectName{};
+    std::array<char, 512> newProjectLocation{};
+    std::array<char, 512> openProjectPath{};
+    int newProjectTemplateIndex = 0;
+    bool projectBrowserStatusIsError = false;
+    std::string projectBrowserStatus;
+
+    ProjectDescriptor activeProject;
     std::filesystem::path projectContentRoot;
     std::filesystem::path engineContentRoot;
     std::filesystem::path contentRoot;
@@ -84,6 +103,7 @@ private:
     SceneDocument sceneDocument;
     SelectionService selectionService;
     EditorViewport editorViewport;
+    EditorPlaySession playSession;
     EditorTool activeTool = EditorTool::Move;
     OutputLogWidget outputLog;
 };

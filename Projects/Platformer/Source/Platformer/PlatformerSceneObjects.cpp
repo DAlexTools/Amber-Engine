@@ -16,7 +16,7 @@ namespace
 }
 
 PlayerSpawnObject::PlayerSpawnObject(AE::Scene::ObjectData data)
-    : Object(std::move(data))
+    : BoxObject(std::move(data))
 {
     SetClassName(*this);
 }
@@ -28,12 +28,12 @@ const char* PlayerSpawnObject::GetClassName() const
 
 void PlayerSpawnObject::ConfigureEntity(Registry& ownerRegistry)
 {
-    Object::ConfigureEntity(ownerRegistry);
+    BoxObject::ConfigureEntity(ownerRegistry);
     AddComponent<PlayerSpawnComponent>();
 }
 
 GoalObject::GoalObject(AE::Scene::ObjectData data)
-    : Object(std::move(data))
+    : BoxObject(std::move(data))
 {
     SetClassName(*this);
 }
@@ -45,12 +45,12 @@ const char* GoalObject::GetClassName() const
 
 void GoalObject::ConfigureEntity(Registry& ownerRegistry)
 {
-    Object::ConfigureEntity(ownerRegistry);
+    BoxObject::ConfigureEntity(ownerRegistry);
     AddComponent<GoalComponent>();
 }
 
 CoinObject::CoinObject(AE::Scene::ObjectData data)
-    : Object(std::move(data))
+    : CircleObject(std::move(data))
 {
     SetClassName(*this);
 }
@@ -62,12 +62,12 @@ const char* CoinObject::GetClassName() const
 
 void CoinObject::ConfigureEntity(Registry& ownerRegistry)
 {
-    Object::ConfigureEntity(ownerRegistry);
+    CircleObject::ConfigureEntity(ownerRegistry);
     AddComponent<CoinComponent>();
 }
 
 SolidPlatformObject::SolidPlatformObject(AE::Scene::ObjectData data)
-    : Object(std::move(data))
+    : BoxObject(std::move(data))
 {
     SetClassName(*this);
 }
@@ -79,7 +79,7 @@ const char* SolidPlatformObject::GetClassName() const
 
 void SolidPlatformObject::ConfigureEntity(Registry& ownerRegistry)
 {
-    Object::ConfigureEntity(ownerRegistry);
+    BoxObject::ConfigureEntity(ownerRegistry);
     AddComponent<SolidPlatformComponent>();
 }
 

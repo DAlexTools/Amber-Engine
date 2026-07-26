@@ -1,6 +1,6 @@
 # Platformer Content
 
-Reserved for `PlatformerApp` sample assets and scripts.
+Reserved for `PlatformerApp` project assets and scripts.
 
 The current platformer renders shapes procedurally. Enemy behavior is configured by Lua scripts:
 

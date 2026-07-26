@@ -1,0 +1,29 @@
+{
+  "version": 4,
+  "configurePresets": [
+    {
+      "name": "editor",
+      "displayName": "Editor build",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/Builds/Editor",
+      "toolchainFile": "${sourceDir}/../../Dependencies/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "AMBER_ENGINE_ROOT": "${sourceDir}/../..",
+        "AMBER_BUILD_PROJECTS": "OFF",
+        "BUILD_SDL_MODULES": "OFF",
+        "BUILD_UNIT_TESTS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "editor",
+      "configurePreset": "editor",
+      "targets": [
+        "PlatformerApp",
+        "PlatformerGameModulePlugin"
+      ]
+    }
+  ]
+}

@@ -162,6 +162,7 @@ function Invoke-SmokeChecks {
     )
 
     $sampleBin = Join-Path $BuildDirectory "Samples\$Configuration"
+    $platformerBin = Join-Path $BuildDirectory "Projects\Platformer\$Configuration"
     $physicsSmoke = Join-Path $BuildDirectory "Engine\Runtime\Physics\$Configuration\PhysicsCollisionFilteringCheck.exe"
 
     $oldVideo = $env:SDL_VIDEODRIVER
@@ -186,7 +187,7 @@ function Invoke-SmokeChecks {
         }
 
         if ($BuildTarget -in @("Samples", "All", "Platformer")) {
-            Invoke-CommandChecked "Platformer smoke" (Join-Path $sampleBin "PlatformerApp.exe") @("--smoke-test")
+            Invoke-CommandChecked "Platformer smoke" (Join-Path $platformerBin "PlatformerApp.exe") @("--smoke-test")
         }
 
         if ($BuildTarget -in @("Samples", "All", "Platformer2")) {
@@ -203,7 +204,8 @@ function Invoke-SmokeChecks {
 
         if ($BuildMode -eq "Editor" -and $BuildTarget -in @("Editor", "All")) {
             $editorSmoke = Join-Path $BuildDirectory "Engine\Editor\Shell\$Configuration\AmberEditor.exe"
-            Invoke-CommandChecked "AmberEditor smoke" $editorSmoke @("--smoke-test")
+            $platformerProject = Join-Path (Get-Location) "Projects\Platformer\Platformer.amberproject"
+            Invoke-CommandChecked "AmberEditor smoke" $editorSmoke @("--smoke-test", "--project", $platformerProject)
         }
     }
     finally {

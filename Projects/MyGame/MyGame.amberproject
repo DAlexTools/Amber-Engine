@@ -1,0 +1,8 @@
+AmberProject 1
+name "MyGame"
+engineRoot "C:/Users/admin/Documents/GitProjects/SDL_GameProgramming-master/AmberEngine"
+gameModuleTarget "MyGameModule"
+startupScene "Content/Scenes/Startup.amber.scene"
+contentRoot "Content"
+buildPreset "editor"
+solutionPath "Builds/Editor/MyGame.sln"

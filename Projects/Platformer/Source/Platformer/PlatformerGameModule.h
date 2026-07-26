@@ -1,5 +1,5 @@
-#ifndef PLATFORMER_APP_H
-#define PLATFORMER_APP_H
+#ifndef PLATFORMER_GAME_MODULE_H
+#define PLATFORMER_GAME_MODULE_H
 
 #include <SDL2/SDL.h>
 
@@ -16,6 +16,7 @@
 #include "Classes/World.h"
 #include "Core/BuildConfig.h"
 #include "Core/Math/Vector2D.h"
+#include "Game/GameModuleInterface.h"
 #include "Physics/Objects/Body.h"
 
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
@@ -26,12 +27,22 @@
 #include "Editor/Diagnostics/SampleDiagnosticsOverlay.h"
 #endif
 
-class PlatformerApp
+class PlatformerGameModule : public AE::IGameModule
 {
 public:
-    PlatformerApp();
+    PlatformerGameModule();
+
+    const char* GetName() const override;
+    void RegisterSceneObjects(AE::Scene::ObjectFactory& objectFactory) override;
+    bool StartPlay(const AE::GameModuleStartContext& context, std::string* error) override;
+    void Tick(const AE::GameModuleTickContext& context) override;
+    void Render(const AE::GameModuleRenderContext& context) override;
+    void StopPlay() override;
 
     int Run();
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    void SetEditorScenePath(std::filesystem::path path);
+#endif
 #if SMOKE_TEST
     bool RunSmokeTest();
 #endif
@@ -201,11 +212,13 @@ private:
     std::vector<KinematicBody> kinematicBodies;
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
     std::filesystem::path projectContentRoot;
+    std::filesystem::path editorScenePathOverride;
     std::unique_ptr<Registry> editorSceneRegistry;
     std::vector<std::unique_ptr<AE::Scene::Object>> editorSceneObjects;
     std::vector<EditorSceneProp> editorSceneProps;
     std::vector<RectF> editorSolidPlatforms;
     std::unordered_map<std::string, SDL_Texture*> editorSceneTextures;
+    bool sceneDrivenLevel = false;
 #endif
     RectF finish;
 

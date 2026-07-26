@@ -51,6 +51,7 @@ public:
     float GetZoom() const;
     void SetZoom(float value);
     void FocusOrigin();
+    EditorVec2 GetViewCenter() const;
 
 private:
     float cameraX = 0.0f;

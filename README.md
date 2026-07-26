@@ -8,9 +8,9 @@ AmberEngine is a work-in-progress 2D C++ engine built around SDL2, ImGui, a cust
 - Game-specific startup and gameplay flow isolated in `GameModule`.
 - Custom `AE::Physics` module with rigid bodies, shapes, collision detection, broad phase, solver iterations, sleeping, collision layers and physics stats.
 - Editor-side ImGui tools behind `WITH_EDITOR`, currently including the standalone `AmberEditor` shell, OutputLog and sample diagnostics overlays.
-- Game demos:
+- Game projects and demos:
+  - `PlatformerApp` - Lua-scripted project platformer with double jump, player/enemy shooting and embedded physics bodies.
   - `GameEngineApp` - Lua/content-driven SDL game sample.
-  - `PlatformerApp` - Lua-scripted platformer with double jump, player/enemy shooting and embedded physics bodies.
   - `Platformer2App` - tilemap-backed platformer with ladders, spikes, lifts and animated sprites.
 - Physics demos:
   - `PhysicsLabApp` - ImGui physics sandbox with container, stack, filter, platform, pinball and bridge/rope scenes.
@@ -29,8 +29,10 @@ Engine/
   Content/              Reserved engine content
 Dependencies/           Local dependency checkouts; vcpkg itself is ignored
 Samples/                Runnable sample apps
-  GamesDemos/           Game-facing demos: GameEngineApp, PlatformerApp and Platformer2App
+  GamesDemos/           Game-facing demos: GameEngineApp and Platformer2App
   PhysicsDemos/         Physics demos, shared physics sample renderer and content
+Projects/               In-repo game projects with .amberproject files
+  Platformer/           Platformer project, source, content and local build presets
 Tests/                  GoogleTest unit tests
 Content/                Game/project content used by GameEngineApp
 Tools/Setup/            Internal setup/build helper scripts
@@ -129,9 +131,22 @@ Build and run the standalone editor shell:
 .\Builds\Editor\Engine\Editor\Shell\Debug\AmberEditor.exe
 ```
 
-The first editor milestone opens a dock-like Unreal-style layout with a top toolbar, `Scene View`, `Asset Browser`, `Scene Outliner`, `Details` and `Output Log`. `Asset Browser` exposes `Project` content from `AmberEngine/Content` and engine content from `AmberEngine/Engine/Content`; texture assets show previews and can be dragged into `Scene View`. Real engine scene rendering, full asset import and scene serialization are tracked in [ENGINE_ROADMAP.md](ENGINE_ROADMAP.md).
+Open a project directly, the same way a `.uproject` is passed to Unreal Editor:
 
-## Running Samples
+```powershell
+.\Builds\Editor\Engine\Editor\Shell\Debug\AmberEditor.exe .\Projects\Platformer\Platformer.amberproject
+.\Builds\Editor\Engine\Editor\Shell\Debug\AmberEditor.exe --project .\Projects\Platformer\Platformer.amberproject
+```
+
+To make double-clicking `.amberproject` files open `AmberEditor` for the current Windows user:
+
+```powershell
+.\Setup.bat -RegisterProjectFiles
+```
+
+The first editor milestone opens a dock-like Unreal-style layout with a top toolbar, `Scene View`, `Asset Browser`, `Scene Outliner`, `Details` and `Output Log`. `Asset Browser` exposes the active project's `Content` folder and engine content from `AmberEngine/Engine/Content`; texture assets show previews and can be dragged into `Scene View`, and standard `BoxObject` / `CircleObject` primitives can be created from the `Add` menu. The in-repo `Platformer` project lives under `Projects/Platformer` and is the current PIE test project. Real engine scene rendering, full asset import and scene serialization are tracked in [ENGINE_ROADMAP.md](ENGINE_ROADMAP.md).
+
+## Running Projects And Samples
 
 After `.\Setup.bat`, run apps from the project root or from the build output folder:
 
@@ -139,7 +154,7 @@ After `.\Setup.bat`, run apps from the project root or from the build output fol
 .\Builds\Editor\Samples\Debug\GameEngineApp.exe
 .\Builds\Editor\Samples\Debug\PhysicsLabApp.exe
 .\Builds\Editor\Samples\Debug\ContainerSandboxApp.exe
-.\Builds\Editor\Samples\Debug\PlatformerApp.exe
+.\Builds\Editor\Projects\Platformer\Debug\PlatformerApp.exe
 .\Builds\Editor\Samples\Debug\Platformer2App.exe
 ```
 
@@ -147,8 +162,8 @@ Sample source layout:
 
 ```text
 Samples/GamesDemos/Game/                 GameEngineApp entrypoint
-Samples/GamesDemos/Platformer/           PlatformerApp source and sample content
 Samples/GamesDemos/Platformer2/          Platformer2App source and Kenney tile content
+Projects/Platformer/                     Platformer game project, module, launcher and content
 Samples/PhysicsDemos/PhysicsLab/         PhysicsLabApp source
 Samples/PhysicsDemos/ContainerSandbox/   ContainerSandboxApp source
 Samples/PhysicsDemos/AngryApp/           Legacy angry-birds style physics demo
@@ -168,7 +183,7 @@ Useful smoke checks:
 .\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --smoke-test
 .\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --ui-smoke-test
 .\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --perf-test
-.\Builds\Editor\Samples\Debug\PlatformerApp.exe --smoke-test
+.\Builds\Editor\Projects\Platformer\Debug\PlatformerApp.exe --smoke-test
 .\Builds\Editor\Samples\Debug\ContainerSandboxApp.exe --smoke-test
 .\Builds\Editor\Samples\Debug\GameEngineApp.exe --smoke-test --level 1
 ```

@@ -1,6 +1,8 @@
 #ifndef AMBER_EDITOR_SHELL_SCENE_DOCUMENT_H
 #define AMBER_EDITOR_SHELL_SCENE_DOCUMENT_H
 
+#include "Scene/SceneAsset.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -15,6 +17,8 @@ enum class SceneObjectKind
     Grid,
     RuntimeWorld,
     AssetInstance,
+    Box,
+    Circle,
     Empty
 };
 
@@ -58,10 +62,13 @@ public:
     SceneObject* FindObject(std::uint32_t id);
     const SceneObject* FindObject(std::uint32_t id) const;
     SceneObject& AddAssetInstance(std::string name, std::string assetId, EditorTransform transform);
+    SceneObject& AddBoxObject(std::string name, EditorTransform transform, EditorVec2 size = EditorVec2{96.0f, 64.0f});
+    SceneObject& AddCircleObject(std::string name, EditorTransform transform, EditorVec2 size = EditorVec2{64.0f, 64.0f});
     bool RemoveObject(std::uint32_t id);
     bool IsObjectRemovable(std::uint32_t id) const;
     bool SaveToFile(const std::filesystem::path& path, std::string* error = nullptr);
     bool LoadFromFile(const std::filesystem::path& path, std::string* error = nullptr);
+    AE::Scene::Document ToRuntimeDocument() const;
 
     static const char* KindName(SceneObjectKind kind);
 

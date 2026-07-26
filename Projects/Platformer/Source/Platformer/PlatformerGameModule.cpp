@@ -1,4 +1,4 @@
-#include "PlatformerApp.h"
+#include "PlatformerGameModule.h"
 
 #include <algorithm>
 #include <array>
@@ -7,6 +7,7 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <utility>
 
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
 #include <SDL2/SDL_image.h>
@@ -112,8 +113,10 @@ namespace
     {
         namespace fs = std::filesystem;
 
-        const fs::path relativePath = fs::path("Samples") / "GamesDemos" / "Platformer" /
-            "Content" / "Scripts" / "PlatformerEnemies.lua";
+        const std::array<fs::path, 2> relativePaths = {
+            fs::path("Content") / "Scripts" / "PlatformerEnemies.lua",
+            fs::path("Projects") / "Platformer" / "Content" / "Scripts" / "PlatformerEnemies.lua"
+        };
         const std::array<fs::path, 10> candidateRoots = {
             fs::current_path(),
             fs::current_path() / "AmberEngine",
@@ -129,11 +132,14 @@ namespace
 
         for (const fs::path& root : candidateRoots)
         {
-            const fs::path candidate = root / relativePath;
-            std::error_code error;
-            if (fs::exists(candidate, error))
+            for (const fs::path& relativePath : relativePaths)
             {
-                return fs::weakly_canonical(candidate, error);
+                const fs::path candidate = root / relativePath;
+                std::error_code error;
+                if (fs::exists(candidate, error))
+                {
+                    return fs::weakly_canonical(candidate, error);
+                }
             }
         }
 
@@ -145,7 +151,10 @@ namespace
     {
         namespace fs = std::filesystem;
 
-        const fs::path markerPath = fs::path("Content") / "scripts" / "Level1.lua";
+        const std::array<fs::path, 2> markerPaths = {
+            fs::path("Content") / "Scripts" / "PlatformerEnemies.lua",
+            fs::path("Projects") / "Platformer" / "Content" / "Scripts" / "PlatformerEnemies.lua"
+        };
         const std::array<fs::path, 10> candidateRoots = {
             fs::current_path(),
             fs::current_path() / "AmberEngine",
@@ -161,11 +170,16 @@ namespace
 
         for (const fs::path& root : candidateRoots)
         {
-            const fs::path marker = root / markerPath;
-            std::error_code error;
-            if (fs::exists(marker, error))
+            for (const fs::path& markerPath : markerPaths)
             {
-                return fs::weakly_canonical(root / "Content", error);
+                const fs::path marker = root / markerPath;
+                std::error_code error;
+                if (fs::exists(marker, error))
+                {
+                    return markerPath.is_relative() && markerPath.begin()->string() == "Projects" ?
+                        fs::weakly_canonical(root / "Projects" / "Platformer" / "Content", error) :
+                        fs::weakly_canonical(root / "Content", error);
+                }
             }
         }
 
@@ -210,12 +224,62 @@ namespace
 #endif
 }
 
-PlatformerApp::PlatformerApp()
+PlatformerGameModule::PlatformerGameModule()
 {
     AE::Logger::SetConsoleEnabled(false);
     lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table);
     BuildLevel();
     ResetLevel();
+}
+
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+void PlatformerGameModule::SetEditorScenePath(std::filesystem::path path)
+{
+    editorScenePathOverride = std::move(path);
+}
+#endif
+
+const char* PlatformerGameModule::GetName() const
+{
+    return "PlatformerGameModule";
+}
+
+void PlatformerGameModule::RegisterSceneObjects(AE::Scene::ObjectFactory& objectFactory)
+{
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    PlatformerScene::RegisterPlatformerSceneObjects(objectFactory);
+#else
+    (void)objectFactory;
+#endif
+}
+
+bool PlatformerGameModule::StartPlay(const AE::GameModuleStartContext& context, std::string*)
+{
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    if (!context.scenePath.empty())
+    {
+        editorScenePathOverride = context.scenePath;
+    }
+#else
+    (void)context;
+#endif
+    AE::Logger::Log("PlatformerGameModule StartPlay", "Platformer");
+    return true;
+}
+
+void PlatformerGameModule::Tick(const AE::GameModuleTickContext& context)
+{
+    (void)context;
+}
+
+void PlatformerGameModule::Render(const AE::GameModuleRenderContext& context)
+{
+    (void)context;
+}
+
+void PlatformerGameModule::StopPlay()
+{
+    AE::Logger::Log("PlatformerGameModule StopPlay", "Platformer");
 }
 
 namespace
@@ -227,7 +291,7 @@ namespace
     }
 }
 
-int PlatformerApp::Run()
+int PlatformerGameModule::Run()
 {
 #if SMOKE_TEST
     smokeMode = false;
@@ -282,7 +346,7 @@ int PlatformerApp::Run()
 }
 
 #if SMOKE_TEST
-bool PlatformerApp::RunSmokeTest()
+bool PlatformerGameModule::RunSmokeTest()
 {
     smokeMode = true;
     ResetLevel();
@@ -594,7 +658,7 @@ bool PlatformerApp::RunSmokeTest()
 }
 #endif
 
-bool PlatformerApp::Initialize()
+bool PlatformerGameModule::Initialize()
 {
     SDL_SetMainReady();
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
@@ -660,7 +724,7 @@ bool PlatformerApp::Initialize()
     return true;
 }
 
-void PlatformerApp::Shutdown()
+void PlatformerGameModule::Shutdown()
 {
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
     diagnostics.Shutdown();
@@ -695,7 +759,7 @@ void PlatformerApp::Shutdown()
     SDL_Quit();
 }
 
-void PlatformerApp::ToggleFullscreen()
+void PlatformerGameModule::ToggleFullscreen()
 {
     if (!window)
     {
@@ -711,7 +775,7 @@ void PlatformerApp::ToggleFullscreen()
     }
 }
 
-void PlatformerApp::BuildLevel()
+void PlatformerGameModule::BuildLevel()
 {
     levelTiles.assign(LevelRows, std::string(LevelCols, '.'));
     solidPlatforms.clear();
@@ -782,7 +846,7 @@ void PlatformerApp::BuildLevel()
     LoadScriptedEnemies();
 }
 
-void PlatformerApp::LoadScriptedEnemies()
+void PlatformerGameModule::LoadScriptedEnemies()
 {
     enemies.clear();
     scriptedEnemiesLoaded = false;
@@ -884,7 +948,7 @@ void PlatformerApp::LoadScriptedEnemies()
     }
 }
 
-void PlatformerApp::LoadFallbackEnemies()
+void PlatformerGameModule::LoadFallbackEnemies()
 {
     scriptedEnemiesLoaded = false;
     enemies = {
@@ -970,7 +1034,7 @@ void PlatformerApp::LoadFallbackEnemies()
     }
 }
 
-void PlatformerApp::BuildPhysicsScene()
+void PlatformerGameModule::BuildPhysicsScene()
 {
     physicsSceneTime = 0.0f;
     physicsWorld = std::make_unique<AE::Physics::World>(-9.8f);
@@ -1125,7 +1189,7 @@ void PlatformerApp::BuildPhysicsScene()
     });
 }
 
-void PlatformerApp::ResetLevel()
+void PlatformerGameModule::ResetLevel()
 {
     for (Coin& coin : coins)
     {
@@ -1149,7 +1213,7 @@ void PlatformerApp::ResetLevel()
     ResetPlayer();
 }
 
-void PlatformerApp::ResetPlayer()
+void PlatformerGameModule::ResetPlayer()
 {
     player.position = playerSpawn;
     player.velocity = AE::Physics::Vector2D::Zero;
@@ -1161,7 +1225,7 @@ void PlatformerApp::ResetPlayer()
     jumpBufferTimer = 0.0f;
 }
 
-void PlatformerApp::PollEvents(InputState& input)
+void PlatformerGameModule::PollEvents(InputState& input)
 {
     input.jumpPressed = false;
     input.shootPressed = false;
@@ -1263,7 +1327,7 @@ void PlatformerApp::PollEvents(InputState& input)
     shootKeyWasDown = shootDown;
 }
 
-void PlatformerApp::Step(float dt, const InputState& input)
+void PlatformerGameModule::Step(float dt, const InputState& input)
 {
     if (player.won)
     {
@@ -1286,7 +1350,7 @@ void PlatformerApp::Step(float dt, const InputState& input)
     UpdateCamera();
 }
 
-void PlatformerApp::TryShoot()
+void PlatformerGameModule::TryShoot()
 {
     if (shootCooldownTimer > 0.0f)
     {
@@ -1305,7 +1369,7 @@ void PlatformerApp::TryShoot()
     shootCooldownTimer = ProjectileCooldown;
 }
 
-void PlatformerApp::TryEnemyShoot(Enemy& enemy)
+void PlatformerGameModule::TryEnemyShoot(Enemy& enemy)
 {
     if (!enemy.canShoot || enemy.shootTimer > 0.0f || player.won)
     {
@@ -1342,7 +1406,7 @@ void PlatformerApp::TryEnemyShoot(Enemy& enemy)
     enemy.shootTimer = enemy.shootCooldown;
 }
 
-void PlatformerApp::UpdatePlayer(float dt, const InputState& input)
+void PlatformerGameModule::UpdatePlayer(float dt, const InputState& input)
 {
     if (input.jumpPressed)
     {
@@ -1417,7 +1481,7 @@ void PlatformerApp::UpdatePlayer(float dt, const InputState& input)
     }
 }
 
-void PlatformerApp::UpdateEnemies(float dt)
+void PlatformerGameModule::UpdateEnemies(float dt)
 {
     for (Enemy& enemy : enemies)
     {
@@ -1513,7 +1577,7 @@ void PlatformerApp::UpdateEnemies(float dt)
     }
 }
 
-void PlatformerApp::UpdateProjectiles(float dt)
+void PlatformerGameModule::UpdateProjectiles(float dt)
 {
     for (Projectile& projectile : projectiles)
     {
@@ -1600,7 +1664,7 @@ void PlatformerApp::UpdateProjectiles(float dt)
         projectiles.end());
 }
 
-void PlatformerApp::ApplyProjectilePhysicsHit(Projectile& projectile)
+void PlatformerGameModule::ApplyProjectilePhysicsHit(Projectile& projectile)
 {
     if (!physicsWorld)
     {
@@ -1625,7 +1689,7 @@ void PlatformerApp::ApplyProjectilePhysicsHit(Projectile& projectile)
     }
 }
 
-void PlatformerApp::StepPhysics(float dt)
+void PlatformerGameModule::StepPhysics(float dt)
 {
     if (!physicsWorld)
     {
@@ -1644,7 +1708,7 @@ void PlatformerApp::StepPhysics(float dt)
     ResolvePlayerPhysicsContacts(dt);
 }
 
-void PlatformerApp::UpdateKinematicPhysicsBodies(float dt)
+void PlatformerGameModule::UpdateKinematicPhysicsBodies(float dt)
 {
     if (!physicsWorld)
     {
@@ -1673,7 +1737,7 @@ void PlatformerApp::UpdateKinematicPhysicsBodies(float dt)
     }
 }
 
-void PlatformerApp::ResolvePlayerPhysicsContacts(float dt)
+void PlatformerGameModule::ResolvePlayerPhysicsContacts(float dt)
 {
     if (!physicsWorld)
     {
@@ -1742,7 +1806,7 @@ void PlatformerApp::ResolvePlayerPhysicsContacts(float dt)
     }
 }
 
-void PlatformerApp::UpdateCoins()
+void PlatformerGameModule::UpdateCoins()
 {
     const RectF playerBounds = PlayerRect();
     for (Coin& coin : coins)
@@ -1754,7 +1818,7 @@ void PlatformerApp::UpdateCoins()
     }
 }
 
-void PlatformerApp::UpdateHazards()
+void PlatformerGameModule::UpdateHazards()
 {
     const RectF playerBounds = PlayerRect();
     for (const Enemy& enemy : enemies)
@@ -1771,7 +1835,7 @@ void PlatformerApp::UpdateHazards()
     }
 }
 
-void PlatformerApp::UpdateGoal()
+void PlatformerGameModule::UpdateGoal()
 {
     if (Intersects(PlayerRect(), finish))
     {
@@ -1780,7 +1844,7 @@ void PlatformerApp::UpdateGoal()
     }
 }
 
-void PlatformerApp::ResolveTileCollisions(bool horizontal)
+void PlatformerGameModule::ResolveTileCollisions(bool horizontal)
 {
     RectF playerBounds = PlayerRect();
     const int minTileX = ClampInt(static_cast<int>(std::floor(playerBounds.x / TileSize)) - 1, 0, LevelCols - 1);
@@ -1880,14 +1944,14 @@ void PlatformerApp::ResolveTileCollisions(bool horizontal)
 #endif
 }
 
-void PlatformerApp::UpdateCamera()
+void PlatformerGameModule::UpdateCamera()
 {
     const float targetCameraX = player.position.x + player.width * 0.5f - static_cast<float>(WindowWidth) * 0.45f;
     const float maxCameraX = static_cast<float>(LevelCols * TileSize - WindowWidth);
     cameraX = ClampFloat(targetCameraX, 0.0f, std::max(0.0f, maxCameraX));
 }
 
-bool PlatformerApp::IsSolidTile(int tileX, int tileY) const
+bool PlatformerGameModule::IsSolidTile(int tileX, int tileY) const
 {
     if (tileX < 0 || tileX >= LevelCols || tileY < 0 || tileY >= LevelRows)
     {
@@ -1896,22 +1960,22 @@ bool PlatformerApp::IsSolidTile(int tileX, int tileY) const
     return levelTiles[tileY][tileX] == '#';
 }
 
-PlatformerApp::RectF PlatformerApp::PlayerRect() const
+PlatformerGameModule::RectF PlatformerGameModule::PlayerRect() const
 {
     return RectF{player.position.x, player.position.y, player.width, player.height};
 }
 
-PlatformerApp::RectF PlatformerApp::EnemyRect(const Enemy& enemy) const
+PlatformerGameModule::RectF PlatformerGameModule::EnemyRect(const Enemy& enemy) const
 {
     return RectF{enemy.position.x, enemy.position.y, enemy.width, enemy.height};
 }
 
-PlatformerApp::RectF PlatformerApp::ProjectileRect(const Projectile& projectile) const
+PlatformerGameModule::RectF PlatformerGameModule::ProjectileRect(const Projectile& projectile) const
 {
     return RectF{projectile.position.x, projectile.position.y, projectile.width, projectile.height};
 }
 
-PlatformerApp::RectF PlatformerApp::BodyBounds(const AE::Physics::Body& body) const
+PlatformerGameModule::RectF PlatformerGameModule::BodyBounds(const AE::Physics::Body& body) const
 {
     if (!body.shape)
     {
@@ -1945,7 +2009,7 @@ PlatformerApp::RectF PlatformerApp::BodyBounds(const AE::Physics::Body& body) co
     return RectF{minX, minY, maxX - minX, maxY - minY};
 }
 
-bool PlatformerApp::IsKinematicBody(const AE::Physics::Body* body) const
+bool PlatformerGameModule::IsKinematicBody(const AE::Physics::Body* body) const
 {
     for (const KinematicBody& kinematic : kinematicBodies)
     {
@@ -1957,7 +2021,7 @@ bool PlatformerApp::IsKinematicBody(const AE::Physics::Body* body) const
     return false;
 }
 
-int PlatformerApp::AliveEnemyCount() const
+int PlatformerGameModule::AliveEnemyCount() const
 {
     int aliveEnemies = 0;
     for (const Enemy& enemy : enemies)
@@ -1970,17 +2034,17 @@ int PlatformerApp::AliveEnemyCount() const
     return aliveEnemies;
 }
 
-int PlatformerApp::PhysicsBodyCount() const
+int PlatformerGameModule::PhysicsBodyCount() const
 {
     return physicsWorld ? static_cast<int>(physicsWorld->GetBodies().size()) : 0;
 }
 
-int PlatformerApp::PhysicsConstraintCount() const
+int PlatformerGameModule::PhysicsConstraintCount() const
 {
     return physicsWorld ? static_cast<int>(physicsWorld->GetConstraints().size()) : 0;
 }
 
-bool PlatformerApp::Intersects(const RectF& first, const RectF& second)
+bool PlatformerGameModule::Intersects(const RectF& first, const RectF& second)
 {
     return first.x < second.x + second.w &&
         first.x + first.w > second.x &&
@@ -1988,17 +2052,17 @@ bool PlatformerApp::Intersects(const RectF& first, const RectF& second)
         first.y + first.h > second.y;
 }
 
-int PlatformerApp::ClampInt(int value, int minValue, int maxValue)
+int PlatformerGameModule::ClampInt(int value, int minValue, int maxValue)
 {
     return std::max(minValue, std::min(maxValue, value));
 }
 
-float PlatformerApp::ClampFloat(float value, float minValue, float maxValue)
+float PlatformerGameModule::ClampFloat(float value, float minValue, float maxValue)
 {
     return std::max(minValue, std::min(maxValue, value));
 }
 
-float PlatformerApp::MoveTowardZero(float value, float amount)
+float PlatformerGameModule::MoveTowardZero(float value, float amount)
 {
     if (std::abs(value) <= amount)
     {
@@ -2007,7 +2071,7 @@ float PlatformerApp::MoveTowardZero(float value, float amount)
     return value > 0.0f ? value - amount : value + amount;
 }
 
-AE::Physics::Body* PlatformerApp::AddPhysicsBox(
+AE::Physics::Body* PlatformerGameModule::AddPhysicsBox(
     AE::Physics::Vector2D position,
     float width,
     float height,
@@ -2031,7 +2095,7 @@ AE::Physics::Body* PlatformerApp::AddPhysicsBox(
     return body;
 }
 
-AE::Physics::Body* PlatformerApp::AddPhysicsCircle(
+AE::Physics::Body* PlatformerGameModule::AddPhysicsCircle(
     AE::Physics::Vector2D position,
     float radius,
     float mass,
@@ -2051,7 +2115,7 @@ AE::Physics::Body* PlatformerApp::AddPhysicsCircle(
     return body;
 }
 
-void PlatformerApp::AddPhysicsJoint(AE::Physics::Body* first, AE::Physics::Body* second)
+void PlatformerGameModule::AddPhysicsJoint(AE::Physics::Body* first, AE::Physics::Body* second)
 {
     if (!physicsWorld || !first || !second)
     {
@@ -2061,7 +2125,7 @@ void PlatformerApp::AddPhysicsJoint(AE::Physics::Body* first, AE::Physics::Body*
     physicsWorld->AddConstraint(new AE::Physics::JointConstraint(first, second, (first->position + second->position) * 0.5f));
 }
 
-void PlatformerApp::Render()
+void PlatformerGameModule::Render()
 {
     if (!renderer || !frameTexture)
     {
@@ -2093,7 +2157,7 @@ void PlatformerApp::Render()
     PresentFrameTexture();
 }
 
-bool PlatformerApp::CreateFrameTexture()
+bool PlatformerGameModule::CreateFrameTexture()
 {
     frameTexture = SDL_CreateTexture(
         renderer,
@@ -2114,7 +2178,7 @@ bool PlatformerApp::CreateFrameTexture()
     return true;
 }
 
-void PlatformerApp::BeginFrameTexture()
+void PlatformerGameModule::BeginFrameTexture()
 {
     SDL_SetRenderTarget(renderer, frameTexture);
     SDL_RenderSetLogicalSize(renderer, 0, 0);
@@ -2122,7 +2186,7 @@ void PlatformerApp::BeginFrameTexture()
     SDL_RenderSetScale(renderer, 1.0f, 1.0f);
 }
 
-void PlatformerApp::PresentFrameTexture()
+void PlatformerGameModule::PresentFrameTexture()
 {
     SDL_SetRenderTarget(renderer, nullptr);
     SDL_RenderSetLogicalSize(renderer, 0, 0);
@@ -2137,7 +2201,7 @@ void PlatformerApp::PresentFrameTexture()
     SDL_RenderPresent(renderer);
 }
 
-SDL_Rect PlatformerApp::CalculateFrameViewport() const
+SDL_Rect PlatformerGameModule::CalculateFrameViewport() const
 {
     int outputWidth = WindowWidth;
     int outputHeight = WindowHeight;
@@ -2151,7 +2215,7 @@ SDL_Rect PlatformerApp::CalculateFrameViewport() const
     return SDL_Rect{(outputWidth - width) / 2, (outputHeight - height) / 2, width, height};
 }
 
-void PlatformerApp::RenderDiagnostics()
+void PlatformerGameModule::RenderDiagnostics()
 {
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
     int collectedCoins = 0;
@@ -2237,7 +2301,7 @@ void PlatformerApp::RenderDiagnostics()
 #endif
 }
 
-void PlatformerApp::DrawBackground() const
+void PlatformerGameModule::DrawBackground() const
 {
     DrawScreenRect(0, 0, WindowWidth, WindowHeight / 2, SkyTop);
     DrawScreenRect(0, WindowHeight / 2, WindowWidth, WindowHeight / 2, SkyBottom);
@@ -2258,7 +2322,7 @@ void PlatformerApp::DrawBackground() const
     }
 }
 
-void PlatformerApp::DrawLevel() const
+void PlatformerGameModule::DrawLevel() const
 {
     const int firstTileX = ClampInt(static_cast<int>(cameraX / TileSize) - 1, 0, LevelCols - 1);
     const int lastTileX = ClampInt(static_cast<int>((cameraX + WindowWidth) / TileSize) + 1, 0, LevelCols - 1);
@@ -2297,7 +2361,7 @@ void PlatformerApp::DrawLevel() const
 #endif
 }
 
-void PlatformerApp::DrawCoins() const
+void PlatformerGameModule::DrawCoins() const
 {
     for (const Coin& coin : coins)
     {
@@ -2311,7 +2375,7 @@ void PlatformerApp::DrawCoins() const
     }
 }
 
-void PlatformerApp::DrawEnemies() const
+void PlatformerGameModule::DrawEnemies() const
 {
     for (const Enemy& enemy : enemies)
     {
@@ -2335,7 +2399,7 @@ void PlatformerApp::DrawEnemies() const
     }
 }
 
-void PlatformerApp::DrawProjectiles() const
+void PlatformerGameModule::DrawProjectiles() const
 {
     for (const Projectile& projectile : projectiles)
     {
@@ -2346,7 +2410,7 @@ void PlatformerApp::DrawProjectiles() const
     }
 }
 
-void PlatformerApp::DrawPhysics() const
+void PlatformerGameModule::DrawPhysics() const
 {
     if (!physicsWorld)
     {
@@ -2404,7 +2468,7 @@ void PlatformerApp::DrawPhysics() const
 }
 
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
-PlatformerApp::RectF PlatformerApp::EditorSceneObjectBounds(const AE::Scene::ObjectData& objectData) const
+PlatformerGameModule::RectF PlatformerGameModule::EditorSceneObjectBounds(const AE::Scene::ObjectData& objectData) const
 {
     const float width = std::max(1.0f, std::abs(objectData.size.x * objectData.transform.scale.x));
     const float height = std::max(1.0f, std::abs(objectData.size.y * objectData.transform.scale.y));
@@ -2416,17 +2480,38 @@ PlatformerApp::RectF PlatformerApp::EditorSceneObjectBounds(const AE::Scene::Obj
     };
 }
 
-void PlatformerApp::LoadEditorSceneProps()
+void PlatformerGameModule::LoadEditorSceneProps()
 {
     ClearEditorSceneProps();
 
-    projectContentRoot = FindProjectContentRoot();
+    projectContentRoot.clear();
+    if (!editorScenePathOverride.empty())
+    {
+        std::error_code canonicalError;
+        std::filesystem::path scenePath = std::filesystem::weakly_canonical(editorScenePathOverride, canonicalError);
+        if (scenePath.empty())
+        {
+            scenePath = editorScenePathOverride;
+        }
+
+        const std::filesystem::path sceneDirectory = scenePath.parent_path();
+        if (sceneDirectory.filename() == "Scenes" && sceneDirectory.has_parent_path())
+        {
+            projectContentRoot = sceneDirectory.parent_path();
+        }
+    }
+    if (projectContentRoot.empty())
+    {
+        projectContentRoot = FindProjectContentRoot();
+    }
     if (projectContentRoot.empty())
     {
         return;
     }
 
-    const std::filesystem::path scenePath = projectContentRoot / "Scenes" / "PlatformerTest.amber.scene";
+    const std::filesystem::path scenePath = editorScenePathOverride.empty() ?
+        projectContentRoot / "Scenes" / "PlatformerTest.amber.scene" :
+        editorScenePathOverride;
     std::error_code errorCode;
     if (!std::filesystem::exists(scenePath, errorCode))
     {
@@ -2511,6 +2596,12 @@ void PlatformerApp::LoadEditorSceneProps()
         coins = std::move(sceneCoins);
     }
     editorSolidPlatforms = std::move(sceneSolidPlatforms);
+    sceneDrivenLevel = !editorSolidPlatforms.empty();
+    if (sceneDrivenLevel)
+    {
+        solidPlatforms.clear();
+        levelTiles.assign(LevelRows, std::string(LevelCols, '.'));
+    }
 
     if (!editorSceneProps.empty() || gameplayObjectCount > 0)
     {
@@ -2522,8 +2613,9 @@ void PlatformerApp::LoadEditorSceneProps()
     }
 }
 
-void PlatformerApp::ClearEditorSceneProps()
+void PlatformerGameModule::ClearEditorSceneProps()
 {
+    sceneDrivenLevel = false;
     editorSceneProps.clear();
     editorSolidPlatforms.clear();
     editorSceneObjects.clear();
@@ -2538,7 +2630,7 @@ void PlatformerApp::ClearEditorSceneProps()
     editorSceneTextures.clear();
 }
 
-std::filesystem::path PlatformerApp::ResolveEditorSceneAssetPath(const std::string& assetId) const
+std::filesystem::path PlatformerGameModule::ResolveEditorSceneAssetPath(const std::string& assetId) const
 {
     const std::string projectPrefix = "Project/";
     const std::string enginePrefix = "Engine/";
@@ -2559,7 +2651,7 @@ std::filesystem::path PlatformerApp::ResolveEditorSceneAssetPath(const std::stri
     return projectContentRoot / assetId;
 }
 
-SDL_Texture* PlatformerApp::GetEditorSceneTexture(const std::string& assetId, const std::filesystem::path& path)
+SDL_Texture* PlatformerGameModule::GetEditorSceneTexture(const std::string& assetId, const std::filesystem::path& path)
 {
     const auto cached = editorSceneTextures.find(assetId);
     if (cached != editorSceneTextures.end())
@@ -2586,7 +2678,7 @@ SDL_Texture* PlatformerApp::GetEditorSceneTexture(const std::string& assetId, co
     return texture;
 }
 
-void PlatformerApp::DrawEditorSceneProps() const
+void PlatformerGameModule::DrawEditorSceneProps() const
 {
     for (const EditorSceneProp& prop : editorSceneProps)
     {
@@ -2608,7 +2700,7 @@ void PlatformerApp::DrawEditorSceneProps() const
 }
 #endif
 
-void PlatformerApp::DrawPlayer() const
+void PlatformerGameModule::DrawPlayer() const
 {
     const RectF bounds = PlayerRect();
     DrawRect(bounds, PlayerBody);
@@ -2619,13 +2711,13 @@ void PlatformerApp::DrawPlayer() const
     DrawRect(RectF{bounds.x + bounds.w - 14.0f, bounds.y + bounds.h - 7.0f, 8.0f, 7.0f}, SDL_Color{24, 70, 105, 255});
 }
 
-void PlatformerApp::DrawFinish() const
+void PlatformerGameModule::DrawFinish() const
 {
     DrawRect(RectF{finish.x + 4.0f, finish.y, 5.0f, finish.h}, SDL_Color{48, 62, 74, 255});
     DrawRect(RectF{finish.x + 9.0f, finish.y + 6.0f, 34.0f, 22.0f}, player.won ? SDL_Color{245, 196, 48, 255} : SDL_Color{220, 68, 78, 255});
 }
 
-void PlatformerApp::DrawHud() const
+void PlatformerGameModule::DrawHud() const
 {
     DrawScreenRect(18, 18, 244, 42, SDL_Color{24, 40, 56, 220});
 
@@ -2662,7 +2754,7 @@ void PlatformerApp::DrawHud() const
     }
 }
 
-void PlatformerApp::DrawRect(const RectF& rect, SDL_Color color) const
+void PlatformerGameModule::DrawRect(const RectF& rect, SDL_Color color) const
 {
     DrawScreenRect(
         static_cast<int>(std::round(rect.x - cameraX)),
@@ -2672,7 +2764,7 @@ void PlatformerApp::DrawRect(const RectF& rect, SDL_Color color) const
         color);
 }
 
-void PlatformerApp::DrawWorldLine(const AE::Physics::Vector2D& from, const AE::Physics::Vector2D& to, SDL_Color color) const
+void PlatformerGameModule::DrawWorldLine(const AE::Physics::Vector2D& from, const AE::Physics::Vector2D& to, SDL_Color color) const
 {
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
@@ -2684,7 +2776,7 @@ void PlatformerApp::DrawWorldLine(const AE::Physics::Vector2D& from, const AE::P
         RoundToInt(to.y));
 }
 
-void PlatformerApp::DrawFilledCircle(int centerX, int centerY, int radius, SDL_Color color) const
+void PlatformerGameModule::DrawFilledCircle(int centerX, int centerY, int radius, SDL_Color color) const
 {
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
@@ -2695,7 +2787,7 @@ void PlatformerApp::DrawFilledCircle(int centerX, int centerY, int radius, SDL_C
     }
 }
 
-void PlatformerApp::DrawFilledPolygon(const std::vector<AE::Physics::Vector2D>& vertices, SDL_Color color) const
+void PlatformerGameModule::DrawFilledPolygon(const std::vector<AE::Physics::Vector2D>& vertices, SDL_Color color) const
 {
     if (vertices.size() < 3)
     {
@@ -2744,7 +2836,7 @@ void PlatformerApp::DrawFilledPolygon(const std::vector<AE::Physics::Vector2D>& 
     }
 }
 
-void PlatformerApp::DrawPolyline(const std::vector<AE::Physics::Vector2D>& vertices, SDL_Color color, bool closed) const
+void PlatformerGameModule::DrawPolyline(const std::vector<AE::Physics::Vector2D>& vertices, SDL_Color color, bool closed) const
 {
     if (vertices.size() < 2)
     {
@@ -2773,7 +2865,7 @@ void PlatformerApp::DrawPolyline(const std::vector<AE::Physics::Vector2D>& verti
     }
 }
 
-void PlatformerApp::DrawScreenRect(int x, int y, int w, int h, SDL_Color color) const
+void PlatformerGameModule::DrawScreenRect(int x, int y, int w, int h, SDL_Color color) const
 {
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);

@@ -22,6 +22,59 @@ namespace
     {
         return reinterpret_cast<ImTextureID>(texture);
     }
+
+    bool IsShapeObject(const SceneObject& object)
+    {
+        return object.kind == SceneObjectKind::Box || object.kind == SceneObjectKind::Circle;
+    }
+
+    ImU32 ShapeFillColor(const SceneObject& object, bool playing)
+    {
+        if (object.className == "PlayerSpawnObject")
+        {
+            return IM_COL32(74, 178, 116, playing ? 95 : 72);
+        }
+        if (object.className == "GoalObject")
+        {
+            return IM_COL32(228, 83, 86, playing ? 95 : 72);
+        }
+        if (object.className == "CoinObject")
+        {
+            return IM_COL32(232, 186, 68, playing ? 120 : 96);
+        }
+        if (object.className == "SolidPlatformObject")
+        {
+            return IM_COL32(95, 142, 78, playing ? 105 : 82);
+        }
+        return object.kind == SceneObjectKind::Circle ?
+            IM_COL32(225, 142, 72, playing ? 95 : 72) :
+            IM_COL32(78, 150, 204, playing ? 90 : 68);
+    }
+
+    ImU32 ShapeOutlineColor(const SceneObject& object, bool selected, bool playing)
+    {
+        if (selected)
+        {
+            return IM_COL32(255, 211, 91, 255);
+        }
+        if (object.className == "PlayerSpawnObject")
+        {
+            return IM_COL32(104, 224, 152, 235);
+        }
+        if (object.className == "GoalObject")
+        {
+            return IM_COL32(255, 116, 118, 235);
+        }
+        if (object.className == "CoinObject")
+        {
+            return IM_COL32(255, 214, 86, 245);
+        }
+        if (object.className == "SolidPlatformObject")
+        {
+            return IM_COL32(128, 184, 96, 235);
+        }
+        return playing ? IM_COL32(102, 206, 138, 230) : IM_COL32(104, 184, 238, 230);
+    }
 }
 
 std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
@@ -78,6 +131,7 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
 
     bool canvasClickConsumed = false;
     const ImGuiIO& io = ImGui::GetIO();
+    const bool editEnabled = !playing;
 
     if (canvasHovered && io.MouseWheel != 0.0f)
     {
@@ -146,8 +200,10 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
 
         const ObjectBounds screenBounds = boundsToScreen(GetObjectBounds(object));
         const bool selected = selection.IsSceneObjectSelected(object.id);
-        const ImU32 color = selected ? IM_COL32(255, 211, 91, 255) :
-            (playing ? IM_COL32(102, 206, 138, 220) : IM_COL32(92, 153, 214, 220));
+        const ImU32 color = IsShapeObject(object) ?
+            ShapeOutlineColor(object, selected, playing) :
+            (selected ? IM_COL32(255, 211, 91, 255) :
+                (playing ? IM_COL32(102, 206, 138, 220) : IM_COL32(92, 153, 214, 220)));
         const float thickness = selected ? 3.0f : 2.0f;
 
         const AssetRecord* asset = object.assetId.empty() ? nullptr : assetRegistry.FindAssetById(object.assetId);
@@ -176,6 +232,30 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
                 24,
                 thickness);
         }
+        else if (object.kind == SceneObjectKind::Circle)
+        {
+            const ImVec2 center(
+                screenBounds.x + screenBounds.w * 0.5f,
+                screenBounds.y + screenBounds.h * 0.5f);
+            const float radius = std::max(4.0f, std::min(screenBounds.w, screenBounds.h) * 0.5f);
+            drawList->AddCircleFilled(center, radius, ShapeFillColor(object, playing), 32);
+            drawList->AddCircle(center, radius, color, 32, thickness);
+        }
+        else if (object.kind == SceneObjectKind::Box)
+        {
+            drawList->AddRectFilled(
+                ImVec2(screenBounds.x, screenBounds.y),
+                ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
+                ShapeFillColor(object, playing),
+                2.0f);
+            drawList->AddRect(
+                ImVec2(screenBounds.x, screenBounds.y),
+                ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
+                color,
+                2.0f,
+                0,
+                thickness);
+        }
         else
         {
             drawList->AddRect(
@@ -200,7 +280,7 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
         selectedObject = sceneDocument.FindObject(currentSelection.objectId);
     }
 
-    if (activeTool != EditorTool::Move || !selectedObject || !selectedObject->visible || selectedObject->locked)
+    if (!editEnabled || activeTool != EditorTool::Move || !selectedObject || !selectedObject->visible || selectedObject->locked)
     {
         activeGizmoAxis = GizmoAxis::None;
         activeGizmoObjectId = 0;
@@ -329,7 +409,7 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
 
     drawList->PopClipRect();
 
-    if (ImGui::BeginDragDropTarget())
+    if (editEnabled && ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AMBER_ASSET"))
         {
@@ -354,7 +434,7 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
         ImGui::EndDragDropTarget();
     }
 
-    if (!canvasClickConsumed && canvasHovered && ImGui::IsMouseClicked(0))
+    if (editEnabled && !canvasClickConsumed && canvasHovered && ImGui::IsMouseClicked(0))
     {
         const ImVec2 mouse = ImGui::GetIO().MousePos;
         std::uint32_t selectedObjectId = 0;
@@ -403,6 +483,11 @@ void EditorViewport::FocusOrigin()
     cameraY = 0.0f;
 }
 
+EditorVec2 EditorViewport::GetViewCenter() const
+{
+    return EditorVec2{cameraX, cameraY};
+}
+
 EditorViewport::ObjectBounds EditorViewport::GetObjectBounds(const SceneObject& object) const
 {
     if (object.kind == SceneObjectKind::Camera)
@@ -425,7 +510,9 @@ EditorViewport::ObjectBounds EditorViewport::GetObjectBounds(const SceneObject& 
         };
     }
 
-    if (object.kind == SceneObjectKind::AssetInstance)
+    if (object.kind == SceneObjectKind::AssetInstance ||
+        object.kind == SceneObjectKind::Box ||
+        object.kind == SceneObjectKind::Circle)
     {
         const float width = object.size.x * object.transform.scale.x;
         const float height = object.size.y * object.transform.scale.y;

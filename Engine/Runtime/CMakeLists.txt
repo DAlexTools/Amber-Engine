@@ -44,8 +44,10 @@ amber_group_sources(EngineRuntimeLogging "${ENGINE_RUNTIME_DIR}")
 
 add_library(EngineRuntimeECS STATIC
     ${ENGINE_RUNTIME_DIR}/EntityComponentSystem/ECS.cpp
+    ${ENGINE_RUNTIME_DIR}/Game/GameModuleInterface.cpp
     ${ENGINE_RUNTIME_DIR}/Scene/Object.cpp
     ${ENGINE_RUNTIME_DIR}/Scene/ObjectFactory.cpp
+    ${ENGINE_RUNTIME_DIR}/Scene/PrimitiveObjects.cpp
     ${ENGINE_RUNTIME_DIR}/Scene/SceneObjectComponents.cpp
     ${ENGINE_RUNTIME_DIR}/Scene/SpriteObject.cpp
 )
@@ -62,6 +64,7 @@ target_link_libraries(EngineRuntimeECS PUBLIC
 )
 amber_target_folder(EngineRuntimeECS "Engine/Runtime/ECS")
 amber_add_header_tree(EngineRuntimeECS "${ENGINE_RUNTIME_DIR}/EntityComponentSystem")
+amber_add_header_tree(EngineRuntimeECS "${ENGINE_RUNTIME_DIR}/Game")
 amber_add_header_tree(EngineRuntimeECS "${ENGINE_RUNTIME_DIR}/Scene")
 amber_group_sources(EngineRuntimeECS "${ENGINE_RUNTIME_DIR}")
 

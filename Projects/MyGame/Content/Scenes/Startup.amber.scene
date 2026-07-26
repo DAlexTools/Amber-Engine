@@ -1,0 +1,5 @@
+AmberScene 1
+name "MyGame Startup"
+object Camera "Editor Camera" "" "Object" 0.000 0.000 0.000 1.000 1.000 88.000 60.000 1 1
+object Grid "Grid" "" "Object" 0.000 0.000 0.000 1.000 1.000 80.000 80.000 1 1
+object RuntimeWorld "Runtime World" "" "Object" 180.000 96.000 0.000 1.000 1.000 224.000 144.000 1 1

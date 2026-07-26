@@ -1,0 +1,9 @@
+AmberProject 1
+name "Platformer"
+engineRoot "../.."
+gameModuleTarget "PlatformerGameModule"
+playTarget "PlatformerApp"
+startupScene "Content/Scenes/PlatformerTest.amber.scene"
+contentRoot "Content"
+buildPreset "editor"
+solutionPath "Builds/Editor/Platformer.sln"
