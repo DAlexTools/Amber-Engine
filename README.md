@@ -7,7 +7,7 @@ AmberEngine is a work-in-progress 2D C++ engine built around SDL2, ImGui, a cust
 - 2D runtime module with `AE::Engine`, ECS, events, asset loading, Lua level loading and SDL rendering.
 - Game-specific startup and gameplay flow isolated in `GameModule`.
 - Custom `AE::Physics` module with rigid bodies, shapes, collision detection, broad phase, solver iterations, sleeping, collision layers and physics stats.
-- Editor-side ImGui utilities behind `WITH_EDITOR`, currently including OutputLog and sample diagnostics overlays.
+- Editor-side ImGui tools behind `WITH_EDITOR`, currently including the standalone `AmberEditor` shell, OutputLog and sample diagnostics overlays.
 - Game demos:
   - `GameEngineApp` - Lua/content-driven SDL game sample.
   - `PlatformerApp` - Lua-scripted platformer with double jump, player/enemy shooting and embedded physics bodies.
@@ -24,7 +24,7 @@ AmberEngine is a work-in-progress 2D C++ engine built around SDL2, ImGui, a cust
 ```text
 Engine/
   Runtime/              Runtime modules, AE::Engine, GameModule and pure physics code
-  Editor/               Editor-only ImGui modules
+  Editor/               Editor-only ImGui modules and AmberEditor shell
   ThirdParty/           Bundled headers/sources such as glm, imgui, lua and sol
   Content/              Reserved engine content
 Dependencies/           Local dependency checkouts; vcpkg itself is ignored
@@ -79,6 +79,7 @@ One-click helper:
 
 ```powershell
 .\Setup.bat -Target Samples
+.\Setup.bat -Target Editor
 .\Setup.bat -Target Tests
 .\Setup.bat -Target Samples -RunSmoke
 .\Setup.bat -Mode NoEditor -Target Samples
@@ -119,6 +120,17 @@ cmake --build --preset core-physics
 
 More detailed build notes are in [BUILDING.md](BUILDING.md).
 
+## Running The Editor
+
+Build and run the standalone editor shell:
+
+```powershell
+.\Setup.bat -Target Editor
+.\Builds\Editor\Engine\Editor\Shell\Debug\AmberEditor.exe
+```
+
+The first editor milestone opens a dock-like Unreal-style layout with a top toolbar, `Scene View`, `Asset Browser`, `Scene Outliner`, `Details` and `Output Log`. The current `Scene View` is an editor shell viewport; real engine scene rendering, picking, asset drag/drop and scene serialization are tracked in [ENGINE_ROADMAP.md](ENGINE_ROADMAP.md).
+
 ## Running Samples
 
 After `.\Setup.bat`, run apps from the project root or from the build output folder:
@@ -152,6 +164,7 @@ Samples/PhysicsDemos/Content/            Shared physics demo assets
 Useful smoke checks:
 
 ```powershell
+.\Builds\Editor\Engine\Editor\Shell\Debug\AmberEditor.exe --smoke-test
 .\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --smoke-test
 .\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --ui-smoke-test
 .\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --perf-test

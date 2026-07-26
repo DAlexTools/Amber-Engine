@@ -181,9 +181,20 @@ private:
     bool editorMode = false;
     bool editorShowGrid = true;
     bool editorShowPalette = true;
+    bool editorViewportHovered = false;
+    bool editorPaletteHovered = false;
     bool editorMouseWasDown = false;
     bool editorRightMouseWasDown = false;
     bool editorWasPausedBeforeOpen = false;
+    float editorViewportX = 304.0f;
+    float editorViewportY = 86.0f;
+    float editorViewportW = 420.0f;
+    float editorViewportH = 400.0f;
+    float editorPaletteX = 22.0f;
+    float editorPaletteY = 220.0f;
+    float editorPaletteW = 248.0f;
+    float editorPaletteH = 248.0f;
+    float editorZoom = 0.75f;
     int editorTool = static_cast<int>(EditorTool::Select);
     int editorTileKind = static_cast<int>(TileKind::Solid);
     int editorTileVisual = 160;
@@ -259,8 +270,13 @@ private:
     void DrawPlayer() const;
     void DrawHud() const;
     void DrawEditorOverlay() const;
+    void DrawEditorViewport() const;
+    void DrawEditorWorldTile(int tileId, float worldX, float worldY, int width = WorldTileSize, int height = WorldTileSize, bool flip = false) const;
+    void DrawEditorWorldRect(const RectF& rect, SDL_Color color) const;
+    void DrawEditorSegmentedLift(const Lift& lift) const;
     void DrawEditorTilePalette() const;
     bool PickEditorPaletteTile(float logicalX, float logicalY, int& tileId) const;
+    bool EditorScreenToWorld(float logicalX, float logicalY, float& worldX, float& worldY) const;
     TileKind GuessTileKindForVisual(int tileId) const;
 #ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
     void BeginEditorFrame();

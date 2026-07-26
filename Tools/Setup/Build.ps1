@@ -3,7 +3,7 @@ param(
     [ValidateSet("Editor", "NoEditor", "Core")]
     [string]$Mode = "Editor",
 
-    [ValidateSet("Samples", "Game", "Tests", "PhysicsLab", "Platformer", "Platformer2", "ContainerSandbox", "Core", "All")]
+    [ValidateSet("Samples", "Editor", "Game", "Tests", "PhysicsLab", "Platformer", "Platformer2", "ContainerSandbox", "Core", "All")]
     [string]$Target = "Samples",
 
     [ValidateSet("Debug", "Release", "RelWithDebInfo", "MinSizeRel")]
@@ -133,6 +133,7 @@ function Get-Targets {
     )
     $testTargets = @("PhysicsUnitTests", "EngineUnitTests")
     $coreTargets = @("Physics", "EnginePhysicsBridgeCheck", "PhysicsCollisionFilteringCheck")
+    $editorTargets = if ($BuildMode -eq "Editor") { @("AmberEditor") } else { @() }
 
     if ($BuildMode -eq "Core") {
         return $coreTargets
@@ -140,13 +141,14 @@ function Get-Targets {
 
     switch ($BuildTarget) {
         "Game" { return @("GameEngineApp") }
+        "Editor" { return $editorTargets }
         "Tests" { return $testTargets }
         "PhysicsLab" { return @("PhysicsLabApp") }
         "Platformer" { return @("PlatformerApp") }
         "Platformer2" { return @("Platformer2App") }
         "ContainerSandbox" { return @("ContainerSandboxApp") }
         "Core" { return $coreTargets }
-        "All" { return $sampleTargets + $testTargets }
+        "All" { return $sampleTargets + $editorTargets + $testTargets }
         default { return $sampleTargets }
     }
 }
@@ -198,6 +200,11 @@ function Invoke-SmokeChecks {
         if ($BuildTarget -in @("Samples", "All", "Game")) {
             Invoke-CommandChecked "GameEngine level 1 smoke" (Join-Path $sampleBin "GameEngineApp.exe") @("--smoke-test", "--level", "1")
         }
+
+        if ($BuildMode -eq "Editor" -and $BuildTarget -in @("Editor", "All")) {
+            $editorSmoke = Join-Path $BuildDirectory "Engine\Editor\Shell\$Configuration\AmberEditor.exe"
+            Invoke-CommandChecked "AmberEditor smoke" $editorSmoke @("--smoke-test")
+        }
     }
     finally {
         $env:SDL_VIDEODRIVER = $oldVideo
@@ -217,6 +224,9 @@ try {
     $configurePreset = Get-ConfigurePreset $Mode ($null -ne $vcpkg -and $vcpkg.UseSystemVcpkg)
     $buildDirectory = Get-BuildDirectory $Mode $root
     $targets = Get-Targets $Mode $Target
+    if (-not $targets -or $targets.Count -eq 0) {
+        throw "Target '$Target' is not available in mode '$Mode'."
+    }
 
     Write-Host "AmberEngine build" -ForegroundColor Green
     Write-Host "Root: $root"

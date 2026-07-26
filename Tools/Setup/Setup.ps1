@@ -7,7 +7,7 @@ param(
     [ValidateSet("Editor", "NoEditor", "Core")]
     [string]$Mode = "Editor",
 
-    [ValidateSet("Samples", "Game", "Tests", "PhysicsLab", "Platformer", "Platformer2", "ContainerSandbox", "Core", "All")]
+    [ValidateSet("Samples", "Editor", "Game", "Tests", "PhysicsLab", "Platformer", "Platformer2", "ContainerSandbox", "Core", "All")]
     [string]$Target = "Samples",
 
     [ValidateSet("Debug", "Release", "RelWithDebInfo", "MinSizeRel")]

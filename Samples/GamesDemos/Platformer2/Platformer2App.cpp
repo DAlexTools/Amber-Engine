@@ -369,6 +369,12 @@ bool Platformer2App::Initialize()
     }
 
     ResetGame();
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+    editorMode = true;
+    paused = true;
+    editorWasPausedBeforeOpen = true;
+    editorStatus = "Map Editor ready";
+#endif
     return true;
 }
 
@@ -1495,17 +1501,24 @@ const char* Platformer2App::TileKindName(TileKind kind) const
 
 void Platformer2App::Render()
 {
+#ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
+    if (editorMode)
+    {
+        DrawScreenRect(0, 0, WindowWidth, WindowHeight, SDL_Color{19, 21, 23, 255});
+        RenderEditor();
+        DrawEditorOverlay();
+        SDL_RenderPresent(renderer);
+        return;
+    }
+#endif
+
     DrawBackground();
     DrawLevel();
     DrawLifts();
     DrawProjectiles();
     DrawEnemies();
     DrawPlayer();
-    if (!editorMode)
-    {
-        DrawHud();
-    }
-    DrawEditorOverlay();
+    DrawHud();
 #ifdef AMBER_ENABLE_PLATFORMER2_EDITOR
     RenderEditor();
 #endif
@@ -1646,29 +1659,111 @@ void Platformer2App::DrawEditorOverlay() const
         return;
     }
 
+    DrawEditorViewport();
+    DrawEditorTilePalette();
+}
+
+void Platformer2App::DrawEditorViewport() const
+{
+    if (!editorMode)
+    {
+        return;
+    }
+
+    const SDL_Rect viewport{
+        RoundToInt(editorViewportX),
+        RoundToInt(editorViewportY),
+        std::max(1, RoundToInt(editorViewportW)),
+        std::max(1, RoundToInt(editorViewportH))
+    };
+    const float safeZoom = std::max(0.25f, editorZoom);
+
+    DrawScreenRect(viewport.x - 1, viewport.y - 1, viewport.w + 2, viewport.h + 2, SDL_Color{255, 255, 255, 55});
+    DrawScreenRect(viewport.x, viewport.y, viewport.w, viewport.h, SDL_Color{14, 16, 18, 255});
+
+    SDL_RenderSetClipRect(renderer, &viewport);
+    DrawScreenRect(viewport.x, viewport.y, viewport.w, viewport.h / 2, BackgroundTop);
+    DrawScreenRect(viewport.x, viewport.y + viewport.h / 2, viewport.w, viewport.h - viewport.h / 2, BackgroundBottom);
+
+    const float visibleWorldWidth = viewport.w / safeZoom;
+    const float visibleWorldHeight = viewport.h / safeZoom;
+    const int firstCol = ClampInt(static_cast<int>(std::floor(cameraX / WorldTileSize)) - 1, 0, LevelCols - 1);
+    const int lastCol = ClampInt(static_cast<int>(std::ceil((cameraX + visibleWorldWidth) / WorldTileSize)) + 1, 0, LevelCols - 1);
+    const int firstRow = ClampInt(static_cast<int>(std::floor(cameraY / WorldTileSize)) - 1, 0, LevelRows - 1);
+    const int lastRow = ClampInt(static_cast<int>(std::ceil((cameraY + visibleWorldHeight) / WorldTileSize)) + 1, 0, LevelRows - 1);
+
+    for (int y = firstRow; y <= lastRow; ++y)
+    {
+        for (int x = firstCol; x <= lastCol; ++x)
+        {
+            const TileCell& cell = level[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)];
+            if (cell.visual < 0)
+            {
+                continue;
+            }
+
+            int tile = cell.visual;
+            if (cell.kind == TileKind::Coin)
+            {
+                tile = TileCoin + (static_cast<int>(worldTime * 8.0f) % 3);
+            }
+            else if (cell.kind == TileKind::Spike)
+            {
+                tile = TileSpike + (static_cast<int>(worldTime * 5.0f) % 2);
+            }
+
+            DrawEditorWorldTile(tile, x * static_cast<float>(WorldTileSize), y * static_cast<float>(WorldTileSize));
+        }
+    }
+
+    SDL_SetRenderDrawColor(renderer, 80, 180, 255, 120);
+    for (const Lift& lift : lifts)
+    {
+        const int x1 = RoundToInt(editorViewportX + (lift.basePosition.x - cameraX) * safeZoom);
+        const int y1 = RoundToInt(editorViewportY + (lift.basePosition.y + lift.height * 0.5f - cameraY) * safeZoom);
+        const int x2 = RoundToInt(editorViewportX + (lift.basePosition.x + lift.axis.x * lift.amplitude - cameraX) * safeZoom);
+        const int y2 = RoundToInt(editorViewportY + (lift.basePosition.y + lift.axis.y * lift.amplitude + lift.height * 0.5f - cameraY) * safeZoom);
+        SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+        DrawEditorSegmentedLift(lift);
+    }
+
+    SDL_SetRenderDrawColor(renderer, 255, 216, 80, 115);
+    for (const Enemy& enemy : enemies)
+    {
+        const int x1 = RoundToInt(editorViewportX + (enemy.leftBound - cameraX) * safeZoom);
+        const int x2 = RoundToInt(editorViewportX + (enemy.rightBound - cameraX) * safeZoom);
+        const int y = RoundToInt(editorViewportY + (enemy.spawnPosition.y + enemy.height - cameraY) * safeZoom);
+        SDL_RenderDrawLine(renderer, x1, y, x2, y);
+
+        const int frame = TileEnemyWalkStart + (static_cast<int>(enemy.animationTime * 8.0f) % 4);
+        DrawEditorWorldTile(frame, enemy.spawnPosition.x - 4.0f, enemy.spawnPosition.y - 2.0f, WorldTileSize, WorldTileSize, enemy.facing > 0);
+    }
+
+    DrawEditorWorldTile(TilePlayerIdle, playerSpawn.x - 5.0f, playerSpawn.y - 2.0f, WorldTileSize, WorldTileSize, player.facing < 0);
+
     if (editorShowGrid)
     {
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 42);
-        const int firstCol = ClampInt(static_cast<int>(std::floor(cameraX / WorldTileSize)), 0, LevelCols - 1);
-        const int lastCol = ClampInt(static_cast<int>(std::ceil((cameraX + WindowWidth) / WorldTileSize)) + 1, 0, LevelCols);
-        const int firstRow = ClampInt(static_cast<int>(std::floor(cameraY / WorldTileSize)), 0, LevelRows - 1);
-        const int lastRow = ClampInt(static_cast<int>(std::ceil((cameraY + WindowHeight) / WorldTileSize)) + 1, 0, LevelRows);
+        const int gridFirstCol = ClampInt(static_cast<int>(std::floor(cameraX / WorldTileSize)), 0, LevelCols - 1);
+        const int gridLastCol = ClampInt(static_cast<int>(std::ceil((cameraX + visibleWorldWidth) / WorldTileSize)) + 1, 0, LevelCols);
+        const int gridFirstRow = ClampInt(static_cast<int>(std::floor(cameraY / WorldTileSize)), 0, LevelRows - 1);
+        const int gridLastRow = ClampInt(static_cast<int>(std::ceil((cameraY + visibleWorldHeight) / WorldTileSize)) + 1, 0, LevelRows);
 
-        for (int x = firstCol; x <= lastCol; ++x)
+        for (int x = gridFirstCol; x <= gridLastCol; ++x)
         {
-            const int screenX = RoundToInt(x * static_cast<float>(WorldTileSize) - cameraX);
-            SDL_RenderDrawLine(renderer, screenX, 0, screenX, WindowHeight);
+            const int screenX = RoundToInt(editorViewportX + (x * static_cast<float>(WorldTileSize) - cameraX) * safeZoom);
+            SDL_RenderDrawLine(renderer, screenX, viewport.y, screenX, viewport.y + viewport.h);
         }
-        for (int y = firstRow; y <= lastRow; ++y)
+        for (int y = gridFirstRow; y <= gridLastRow; ++y)
         {
-            const int screenY = RoundToInt(y * static_cast<float>(WorldTileSize) - cameraY);
-            SDL_RenderDrawLine(renderer, 0, screenY, WindowWidth, screenY);
+            const int screenY = RoundToInt(editorViewportY + (y * static_cast<float>(WorldTileSize) - cameraY) * safeZoom);
+            SDL_RenderDrawLine(renderer, viewport.x, screenY, viewport.x + viewport.w, screenY);
         }
     }
 
     if (editorSelection.type == EditorSelectionType::Tile)
     {
-        DrawWorldRect(
+        DrawEditorWorldRect(
             RectF{
                 editorSelection.x * static_cast<float>(WorldTileSize),
                 editorSelection.y * static_cast<float>(WorldTileSize),
@@ -1679,22 +1774,89 @@ void Platformer2App::DrawEditorOverlay() const
     }
     else if (editorSelection.type == EditorSelectionType::Enemy && editorSelection.index < enemies.size())
     {
-        DrawWorldRect(EnemyRect(enemies[editorSelection.index]), SDL_Color{255, 220, 80, 88});
+        const Enemy& enemy = enemies[editorSelection.index];
+        DrawEditorWorldRect(RectF{enemy.spawnPosition.x, enemy.spawnPosition.y, enemy.width, enemy.height}, SDL_Color{255, 220, 80, 88});
     }
     else if (editorSelection.type == EditorSelectionType::Lift && editorSelection.index < lifts.size())
     {
-        DrawWorldRect(LiftRect(lifts[editorSelection.index]), SDL_Color{80, 180, 255, 88});
+        const Lift& lift = lifts[editorSelection.index];
+        DrawEditorWorldRect(RectF{lift.basePosition.x, lift.basePosition.y, lift.width, lift.height}, SDL_Color{80, 180, 255, 88});
     }
     else if (editorSelection.type == EditorSelectionType::PlayerSpawn)
     {
-        DrawWorldRect(RectF{playerSpawn.x, playerSpawn.y, player.width, player.height}, SDL_Color{80, 255, 150, 88});
+        DrawEditorWorldRect(RectF{playerSpawn.x, playerSpawn.y, player.width, player.height}, SDL_Color{80, 255, 150, 88});
     }
     else if (editorSelection.type == EditorSelectionType::Goal)
     {
-        DrawWorldRect(finish, SDL_Color{255, 255, 80, 88});
+        DrawEditorWorldRect(finish, SDL_Color{255, 255, 80, 88});
     }
 
-    DrawEditorTilePalette();
+    SDL_RenderSetClipRect(renderer, nullptr);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 115);
+    SDL_RenderDrawRect(renderer, &viewport);
+}
+
+void Platformer2App::DrawEditorWorldTile(int tileId, float worldX, float worldY, int width, int height, bool flip) const
+{
+    if (!tilemapTexture || tileId < 0)
+    {
+        return;
+    }
+
+    const float safeZoom = std::max(0.25f, editorZoom);
+    const SDL_Rect source{
+        (tileId % SheetColumns) * SourceTileSize,
+        (tileId / SheetColumns) * SourceTileSize,
+        SourceTileSize,
+        SourceTileSize
+    };
+    const SDL_Rect destination{
+        RoundToInt(editorViewportX + (worldX - cameraX) * safeZoom),
+        RoundToInt(editorViewportY + (worldY - cameraY) * safeZoom),
+        std::max(1, RoundToInt(width * safeZoom)),
+        std::max(1, RoundToInt(height * safeZoom))
+    };
+
+    SDL_RenderCopyEx(
+        renderer,
+        tilemapTexture,
+        &source,
+        &destination,
+        0.0,
+        nullptr,
+        flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
+}
+
+void Platformer2App::DrawEditorWorldRect(const RectF& rect, SDL_Color color) const
+{
+    const float safeZoom = std::max(0.25f, editorZoom);
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    const SDL_Rect destination{
+        RoundToInt(editorViewportX + (rect.x - cameraX) * safeZoom),
+        RoundToInt(editorViewportY + (rect.y - cameraY) * safeZoom),
+        std::max(1, RoundToInt(rect.w * safeZoom)),
+        std::max(1, RoundToInt(rect.h * safeZoom))
+    };
+    SDL_RenderFillRect(renderer, &destination);
+}
+
+void Platformer2App::DrawEditorSegmentedLift(const Lift& lift) const
+{
+    const int segmentCount = std::max(1, static_cast<int>(std::ceil(lift.width / WorldTileSize)));
+    for (int segment = 0; segment < segmentCount; ++segment)
+    {
+        int tile = TileLiftMiddle;
+        if (segment == 0)
+        {
+            tile = TileLiftLeft;
+        }
+        else if (segment == segmentCount - 1)
+        {
+            tile = TileLiftRight;
+        }
+
+        DrawEditorWorldTile(tile, lift.basePosition.x + segment * WorldTileSize, lift.basePosition.y - 8.0f);
+    }
 }
 
 void Platformer2App::DrawEditorTilePalette() const
@@ -1704,20 +1866,25 @@ void Platformer2App::DrawEditorTilePalette() const
         return;
     }
 
-    const int tileDisplaySize = SourceTileSize;
     const int paletteColumns = SheetColumns;
     const int paletteRows = 20;
+    const float tileScale = std::min(
+        editorPaletteW / static_cast<float>(paletteColumns),
+        editorPaletteH / static_cast<float>(paletteRows));
+    const int tileDisplaySize = std::max(1, static_cast<int>(std::floor(tileScale)));
     const int paletteWidth = paletteColumns * tileDisplaySize;
     const int paletteHeight = paletteRows * tileDisplaySize;
-    const int paletteX = (WindowWidth - paletteWidth) / 2;
-    const int paletteY = 14;
+    const int paletteX = RoundToInt(editorPaletteX);
+    const int paletteY = RoundToInt(editorPaletteY);
+    const SDL_Rect paletteClip{
+        paletteX,
+        paletteY,
+        std::max(1, RoundToInt(editorPaletteW)),
+        std::max(1, RoundToInt(editorPaletteH))
+    };
 
-    DrawScreenRect(
-        paletteX - 8,
-        paletteY - 8,
-        paletteWidth + 16,
-        paletteHeight + 16,
-        SDL_Color{0, 0, 0, 190});
+    SDL_RenderSetClipRect(renderer, &paletteClip);
+    DrawScreenRect(paletteX, paletteY, paletteClip.w, paletteClip.h, SDL_Color{8, 9, 10, 230});
 
     for (int tileId = 0; tileId < paletteColumns * paletteRows; ++tileId)
     {
@@ -1737,7 +1904,7 @@ void Platformer2App::DrawEditorTilePalette() const
     }
 
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 70);
-    const SDL_Rect paletteBorder{paletteX - 1, paletteY - 1, paletteWidth + 2, paletteHeight + 2};
+    const SDL_Rect paletteBorder{paletteX, paletteY, paletteWidth, paletteHeight};
     SDL_RenderDrawRect(renderer, &paletteBorder);
 
     if (editorTileVisual >= 0 && editorTileVisual < paletteColumns * paletteRows)
@@ -1750,31 +1917,28 @@ void Platformer2App::DrawEditorTilePalette() const
         };
         SDL_SetRenderDrawColor(renderer, 255, 216, 80, 255);
         SDL_RenderDrawRect(renderer, &selected);
-
-        const int previewX = paletteX;
-        const int previewY = paletteY + paletteHeight + 12;
-        DrawScreenRect(previewX - 4, previewY - 4, 72, 72, SDL_Color{0, 0, 0, 190});
-        DrawScreenTile(editorTileVisual, previewX, previewY, 64, 64);
-        SDL_SetRenderDrawColor(renderer, 255, 216, 80, 180);
-        const SDL_Rect previewBorder{previewX - 4, previewY - 4, 72, 72};
-        SDL_RenderDrawRect(renderer, &previewBorder);
     }
+
+    SDL_RenderSetClipRect(renderer, nullptr);
 }
 
 bool Platformer2App::PickEditorPaletteTile(float logicalX, float logicalY, int& tileId) const
 {
-    if (!editorMode || !editorShowPalette)
+    if (!editorMode || !editorShowPalette || !editorPaletteHovered)
     {
         return false;
     }
 
-    const int tileDisplaySize = SourceTileSize;
     const int paletteColumns = SheetColumns;
     const int paletteRows = 20;
+    const float tileScale = std::min(
+        editorPaletteW / static_cast<float>(paletteColumns),
+        editorPaletteH / static_cast<float>(paletteRows));
+    const int tileDisplaySize = std::max(1, static_cast<int>(std::floor(tileScale)));
     const int paletteWidth = paletteColumns * tileDisplaySize;
     const int paletteHeight = paletteRows * tileDisplaySize;
-    const int paletteX = (WindowWidth - paletteWidth) / 2;
-    const int paletteY = 14;
+    const float paletteX = editorPaletteX;
+    const float paletteY = editorPaletteY;
 
     if (logicalX < paletteX || logicalX >= paletteX + paletteWidth ||
         logicalY < paletteY || logicalY >= paletteY + paletteHeight)
@@ -1785,6 +1949,21 @@ bool Platformer2App::PickEditorPaletteTile(float logicalX, float logicalY, int& 
     const int col = ClampInt(static_cast<int>((logicalX - paletteX) / tileDisplaySize), 0, paletteColumns - 1);
     const int row = ClampInt(static_cast<int>((logicalY - paletteY) / tileDisplaySize), 0, paletteRows - 1);
     tileId = row * paletteColumns + col;
+    return true;
+}
+
+bool Platformer2App::EditorScreenToWorld(float logicalX, float logicalY, float& worldX, float& worldY) const
+{
+    if (!editorMode || !editorViewportHovered ||
+        logicalX < editorViewportX || logicalX >= editorViewportX + editorViewportW ||
+        logicalY < editorViewportY || logicalY >= editorViewportY + editorViewportH)
+    {
+        return false;
+    }
+
+    const float safeZoom = std::max(0.25f, editorZoom);
+    worldX = cameraX + (logicalX - editorViewportX) / safeZoom;
+    worldY = cameraY + (logicalY - editorViewportY) / safeZoom;
     return true;
 }
 
@@ -1855,9 +2034,15 @@ void Platformer2App::RenderEditor()
 
 void Platformer2App::DrawEditorWindows()
 {
-    ImGui::SetNextWindowPos(ImVec2(12.0f, 72.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(280.0f, 430.0f), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Map Editor");
+    editorViewportHovered = false;
+    editorPaletteHovered = false;
+
+    const char* tools[] = {"Select", "Tile", "Erase", "Enemy", "Lift", "Player Spawn", "Goal"};
+    const char* tileKinds[] = {"Empty", "Solid", "Ladder", "Spike", "Coin", "Goal", "Decor"};
+
+    ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(284.0f, 520.0f), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Map Editor", nullptr, ImGuiWindowFlags_NoCollapse);
 
     if (ImGui::Button("Save"))
     {
@@ -1884,11 +2069,6 @@ void Platformer2App::DrawEditorWindows()
         editorStatus = "Default level restored";
     }
 
-    if (ImGui::Button(editorWasPausedBeforeOpen ? "Resume On Close" : "Stay Paused On Close"))
-    {
-        editorWasPausedBeforeOpen = !editorWasPausedBeforeOpen;
-    }
-    ImGui::SameLine();
     if (ImGui::Button("Play From Here"))
     {
         editorMode = false;
@@ -1898,16 +2078,11 @@ void Platformer2App::DrawEditorWindows()
 
     ImGui::Checkbox("Grid", &editorShowGrid);
     ImGui::Checkbox("Tileset Palette", &editorShowPalette);
-    ImGui::SliderFloat("Camera X", &cameraX, 0.0f, std::max(0.0f, LevelCols * static_cast<float>(WorldTileSize) - WindowWidth));
-    ImGui::SliderFloat("Camera Y", &cameraY, 0.0f, std::max(0.0f, LevelRows * static_cast<float>(WorldTileSize) - WindowHeight));
-
-    const char* tools[] = {"Select", "Tile", "Erase", "Enemy", "Lift", "Player Spawn", "Goal"};
     ImGui::Combo("Tool", &editorTool, tools, IM_ARRAYSIZE(tools));
 
-    const char* tileKinds[] = {"Empty", "Solid", "Ladder", "Spike", "Coin", "Goal", "Decor"};
     ImGui::Combo("Tile Kind", &editorTileKind, tileKinds, IM_ARRAYSIZE(tileKinds));
     ImGui::SliderInt("Tile ID", &editorTileVisual, 0, 399);
-    ImGui::Text("Selected: %s / tile_%04d", TileKindName(static_cast<TileKind>(editorTileKind)), editorTileVisual);
+    ImGui::Text("Brush: %s / tile_%04d", TileKindName(static_cast<TileKind>(editorTileKind)), editorTileVisual);
     if (ImGui::Button("Use solid"))
     {
         editorTileKind = static_cast<int>(TileKind::Solid);
@@ -1931,6 +2106,22 @@ void Platformer2App::DrawEditorWindows()
         editorTileVisual = TileCoin;
     }
 
+    if (editorShowPalette)
+    {
+        ImGui::Separator();
+        ImGui::Text("Tileset Palette");
+        const ImVec2 palettePos = ImGui::GetCursorScreenPos();
+        ImVec2 paletteSize = ImGui::GetContentRegionAvail();
+        paletteSize.x = std::max(160.0f, paletteSize.x);
+        paletteSize.y = std::max(160.0f, std::min(250.0f, paletteSize.y - 4.0f));
+        ImGui::InvisibleButton("TilesetCanvas", paletteSize);
+        editorPaletteHovered = ImGui::IsItemHovered();
+        editorPaletteX = palettePos.x;
+        editorPaletteY = palettePos.y;
+        editorPaletteW = paletteSize.x;
+        editorPaletteH = paletteSize.y;
+    }
+
     if (!editorStatus.empty())
     {
         ImGui::Separator();
@@ -1938,9 +2129,48 @@ void Platformer2App::DrawEditorWindows()
     }
     ImGui::End();
 
-    ImGui::SetNextWindowPos(ImVec2(WindowWidth - 310.0f, 72.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(292.0f, 430.0f), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Scene Outliner");
+    ImGui::SetNextWindowPos(ImVec2(304.0f, 10.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(418.0f, 520.0f), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Map View", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
+
+    if (ImGui::Button("Fit Height"))
+    {
+        editorZoom = ClampFloat((editorViewportH - 8.0f) / (LevelRows * static_cast<float>(WorldTileSize)), 0.35f, 2.0f);
+        cameraY = 0.0f;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Start"))
+    {
+        cameraX = 0.0f;
+        cameraY = 0.0f;
+    }
+    ImGui::SliderFloat("Zoom", &editorZoom, 0.35f, 2.0f, "%.2fx");
+
+    const float safeZoom = std::max(0.25f, editorZoom);
+    const float visibleWorldWidth = std::max(1.0f, editorViewportW / safeZoom);
+    const float visibleWorldHeight = std::max(1.0f, editorViewportH / safeZoom);
+    const float maxCameraX = std::max(0.0f, LevelCols * static_cast<float>(WorldTileSize) - visibleWorldWidth);
+    const float maxCameraY = std::max(0.0f, LevelRows * static_cast<float>(WorldTileSize) - visibleWorldHeight);
+    cameraX = ClampFloat(cameraX, 0.0f, maxCameraX);
+    cameraY = ClampFloat(cameraY, 0.0f, maxCameraY);
+    ImGui::SliderFloat("Camera X", &cameraX, 0.0f, maxCameraX);
+    ImGui::SliderFloat("Camera Y", &cameraY, 0.0f, maxCameraY);
+
+    const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
+    ImVec2 canvasSize = ImGui::GetContentRegionAvail();
+    canvasSize.x = std::max(180.0f, canvasSize.x);
+    canvasSize.y = std::max(180.0f, canvasSize.y);
+    ImGui::InvisibleButton("LevelCanvas", canvasSize);
+    editorViewportHovered = ImGui::IsItemHovered();
+    editorViewportX = canvasPos.x;
+    editorViewportY = canvasPos.y;
+    editorViewportW = canvasSize.x;
+    editorViewportH = canvasSize.y;
+    ImGui::End();
+
+    ImGui::SetNextWindowPos(ImVec2(732.0f, 10.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(218.0f, 520.0f), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Scene Outliner", nullptr, ImGuiWindowFlags_NoCollapse);
 
     if (ImGui::Selectable("Player Spawn", editorSelection.type == EditorSelectionType::PlayerSpawn))
     {
@@ -2059,7 +2289,6 @@ void Platformer2App::DrawEditorWindows()
 
 void Platformer2App::ApplyEditorMouse()
 {
-    const ImGuiIO& io = ImGui::GetIO();
     int mouseX = 0;
     int mouseY = 0;
     const Uint32 mouseButtons = SDL_GetMouseState(&mouseX, &mouseY);
@@ -2073,7 +2302,7 @@ void Platformer2App::ApplyEditorMouse()
     const bool rightMousePressed = rightMouseDown && !editorRightMouseWasDown;
     bool consumedByPalette = false;
 
-    if (!io.WantCaptureMouse && mousePressed)
+    if (mousePressed)
     {
         int pickedTile = -1;
         if (PickEditorPaletteTile(logicalX, logicalY, pickedTile))
@@ -2086,11 +2315,10 @@ void Platformer2App::ApplyEditorMouse()
         }
     }
 
-    if (!consumedByPalette && !io.WantCaptureMouse &&
-        logicalX >= 0.0f && logicalX < WindowWidth && logicalY >= 0.0f && logicalY < WindowHeight)
+    float worldX = 0.0f;
+    float worldY = 0.0f;
+    if (!consumedByPalette && EditorScreenToWorld(logicalX, logicalY, worldX, worldY))
     {
-        const float worldX = logicalX + cameraX;
-        const float worldY = logicalY + cameraY;
         const int tileX = ClampInt(static_cast<int>(std::floor(worldX / WorldTileSize)), 0, LevelCols - 1);
         const int tileY = ClampInt(static_cast<int>(std::floor(worldY / WorldTileSize)), 0, LevelRows - 1);
         const EditorTool tool = static_cast<EditorTool>(editorTool);
@@ -2160,7 +2388,8 @@ void Platformer2App::SelectAtWorld(float worldX, float worldY)
     const RectF point{worldX, worldY, 1.0f, 1.0f};
     for (std::size_t i = 0; i < enemies.size(); ++i)
     {
-        if (Intersects(point, EnemyRect(enemies[i])))
+        const Enemy& enemy = enemies[i];
+        if (Intersects(point, RectF{enemy.spawnPosition.x, enemy.spawnPosition.y, enemy.width, enemy.height}))
         {
             editorSelection = EditorSelection{EditorSelectionType::Enemy, 0, 0, i};
             return;
@@ -2168,7 +2397,8 @@ void Platformer2App::SelectAtWorld(float worldX, float worldY)
     }
     for (std::size_t i = 0; i < lifts.size(); ++i)
     {
-        if (Intersects(point, LiftRect(lifts[i])))
+        const Lift& lift = lifts[i];
+        if (Intersects(point, RectF{lift.basePosition.x, lift.basePosition.y, lift.width, lift.height}))
         {
             editorSelection = EditorSelection{EditorSelectionType::Lift, 0, 0, i};
             return;
