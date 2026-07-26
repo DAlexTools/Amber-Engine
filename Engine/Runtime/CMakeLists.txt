@@ -77,6 +77,7 @@ if(BUILD_SDL_MODULES AND SDL2_TARGET_FOUND)
         ${ENGINE_THIRD_PARTY_DIR}/imgui/imgui_draw.cpp
         ${ENGINE_THIRD_PARTY_DIR}/imgui/imgui_impl_sdl.cpp
         ${ENGINE_THIRD_PARTY_DIR}/imgui/imgui_sdl.cpp
+        ${ENGINE_THIRD_PARTY_DIR}/imgui/imgui_tables.cpp
         ${ENGINE_THIRD_PARTY_DIR}/imgui/imgui_widgets.cpp
     )
 

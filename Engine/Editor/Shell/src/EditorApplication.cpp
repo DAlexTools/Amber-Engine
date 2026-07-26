@@ -6,6 +6,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl.h"
 #include "imgui_sdl.h"
+#include "imgui_internal.h"
 
 #include <algorithm>
 #include <array>
@@ -71,6 +72,21 @@ namespace
         return ImGuiWindowFlags_NoMove |
             ImGuiWindowFlags_NoResize |
             ImGuiWindowFlags_NoCollapse;
+    }
+
+    bool HasFixedBounds(float width, float height)
+    {
+        return width > 0.0f && height > 0.0f;
+    }
+
+    ImGuiWindowFlags PanelFlags(bool fixedBounds)
+    {
+        if (fixedBounds)
+        {
+            return FixedPanelFlags();
+        }
+
+        return ImGuiWindowFlags_NoCollapse;
     }
 
     ImTextureID ToImTextureId(SDL_Texture* texture)
@@ -376,10 +392,16 @@ bool EditorApplication::Initialize(bool hiddenWindow)
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigDockingWithShift = false;
+    io.ConfigWindowsMoveFromTitleBarOnly = true;
+    imguiIniFilename = (FindEngineRoot() / "imgui.ini").string();
+    io.IniFilename = imguiIniFilename.c_str();
     ImGui::StyleColorsDark();
     ApplyStyle();
-    ImGui_ImplSDL2_InitForD3D(window);
+    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
     ImGuiSDL::Initialize(renderer, windowWidth, windowHeight);
     imguiReady = true;
     textureCache.Initialize(renderer);
@@ -509,7 +531,7 @@ void EditorApplication::BeginFrame()
     windowHeight = std::max(1, windowHeight);
     SDL_RenderSetLogicalSize(renderer, windowWidth, windowHeight);
 
-    ImGui_ImplSDL2_NewFrame(window);
+    ImGui_ImplSDL2_NewFrame();
     ImGuiSDL::ApplyLogicalDisplaySize(window, renderer, windowWidth, windowHeight);
     ImGui::NewFrame();
 }
@@ -564,34 +586,132 @@ void EditorApplication::DrawLayout()
     }
 
     const float toolbarHeight = 42.0f;
-    const float rightWidth = std::max(280.0f, std::min(360.0f, windowWidth * 0.24f));
-    const float bottomHeight = std::max(180.0f, std::min(260.0f, windowHeight * 0.31f));
-    const float top = menuHeight + toolbarHeight;
-    const float rightX = windowWidth - rightWidth;
-    const float bottomY = windowHeight - bottomHeight;
-    const float centerWidth = std::max(320.0f, rightX);
-    const float sceneHeight = std::max(220.0f, bottomY - top);
-    const float assetWidth = showOutputLog ? centerWidth * 0.60f : centerWidth;
+    const float dockspaceTop = menuHeight + toolbarHeight;
 
     DrawToolbar(menuHeight, toolbarHeight);
-    DrawSceneView(0.0f, top, centerWidth, sceneHeight);
+    DrawEditorDockspace(
+        0.0f,
+        dockspaceTop,
+        static_cast<float>(windowWidth),
+        std::max(1.0f, static_cast<float>(windowHeight) - dockspaceTop));
+
+    DrawSceneView(0.0f, 0.0f, 0.0f, 0.0f);
 
     if (showAssetBrowser)
     {
-        DrawAssetBrowser(0.0f, bottomY, assetWidth, bottomHeight);
+        DrawAssetBrowser(0.0f, 0.0f, 0.0f, 0.0f);
     }
     if (showOutputLog)
     {
-        DrawOutputLog(assetWidth, bottomY, centerWidth - assetWidth, bottomHeight);
+        DrawOutputLog(0.0f, 0.0f, 0.0f, 0.0f);
     }
     if (showSceneOutliner)
     {
-        DrawSceneOutliner(rightX, top, rightWidth, sceneHeight * 0.46f);
+        DrawSceneOutliner(0.0f, 0.0f, 0.0f, 0.0f);
     }
     if (showDetails)
     {
-        DrawDetailsPanel(rightX, top + sceneHeight * 0.46f, rightWidth, windowHeight - (top + sceneHeight * 0.46f));
+        DrawDetailsPanel(0.0f, 0.0f, 0.0f, 0.0f);
     }
+}
+
+void EditorApplication::DrawEditorDockspace(float x, float y, float width, float height)
+{
+    SetPanelBounds(x, y, width, height);
+
+    const ImGuiWindowFlags hostFlags =
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoNavFocus |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoScrollWithMouse;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::Begin("Amber Editor Dockspace", nullptr, hostFlags);
+    ImGui::PopStyleVar(2);
+
+    const ImGuiID dockspaceId = ImGui::GetID("AmberEditorDockspace");
+    if (!dockLayoutInitialized)
+    {
+        dockLayoutInitialized = true;
+        if (!ImGui::DockBuilderGetNode(dockspaceId))
+        {
+            QueueDockLayout(EditorDockLayoutPreset::Default);
+        }
+    }
+
+    if (rebuildDockLayout)
+    {
+        RebuildDockLayout(dockspaceId, ImGui::GetContentRegionAvail());
+        rebuildDockLayout = false;
+    }
+
+    ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+    ImGui::End();
+}
+
+void EditorApplication::QueueDockLayout(EditorDockLayoutPreset preset)
+{
+    pendingDockLayoutPreset = preset;
+    rebuildDockLayout = true;
+
+    showAssetBrowser = true;
+    showSceneOutliner = true;
+    showDetails = true;
+    showOutputLog = true;
+}
+
+void EditorApplication::RebuildDockLayout(ImGuiID dockspaceId, const ImVec2& dockspaceSize)
+{
+    ImGui::DockBuilderRemoveNode(dockspaceId);
+    ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockBuilderSetNodeSize(dockspaceId, dockspaceSize);
+
+    ImGuiID mainDock = dockspaceId;
+    ImGuiID rightDock = 0;
+    ImGuiID bottomDock = 0;
+    ImGuiID sceneDock = 0;
+    ImGuiID assetDock = 0;
+    ImGuiID outputDock = 0;
+    ImGuiID outlinerDock = 0;
+    ImGuiID detailsDock = 0;
+
+    float rightRatio = 0.24f;
+    float bottomRatio = 0.30f;
+    float outputRatio = 0.40f;
+    float detailsRatio = 0.54f;
+
+    if (pendingDockLayoutPreset == EditorDockLayoutPreset::FocusScene)
+    {
+        rightRatio = 0.20f;
+        bottomRatio = 0.22f;
+        outputRatio = 0.34f;
+        detailsRatio = 0.50f;
+    }
+    else if (pendingDockLayoutPreset == EditorDockLayoutPreset::ContentEditing)
+    {
+        rightRatio = 0.24f;
+        bottomRatio = 0.42f;
+        outputRatio = 0.30f;
+        detailsRatio = 0.58f;
+    }
+
+    ImGui::DockBuilderSplitNode(mainDock, ImGuiDir_Right, rightRatio, &rightDock, &mainDock);
+    ImGui::DockBuilderSplitNode(mainDock, ImGuiDir_Down, bottomRatio, &bottomDock, &sceneDock);
+    ImGui::DockBuilderSplitNode(bottomDock, ImGuiDir_Right, outputRatio, &outputDock, &assetDock);
+    ImGui::DockBuilderSplitNode(rightDock, ImGuiDir_Down, detailsRatio, &detailsDock, &outlinerDock);
+
+    ImGui::DockBuilderDockWindow("Scene View", sceneDock);
+    ImGui::DockBuilderDockWindow("Asset Browser", assetDock);
+    ImGui::DockBuilderDockWindow("Output Log", outputDock);
+    ImGui::DockBuilderDockWindow("Scene Outliner", outlinerDock);
+    ImGui::DockBuilderDockWindow("Details", detailsDock);
+    ImGui::DockBuilderFinish(dockspaceId);
 }
 
 void EditorApplication::DrawMainMenuBar()
@@ -702,6 +822,23 @@ void EditorApplication::DrawMainMenuBar()
         ImGui::MenuItem("Scene Outliner", nullptr, &showSceneOutliner);
         ImGui::MenuItem("Details", nullptr, &showDetails);
         ImGui::MenuItem("Output Log", nullptr, &showOutputLog);
+        ImGui::Separator();
+        if (ImGui::BeginMenu("Layouts"))
+        {
+            if (ImGui::MenuItem("Default Editor"))
+            {
+                QueueDockLayout(EditorDockLayoutPreset::Default);
+            }
+            if (ImGui::MenuItem("Focus Scene"))
+            {
+                QueueDockLayout(EditorDockLayoutPreset::FocusScene);
+            }
+            if (ImGui::MenuItem("Content Editing"))
+            {
+                QueueDockLayout(EditorDockLayoutPreset::ContentEditing);
+            }
+            ImGui::EndMenu();
+        }
         ImGui::EndMenu();
     }
 
@@ -833,8 +970,12 @@ void EditorApplication::DrawToolbar(float menuHeight, float toolbarHeight)
 
 void EditorApplication::DrawSceneView(float x, float y, float width, float height)
 {
-    SetPanelBounds(x, y, width, height);
-    ImGui::Begin("Scene View", nullptr, FixedPanelFlags() | ImGuiWindowFlags_NoScrollbar);
+    const bool fixedBounds = HasFixedBounds(width, height);
+    if (fixedBounds)
+    {
+        SetPanelBounds(x, y, width, height);
+    }
+    ImGui::Begin("Scene View", nullptr, PanelFlags(fixedBounds) | ImGuiWindowFlags_NoScrollbar);
     SceneDocument* viewportSceneDocument = &sceneDocument;
     if (SceneDocument* runtimeSceneDocument = playSession.GetRuntimeSceneDocument())
     {
@@ -876,8 +1017,12 @@ void EditorApplication::DrawSceneView(float x, float y, float width, float heigh
 
 void EditorApplication::DrawAssetBrowser(float x, float y, float width, float height)
 {
-    SetPanelBounds(x, y, width, height);
-    ImGui::Begin("Asset Browser", &showAssetBrowser, FixedPanelFlags());
+    const bool fixedBounds = HasFixedBounds(width, height);
+    if (fixedBounds)
+    {
+        SetPanelBounds(x, y, width, height);
+    }
+    ImGui::Begin("Asset Browser", &showAssetBrowser, PanelFlags(fixedBounds));
 
     if (ImGui::Button("Project"))
     {
@@ -968,8 +1113,12 @@ void EditorApplication::DrawAssetBrowser(float x, float y, float width, float he
 
 void EditorApplication::DrawSceneOutliner(float x, float y, float width, float height)
 {
-    SetPanelBounds(x, y, width, height);
-    ImGui::Begin("Scene Outliner", &showSceneOutliner, FixedPanelFlags());
+    const bool fixedBounds = HasFixedBounds(width, height);
+    if (fixedBounds)
+    {
+        SetPanelBounds(x, y, width, height);
+    }
+    ImGui::Begin("Scene Outliner", &showSceneOutliner, PanelFlags(fixedBounds));
 
     ImGuiTreeNodeFlags rootFlags = ImGuiTreeNodeFlags_DefaultOpen;
     if (sceneDocument.IsDirty())
@@ -999,8 +1148,12 @@ void EditorApplication::DrawSceneOutliner(float x, float y, float width, float h
 
 void EditorApplication::DrawDetailsPanel(float x, float y, float width, float height)
 {
-    SetPanelBounds(x, y, width, height);
-    ImGui::Begin("Details", &showDetails, FixedPanelFlags());
+    const bool fixedBounds = HasFixedBounds(width, height);
+    if (fixedBounds)
+    {
+        SetPanelBounds(x, y, width, height);
+    }
+    ImGui::Begin("Details", &showDetails, PanelFlags(fixedBounds));
 
     if (playSession.IsPlaying())
     {
@@ -1117,7 +1270,10 @@ void EditorApplication::DrawDetailsPanel(float x, float y, float width, float he
 
 void EditorApplication::DrawOutputLog(float x, float y, float width, float height)
 {
-    SetPanelBounds(x, y, width, height);
+    if (HasFixedBounds(width, height))
+    {
+        SetPanelBounds(x, y, width, height);
+    }
     outputLog.Draw(&showOutputLog);
 }
 

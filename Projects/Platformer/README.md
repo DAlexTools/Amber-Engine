@@ -40,7 +40,8 @@ Editor scene bridge:
 - `PlatformerGameModulePlugin` is the dynamic module loaded by `AmberEditor` for PIE. It exports `AmberCreateGameModule` and `AmberDestroyGameModule`, then returns a `PlatformerGameModule` instance.
 - In dynamic PIE today, the editor keeps scene object instantiation editor-side and passes the `SceneDocument` to `PlatformerGameModule::StartPlay`; plugin-owned ECS component registration waits for a shared runtime ABI.
 - Platformer-specific scene object classes live in this sample (`PlatformerSceneObjects.h/.cpp`), not in the engine module.
-- `PlayerSpawnObject`, `GoalObject`, `CoinObject` and `SolidPlatformObject` are registered into `ObjectFactory`, configured as ECS entities, then mapped into the sample's spawn point, finish trigger, collectible coins and extra solid platforms. They now sit on top of engine standard `BoxObject`/`CircleObject` shapes, so Editor can display and move them as real scene geometry instead of invisible empty objects.
+- `PlayerSpawnObject`, `GoalObject`, `CoinObject` and `SolidPlatformObject` are registered into `ObjectFactory`, configured as ECS entities, then mapped into the sample's spawn point, finish trigger, collectible coins and level platforms. They now sit on top of engine standard `BoxObject`/`CircleObject` shapes, so Editor can display and move them as real scene geometry instead of invisible empty objects.
+- `Content/Scenes/PlatformerTest.amber.scene` now owns the main level layout as boxes/circles. The old tile-built layout remains only as a fallback when no scene is available.
 - Visible `SpriteObject` instances still render as decorative scene props from the editor scene.
 
 Root build:

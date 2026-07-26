@@ -27,6 +27,13 @@ public:
     bool RunSmokeTest(const std::filesystem::path& startupProjectFile = {});
 
 private:
+    enum class EditorDockLayoutPreset
+    {
+        Default,
+        FocusScene,
+        ContentEditing
+    };
+
     struct AssetEntry
     {
         std::filesystem::path path;
@@ -42,6 +49,9 @@ private:
     void ApplyStyle();
 
     void DrawLayout();
+    void DrawEditorDockspace(float x, float y, float width, float height);
+    void QueueDockLayout(EditorDockLayoutPreset preset);
+    void RebuildDockLayout(ImGuiID dockspaceId, const ImVec2& dockspaceSize);
     void DrawMainMenuBar();
     void DrawToolbar(float menuHeight, float toolbarHeight);
     void DrawSceneView(float x, float y, float width, float height);
@@ -82,6 +92,10 @@ private:
     bool showOutputLog = true;
     bool showProjectBrowser = true;
     bool activeProjectLoaded = false;
+    bool dockLayoutInitialized = false;
+    bool rebuildDockLayout = false;
+    EditorDockLayoutPreset pendingDockLayoutPreset = EditorDockLayoutPreset::Default;
+    std::string imguiIniFilename;
 
     std::array<char, 128> newProjectName{};
     std::array<char, 512> newProjectLocation{};
