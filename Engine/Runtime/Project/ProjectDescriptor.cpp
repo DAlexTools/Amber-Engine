@@ -1,4 +1,4 @@
-#include "Editor/Shell/ProjectDescriptor.h"
+#include "Project/ProjectDescriptor.h"
 
 #include <fstream>
 #include <iomanip>
@@ -6,7 +6,7 @@
 #include <system_error>
 #include <utility>
 
-namespace AE::Editor
+namespace AE
 {
 namespace
 {

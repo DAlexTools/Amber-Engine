@@ -4,7 +4,6 @@ if(TARGET ImGuiSDL AND TARGET EditorOutputLog AND SDL2_TARGET_FOUND AND SDL2_IMA
         ${CMAKE_CURRENT_SOURCE_DIR}/src/EditorViewport.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/EditorApplication.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/EditorPlaySession.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/ProjectDescriptor.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/ProjectGenerator.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/GameModuleResolver.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/SceneDocument.cpp

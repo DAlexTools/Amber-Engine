@@ -9,6 +9,7 @@ add_library(EngineRuntimeCore STATIC
     ${ENGINE_RUNTIME_DIR}/Core/Math/VecN.cpp
     ${ENGINE_RUNTIME_DIR}/Core/Math/Vector2D.cpp
     ${ENGINE_RUNTIME_DIR}/Core/Threading/ThreadPool.cpp
+    ${ENGINE_RUNTIME_DIR}/Project/ProjectDescriptor.cpp
     ${ENGINE_RUNTIME_DIR}/Scene/SceneAsset.cpp
 )
 
@@ -23,6 +24,7 @@ target_link_libraries(EngineRuntimeCore PUBLIC
 )
 amber_target_folder(EngineRuntimeCore "Engine/Runtime/Core")
 amber_add_header_tree(EngineRuntimeCore "${ENGINE_RUNTIME_DIR}/Core")
+amber_add_header_tree(EngineRuntimeCore "${ENGINE_RUNTIME_DIR}/Project")
 amber_add_header_tree(EngineRuntimeCore "${ENGINE_RUNTIME_DIR}/Scene")
 amber_group_sources(EngineRuntimeCore "${ENGINE_RUNTIME_DIR}")
 
