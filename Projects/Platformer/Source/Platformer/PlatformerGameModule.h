@@ -151,6 +151,34 @@ private:
         float rotationDegrees = 0.0f;
         SDL_Texture* texture = nullptr;
     };
+
+    struct ScenePhysicsBodySpec
+    {
+        enum class Type
+        {
+            Box,
+            Circle,
+            MovingPlatform
+        };
+
+        Type type = Type::Box;
+        std::string name;
+        RectF bounds;
+        bool verticalMotion = false;
+    };
+
+    struct ScenePhysicsRigSpec
+    {
+        enum class Type
+        {
+            Bridge,
+            Chain
+        };
+
+        Type type = Type::Bridge;
+        std::string name;
+        RectF bounds;
+    };
 #endif
 
     struct InputState
@@ -193,6 +221,8 @@ private:
     float shootCooldownTimer = 0.0f;
     float physicsSceneTime = 0.0f;
     bool scriptedEnemiesLoaded = false;
+    bool sceneEnemiesLoaded = false;
+    bool scenePhysicsLoaded = false;
     std::string enemyScriptPath;
 
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
@@ -217,6 +247,9 @@ private:
     std::vector<std::unique_ptr<AE::Scene::Object>> editorSceneObjects;
     std::vector<EditorSceneProp> editorSceneProps;
     std::vector<RectF> editorSolidPlatforms;
+    std::vector<Enemy> editorSceneEnemies;
+    std::vector<ScenePhysicsBodySpec> editorScenePhysicsBodies;
+    std::vector<ScenePhysicsRigSpec> editorScenePhysicsRigs;
     std::unordered_map<std::string, SDL_Texture*> editorSceneTextures;
     bool sceneDrivenLevel = false;
 #endif
@@ -229,6 +262,7 @@ private:
     void LoadScriptedEnemies();
     void LoadFallbackEnemies();
     void BuildPhysicsScene();
+    void BuildDefaultPhysicsPlayground();
     void ResetLevel();
     void ResetPlayer();
     void PollEvents(InputState& input);
@@ -277,6 +311,11 @@ private:
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
     void LoadEditorSceneProps();
     void ClearEditorSceneProps();
+    bool BuildEditorSceneEnemy(const AE::Scene::ObjectData& objectData, const RectF& bounds, Enemy& enemy) const;
+    void BuildEditorScenePhysics();
+    void AddScenePhysicsBody(const ScenePhysicsBodySpec& spec);
+    void AddScenePhysicsBridge(const ScenePhysicsRigSpec& spec);
+    void AddScenePhysicsChain(const ScenePhysicsRigSpec& spec);
     RectF EditorSceneObjectBounds(const AE::Scene::ObjectData& objectData) const;
     std::filesystem::path ResolveEditorSceneAssetPath(const std::string& assetId) const;
     SDL_Texture* GetEditorSceneTexture(const std::string& assetId, const std::filesystem::path& path);

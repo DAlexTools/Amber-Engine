@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <iostream>
@@ -221,6 +222,19 @@ namespace
     {
         return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
     }
+
+    bool ContainsText(const std::string& value, const std::string& token)
+    {
+        return std::search(
+            value.begin(),
+            value.end(),
+            token.begin(),
+            token.end(),
+            [](char left, char right) {
+                return std::tolower(static_cast<unsigned char>(left)) ==
+                    std::tolower(static_cast<unsigned char>(right));
+            }) != value.end();
+    }
 #endif
 }
 
@@ -349,6 +363,12 @@ int PlatformerGameModule::Run()
 bool PlatformerGameModule::RunSmokeTest()
 {
     smokeMode = true;
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    if (!editorScenePathOverride.empty())
+    {
+        LoadEditorSceneProps();
+    }
+#endif
     ResetLevel();
 
     const float startX = player.position.x;
@@ -442,7 +462,7 @@ bool PlatformerGameModule::RunSmokeTest()
     Step(FixedTimeStep, secondJumpInput);
     const bool doubleJumpWorks = !player.grounded && player.velocity.y < beforeDoubleJumpVelocity - 90.0f;
 
-    const bool scriptedEnemiesWork = scriptedEnemiesLoaded && enemies.size() >= 4;
+    const bool scriptedEnemiesWork = (scriptedEnemiesLoaded || sceneEnemiesLoaded) && enemies.size() >= 4;
 
     ResetLevel();
     bool shootingWorks = false;
@@ -561,6 +581,10 @@ bool PlatformerGameModule::RunSmokeTest()
     std::size_t editorSceneGoalCount = 0;
     std::size_t editorSceneCoinCount = 0;
     std::size_t editorSceneSolidPlatformCount = 0;
+    std::size_t editorSceneEnemyCount = 0;
+    std::size_t editorScenePhysicsBodyCount = 0;
+    std::size_t editorScenePhysicsRigCount = 0;
+    std::size_t editorSceneMovingPlatformCount = 0;
     std::size_t editorRuntimeObjectCount = 0;
     editorSceneFileLoads = false;
     editorSceneGameplayObjectsWork = false;
@@ -592,6 +616,22 @@ bool PlatformerGameModule::RunSmokeTest()
                 {
                     ++editorSceneSolidPlatformCount;
                 }
+                else if (object.className == "EnemySpawnObject")
+                {
+                    ++editorSceneEnemyCount;
+                }
+                else if (object.className == "PhysicsBoxObject" || object.className == "PhysicsCircleObject")
+                {
+                    ++editorScenePhysicsBodyCount;
+                }
+                else if (object.className == "PhysicsBridgeObject" || object.className == "PhysicsChainObject")
+                {
+                    ++editorScenePhysicsRigCount;
+                }
+                else if (object.className == "MovingPlatformObject")
+                {
+                    ++editorSceneMovingPlatformCount;
+                }
             }
 
             AE::Scene::ObjectFactory factory;
@@ -611,6 +651,10 @@ bool PlatformerGameModule::RunSmokeTest()
                 editorSceneGoalCount >= 1 &&
                 editorSceneCoinCount >= 1 &&
                 editorSceneSolidPlatformCount >= 1 &&
+                editorSceneEnemyCount >= 1 &&
+                editorScenePhysicsBodyCount >= 1 &&
+                editorScenePhysicsRigCount >= 1 &&
+                editorSceneMovingPlatformCount >= 1 &&
                 editorRuntimeObjectCount == editorScene.objects.size();
         }
     }
@@ -633,6 +677,9 @@ bool PlatformerGameModule::RunSmokeTest()
             << " coyoteJumpWorks=" << coyoteJumpWorks
             << " doubleJumpWorks=" << doubleJumpWorks
             << " scriptedEnemiesWork=" << scriptedEnemiesWork
+            << " scriptedEnemiesLoaded=" << scriptedEnemiesLoaded
+            << " sceneEnemiesLoaded=" << sceneEnemiesLoaded
+            << " scenePhysicsLoaded=" << scenePhysicsLoaded
             << " shootingWorks=" << shootingWorks
             << " enemyShootingWorks=" << enemyShootingWorks
             << " physicsSceneWorks=" << physicsSceneWorks
@@ -646,6 +693,10 @@ bool PlatformerGameModule::RunSmokeTest()
             << " editorSceneGoalCount=" << editorSceneGoalCount
             << " editorSceneCoinCount=" << editorSceneCoinCount
             << " editorSceneSolidPlatformCount=" << editorSceneSolidPlatformCount
+            << " editorSceneEnemyCount=" << editorSceneEnemyCount
+            << " editorScenePhysicsBodyCount=" << editorScenePhysicsBodyCount
+            << " editorScenePhysicsRigCount=" << editorScenePhysicsRigCount
+            << " editorSceneMovingPlatformCount=" << editorSceneMovingPlatformCount
             << " editorRuntimeObjectCount=" << editorRuntimeObjectCount
 #endif
             << " enemies=" << enemies.size()
@@ -1068,8 +1119,19 @@ void PlatformerGameModule::BuildPhysicsScene()
         body->collisionCategory = PhysicsCategoryTerrain;
         body->collisionMask = PhysicsCategoryDynamic | PhysicsCategorySensor;
     }
+
+    if (scenePhysicsLoaded)
+    {
+        BuildEditorScenePhysics();
+        return;
+    }
 #endif
 
+    BuildDefaultPhysicsPlayground();
+}
+
+void PlatformerGameModule::BuildDefaultPhysicsPlayground()
+{
     for (int row = 0; row < 3; ++row)
     {
         for (int column = 0; column < 4 - row; ++column)
@@ -1188,6 +1250,156 @@ void PlatformerGameModule::BuildPhysicsScene()
         1.4f
     });
 }
+
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+void PlatformerGameModule::BuildEditorScenePhysics()
+{
+    for (const ScenePhysicsBodySpec& spec : editorScenePhysicsBodies)
+    {
+        AddScenePhysicsBody(spec);
+    }
+
+    for (const ScenePhysicsRigSpec& spec : editorScenePhysicsRigs)
+    {
+        if (spec.type == ScenePhysicsRigSpec::Type::Bridge)
+        {
+            AddScenePhysicsBridge(spec);
+        }
+        else if (spec.type == ScenePhysicsRigSpec::Type::Chain)
+        {
+            AddScenePhysicsChain(spec);
+        }
+    }
+}
+
+void PlatformerGameModule::AddScenePhysicsBody(const ScenePhysicsBodySpec& spec)
+{
+    const float width = std::max(8.0f, spec.bounds.w);
+    const float height = std::max(8.0f, spec.bounds.h);
+    const AE::Physics::Vector2D center(spec.bounds.x + width * 0.5f, spec.bounds.y + height * 0.5f);
+
+    if (spec.type == ScenePhysicsBodySpec::Type::Circle)
+    {
+        AE::Physics::Body* ball = AddPhysicsCircle(
+            center,
+            std::max(width, height) * 0.5f,
+            0.85f,
+            ContainsText(spec.name, "gold") ? SDL_Color{230, 178, 72, 255} : PhysicsBall,
+            PhysicsMetalEdge,
+            true);
+        ball->friction = 0.05f;
+        ball->restitution = 0.32f;
+        return;
+    }
+
+    if (spec.type == ScenePhysicsBodySpec::Type::MovingPlatform)
+    {
+        AE::Physics::Body* platform = AddPhysicsBox(
+            center,
+            width,
+            height,
+            0.0f,
+            SDL_Color{104, 184, 116, 255},
+            PhysicsMetalEdge,
+            0.0f,
+            true);
+        kinematicBodies.push_back(KinematicBody{
+            platform,
+            platform->position,
+            spec.verticalMotion ? AE::Physics::Vector2D(0.0f, 1.0f) : AE::Physics::Vector2D(1.0f, 0.0f),
+            spec.verticalMotion ? 72.0f : 92.0f,
+            spec.verticalMotion ? 1.05f : 1.15f,
+            spec.verticalMotion ? 1.4f : 0.0f
+        });
+        return;
+    }
+
+    AE::Physics::Body* crate = AddPhysicsBox(
+        center,
+        width,
+        height,
+        1.1f,
+        PhysicsWood,
+        PhysicsWoodEdge,
+        0.0f,
+        true);
+    crate->friction = 0.24f;
+    crate->restitution = 0.08f;
+}
+
+void PlatformerGameModule::AddScenePhysicsBridge(const ScenePhysicsRigSpec& spec)
+{
+    const float width = std::max(180.0f, spec.bounds.w);
+    const float height = std::max(54.0f, spec.bounds.h);
+    const float leftX = spec.bounds.x;
+    const float rightX = spec.bounds.x + width;
+    const float anchorY = spec.bounds.y + height * 0.22f;
+    const float linkStartX = leftX + 40.0f;
+    const float linkEndX = rightX - 40.0f;
+    const float linkY = spec.bounds.y + height * 0.62f;
+
+    AE::Physics::Body* leftAnchor = AddPhysicsBox(AE::Physics::Vector2D(leftX, anchorY), 46.0f, 24.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
+    AE::Physics::Body* rightAnchor = AddPhysicsBox(AE::Physics::Vector2D(rightX, anchorY), 46.0f, 24.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
+
+    std::vector<AE::Physics::Body*> links;
+    constexpr int BridgeSegments = 10;
+    for (int index = 0; index < BridgeSegments; ++index)
+    {
+        const float t = static_cast<float>(index) / static_cast<float>(BridgeSegments - 1);
+        AE::Physics::Body* link = AddPhysicsBox(
+            AE::Physics::Vector2D(linkStartX + t * (linkEndX - linkStartX), linkY + std::sin(t * 3.14159f) * 12.0f),
+            32.0f,
+            14.0f,
+            0.8f,
+            index % 2 == 0 ? SDL_Color{92, 174, 184, 255} : SDL_Color{230, 178, 72, 255},
+            PhysicsMetalEdge,
+            0.0f,
+            true);
+        link->friction = 0.16f;
+        links.push_back(link);
+    }
+
+    if (!links.empty())
+    {
+        AddPhysicsJoint(leftAnchor, links.front());
+        for (std::size_t index = 1; index < links.size(); ++index)
+        {
+            AddPhysicsJoint(links[index - 1], links[index]);
+        }
+        AddPhysicsJoint(links.back(), rightAnchor);
+    }
+}
+
+void PlatformerGameModule::AddScenePhysicsChain(const ScenePhysicsRigSpec& spec)
+{
+    const float width = std::max(48.0f, spec.bounds.w);
+    const float height = std::max(210.0f, spec.bounds.h);
+    const float centerX = spec.bounds.x + width * 0.5f;
+    const float topY = spec.bounds.y;
+    const float bottomY = spec.bounds.y + height;
+
+    AE::Physics::Body* anchor = AddPhysicsBox(AE::Physics::Vector2D(centerX, topY), 48.0f, 22.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
+    AE::Physics::Body* previous = anchor;
+    constexpr int ChainLinks = 7;
+    const float spacing = std::max(22.0f, (height - 70.0f) / static_cast<float>(ChainLinks + 1));
+    for (int index = 0; index < ChainLinks; ++index)
+    {
+        AE::Physics::Body* link = AddPhysicsBox(
+            AE::Physics::Vector2D(centerX, topY + 38.0f + static_cast<float>(index) * spacing),
+            16.0f,
+            24.0f,
+            0.65f,
+            SDL_Color{130, 154, 172, 255},
+            PhysicsMetalEdge,
+            0.0f,
+            true);
+        AddPhysicsJoint(previous, link);
+        previous = link;
+    }
+    AE::Physics::Body* load = AddPhysicsCircle(AE::Physics::Vector2D(centerX, bottomY), 22.0f, 3.5f, SDL_Color{205, 74, 75, 255}, PhysicsMetalEdge, true);
+    AddPhysicsJoint(previous, load);
+}
+#endif
 
 void PlatformerGameModule::ResetLevel()
 {
@@ -2480,6 +2692,44 @@ PlatformerGameModule::RectF PlatformerGameModule::EditorSceneObjectBounds(const 
     };
 }
 
+bool PlatformerGameModule::BuildEditorSceneEnemy(const AE::Scene::ObjectData& objectData, const RectF& bounds, Enemy& enemy) const
+{
+    if (!objectData.visible)
+    {
+        return false;
+    }
+
+    enemy.name = objectData.name.empty() ? std::string("scene_enemy") : objectData.name;
+    enemy.width = std::max(18.0f, bounds.w);
+    enemy.height = std::max(18.0f, bounds.h);
+    enemy.spawnPosition = AE::Physics::Vector2D(bounds.x, bounds.y);
+    enemy.position = enemy.spawnPosition;
+
+    const bool hopper = ContainsText(enemy.name, "hopper");
+    const bool sentry = ContainsText(enemy.name, "sentry");
+    const bool shooter = sentry || ContainsText(enemy.name, "shooter") || ContainsText(enemy.name, "turret");
+    enemy.speed = sentry ? 54.0f : (hopper ? 58.0f : 70.0f);
+    enemy.direction = ContainsText(enemy.name, "left") ? -1.0f : 1.0f;
+    enemy.velocity = AE::Physics::Vector2D(enemy.speed * enemy.direction, 0.0f);
+
+    const float patrolWidth = sentry ? 260.0f : 192.0f;
+    enemy.leftBound = bounds.x - patrolWidth * 0.45f;
+    enemy.rightBound = bounds.x + enemy.width + patrolWidth;
+    enemy.groundY = bounds.y;
+    enemy.maxHealth = sentry ? 4 : (hopper ? 3 : 2);
+    enemy.health = enemy.maxHealth;
+    enemy.jumpCooldown = hopper ? 1.1f : 1.2f;
+    enemy.jumpVelocity = hopper ? -360.0f : -340.0f;
+    enemy.alertRange = shooter ? 460.0f : 260.0f;
+    enemy.color = sentry ? SDL_Color{151, 83, 188, 255} : (hopper ? SDL_Color{90, 132, 210, 255} : EnemyColor);
+    enemy.canShoot = shooter;
+    enemy.shootCooldown = sentry ? 1.05f : 1.45f;
+    enemy.shootRange = sentry ? 460.0f : 340.0f;
+    enemy.projectileSpeed = 360.0f;
+    enemy.shootTimer = shooter ? 0.25f : 0.0f;
+    return true;
+}
+
 void PlatformerGameModule::LoadEditorSceneProps()
 {
     ClearEditorSceneProps();
@@ -2534,6 +2784,9 @@ void PlatformerGameModule::LoadEditorSceneProps()
 
     std::vector<Coin> sceneCoins;
     std::vector<RectF> sceneSolidPlatforms;
+    std::vector<Enemy> sceneEnemies;
+    std::vector<ScenePhysicsBodySpec> scenePhysicsBodies;
+    std::vector<ScenePhysicsRigSpec> scenePhysicsRigs;
     std::size_t gameplayObjectCount = 0;
 
     for (const std::unique_ptr<AE::Scene::Object>& object : editorSceneObjects)
@@ -2566,6 +2819,69 @@ void PlatformerGameModule::LoadEditorSceneProps()
         if (objectData.className == "SolidPlatformObject")
         {
             sceneSolidPlatforms.push_back(bounds);
+            ++gameplayObjectCount;
+            continue;
+        }
+        if (objectData.className == "EnemySpawnObject")
+        {
+            Enemy enemy;
+            if (BuildEditorSceneEnemy(objectData, bounds, enemy))
+            {
+                sceneEnemies.push_back(enemy);
+            }
+            ++gameplayObjectCount;
+            continue;
+        }
+        if (objectData.className == "PhysicsBoxObject")
+        {
+            scenePhysicsBodies.push_back(ScenePhysicsBodySpec{
+                ScenePhysicsBodySpec::Type::Box,
+                objectData.name,
+                bounds,
+                false
+            });
+            ++gameplayObjectCount;
+            continue;
+        }
+        if (objectData.className == "PhysicsCircleObject")
+        {
+            scenePhysicsBodies.push_back(ScenePhysicsBodySpec{
+                ScenePhysicsBodySpec::Type::Circle,
+                objectData.name,
+                bounds,
+                false
+            });
+            ++gameplayObjectCount;
+            continue;
+        }
+        if (objectData.className == "MovingPlatformObject")
+        {
+            scenePhysicsBodies.push_back(ScenePhysicsBodySpec{
+                ScenePhysicsBodySpec::Type::MovingPlatform,
+                objectData.name,
+                bounds,
+                ContainsText(objectData.name, "elevator") || ContainsText(objectData.name, "vertical") || bounds.h > bounds.w
+            });
+            ++gameplayObjectCount;
+            continue;
+        }
+        if (objectData.className == "PhysicsBridgeObject")
+        {
+            scenePhysicsRigs.push_back(ScenePhysicsRigSpec{
+                ScenePhysicsRigSpec::Type::Bridge,
+                objectData.name,
+                bounds
+            });
+            ++gameplayObjectCount;
+            continue;
+        }
+        if (objectData.className == "PhysicsChainObject")
+        {
+            scenePhysicsRigs.push_back(ScenePhysicsRigSpec{
+                ScenePhysicsRigSpec::Type::Chain,
+                objectData.name,
+                bounds
+            });
             ++gameplayObjectCount;
             continue;
         }
@@ -2602,6 +2918,17 @@ void PlatformerGameModule::LoadEditorSceneProps()
         solidPlatforms.clear();
         levelTiles.assign(LevelRows, std::string(LevelCols, '.'));
     }
+    editorSceneEnemies = std::move(sceneEnemies);
+    if (!editorSceneEnemies.empty())
+    {
+        enemies = editorSceneEnemies;
+        sceneEnemiesLoaded = true;
+        scriptedEnemiesLoaded = false;
+        enemyScriptPath = "scene:" + scenePath.string();
+    }
+    editorScenePhysicsBodies = std::move(scenePhysicsBodies);
+    editorScenePhysicsRigs = std::move(scenePhysicsRigs);
+    scenePhysicsLoaded = !editorScenePhysicsBodies.empty() || !editorScenePhysicsRigs.empty();
 
     if (!editorSceneProps.empty() || gameplayObjectCount > 0)
     {
@@ -2609,6 +2936,9 @@ void PlatformerGameModule::LoadEditorSceneProps()
             << "Loaded Platformer editor scene: props=" << editorSceneProps.size()
             << " gameplayObjects=" << gameplayObjectCount
             << " solidPlatforms=" << editorSolidPlatforms.size()
+            << " enemies=" << editorSceneEnemies.size()
+            << " physicsBodies=" << editorScenePhysicsBodies.size()
+            << " physicsRigs=" << editorScenePhysicsRigs.size()
             << std::endl;
     }
 }
@@ -2616,8 +2946,13 @@ void PlatformerGameModule::LoadEditorSceneProps()
 void PlatformerGameModule::ClearEditorSceneProps()
 {
     sceneDrivenLevel = false;
+    sceneEnemiesLoaded = false;
+    scenePhysicsLoaded = false;
     editorSceneProps.clear();
     editorSolidPlatforms.clear();
+    editorSceneEnemies.clear();
+    editorScenePhysicsBodies.clear();
+    editorScenePhysicsRigs.clear();
     editorSceneObjects.clear();
     editorSceneRegistry.reset();
     for (auto& texture : editorSceneTextures)

@@ -187,7 +187,8 @@ function Invoke-SmokeChecks {
         }
 
         if ($BuildTarget -in @("Samples", "All", "Platformer")) {
-            Invoke-CommandChecked "Platformer smoke" (Join-Path $platformerBin "PlatformerApp.exe") @("--smoke-test")
+            $platformerProject = Join-Path (Get-Location) "Projects\Platformer\Platformer.amberproject"
+            Invoke-CommandChecked "Platformer smoke" (Join-Path $platformerBin "PlatformerApp.exe") @("--project", $platformerProject, "--smoke-test")
         }
 
         if ($BuildTarget -in @("Samples", "All", "Platformer2")) {

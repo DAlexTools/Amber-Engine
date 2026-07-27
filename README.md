@@ -9,7 +9,7 @@ AmberEngine is a work-in-progress 2D C++ engine built around SDL2, ImGui, a cust
 - Custom `AE::Physics` module with rigid bodies, shapes, collision detection, broad phase, solver iterations, sleeping, collision layers and physics stats.
 - Editor-side ImGui tools behind `WITH_EDITOR`, currently including the standalone `AmberEditor` shell, OutputLog and sample diagnostics overlays.
 - Game projects and demos:
-  - `PlatformerApp` - Lua-scripted project platformer with double jump, player/enemy shooting and embedded physics bodies.
+  - `PlatformerApp` - project platformer with `.amberproject` startup-scene loading, double jump, player/enemy shooting and editor-authored physics bodies.
   - `GameEngineApp` - Lua/content-driven SDL game sample.
   - `Platformer2App` - tilemap-backed platformer with ladders, spikes, lifts and animated sprites.
 - Physics demos:
@@ -144,7 +144,7 @@ To make double-clicking `.amberproject` files open `AmberEditor` for the current
 .\Setup.bat -RegisterProjectFiles
 ```
 
-The first editor milestone opens a dock-like Unreal-style layout with a top toolbar, `Scene View`, `Asset Browser`, `Scene Outliner`, `Details` and `Output Log`. `Asset Browser` exposes the active project's `Content` folder and engine content from `AmberEngine/Engine/Content`; texture assets show previews and can be dragged into `Scene View`, and standard `BoxObject` / `CircleObject` primitives can be created from the `Add` menu. The in-repo `Platformer` project lives under `Projects/Platformer` and is the current PIE test project. Real engine scene rendering, full asset import and scene serialization are tracked in [ENGINE_ROADMAP.md](ENGINE_ROADMAP.md).
+The first editor milestone opens an Unreal-style ImGui docking layout with a top toolbar, `Scene View`, `Asset Browser`, `Scene Outliner`, `Details` and `Output Log`; default panel presets live under `Window -> Layouts`. `Asset Browser` exposes the active project's `Content` folder and engine content from `AmberEngine/Engine/Content`; texture assets show previews and can be dragged into `Scene View`, and standard `BoxObject` / `CircleObject` primitives can be created from the `Add` menu. The in-repo `Platformer` project lives under `Projects/Platformer` and is the current PIE test project. Real engine scene rendering, full asset import and scene serialization are tracked in [ENGINE_ROADMAP.md](ENGINE_ROADMAP.md).
 
 ## Running Projects And Samples
 
@@ -154,7 +154,7 @@ After `.\Setup.bat`, run apps from the project root or from the build output fol
 .\Builds\Editor\Samples\Debug\GameEngineApp.exe
 .\Builds\Editor\Samples\Debug\PhysicsLabApp.exe
 .\Builds\Editor\Samples\Debug\ContainerSandboxApp.exe
-.\Builds\Editor\Projects\Platformer\Debug\PlatformerApp.exe
+.\Builds\Editor\Projects\Platformer\Debug\PlatformerApp.exe .\Projects\Platformer\Platformer.amberproject
 .\Builds\Editor\Samples\Debug\Platformer2App.exe
 ```
 
@@ -183,7 +183,7 @@ Useful smoke checks:
 .\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --smoke-test
 .\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --ui-smoke-test
 .\Builds\Editor\Samples\Debug\PhysicsLabApp.exe --perf-test
-.\Builds\Editor\Projects\Platformer\Debug\PlatformerApp.exe --smoke-test
+.\Builds\Editor\Projects\Platformer\Debug\PlatformerApp.exe .\Projects\Platformer\Platformer.amberproject --smoke-test
 .\Builds\Editor\Samples\Debug\ContainerSandboxApp.exe --smoke-test
 .\Builds\Editor\Samples\Debug\GameEngineApp.exe --smoke-test --level 1
 ```
