@@ -16,8 +16,8 @@ public:
     Body* a;
     Body* b;
 
-    Vector2D aPoint;  // The constraint point in A's local space
-    Vector2D bPoint;  // The constraint point in B's local space
+    FVector2D aPoint;  // The constraint point in A's local space
+    FVector2D bPoint;  // The constraint point in B's local space
 
     virtual ~Constraint() = default;
 
@@ -41,7 +41,7 @@ private:
 
 public:
     JointConstraint();
-    JointConstraint(Body* a, Body* b, const Vector2D& anchorPoint);
+    JointConstraint(Body* a, Body* b, const FVector2D& anchorPoint);
     void PreSolve(const float dt) override;
     void Solve() override;
     void PostSolve() override;
@@ -50,10 +50,10 @@ public:
 class PenetrationConstraint : public Constraint
 {
 private:
-    Vector2D    normal;            // Collision normal in world space, pointing from A to B
-    Vector2D    tangent;
-    Vector2D    ra;
-    Vector2D    rb;
+    FVector2D    normal;            // Collision normal in world space, pointing from A to B
+    FVector2D    tangent;
+    FVector2D    ra;
+    FVector2D    rb;
     float       cachedNormalLambda;
     float       cachedTangentLambda;
     float       bias;
@@ -63,7 +63,7 @@ private:
 
 public:
     PenetrationConstraint();
-    PenetrationConstraint(Body* a, Body* b, const Vector2D& aCollisionPoint, const Vector2D& bCollisionPoint, const Vector2D& normal);
+    PenetrationConstraint(Body* a, Body* b, const FVector2D& aCollisionPoint, const FVector2D& bCollisionPoint, const FVector2D& normal);
     void PreSolve(const float dt) override;
     void Solve() override;
     void PostSolve() override;

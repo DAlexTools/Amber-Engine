@@ -20,12 +20,12 @@ void Application::Setup() {
 
     // Add ragdoll parts (rigid bodies)
     Body* bob = new Body(CircleShape(5), Graphics::Width() / 2.0, Graphics::Height() / 2.0 - 200, 0.0);
-    Body* head = new Body(CircleShape(25), bob->position.x, bob->position.y + 70, 5.0);
-    Body* torso = new Body(BoxShape(50, 100), head->position.x, head->position.y + 80, 3.0);
-    Body* leftArm = new Body(BoxShape(15, 70), torso->position.x - 32, torso->position.y - 10, 1.0);
-    Body* rightArm = new Body(BoxShape(15, 70), torso->position.x + 32, torso->position.y - 10, 1.0);
-    Body* leftLeg = new Body(BoxShape(20, 90), torso->position.x - 20, torso->position.y + 97, 1.0);
-    Body* rightLeg = new Body(BoxShape(20, 90), torso->position.x + 20, torso->position.y + 97, 1.0);
+    Body* head = new Body(CircleShape(25), bob->position.X, bob->position.Y + 70, 5.0);
+    Body* torso = new Body(BoxShape(50, 100), head->position.X, head->position.Y + 80, 3.0);
+    Body* leftArm = new Body(BoxShape(15, 70), torso->position.X - 32, torso->position.Y - 10, 1.0);
+    Body* rightArm = new Body(BoxShape(15, 70), torso->position.X + 32, torso->position.Y - 10, 1.0);
+    Body* leftLeg = new Body(BoxShape(20, 90), torso->position.X - 20, torso->position.Y + 97, 1.0);
+    Body* rightLeg = new Body(BoxShape(20, 90), torso->position.X + 20, torso->position.Y + 97, 1.0);
     bodyTextures.Set(bob, "../Content/ragdoll/bob.png");
     bodyTextures.Set(head, "../Content/ragdoll/head.png");
     bodyTextures.Set(torso, "../Content/ragdoll/torso.png");
@@ -43,11 +43,11 @@ void Application::Setup() {
     
     // Add joints between ragdoll parts (distance constraints with one anchor point)
     JointConstraint* string = new JointConstraint(bob, head, bob->position);
-    JointConstraint* neck = new JointConstraint(head, torso, head->position + Vector2D(0, 25));
-    JointConstraint* leftShoulder = new JointConstraint(torso, leftArm, torso->position + Vector2D(-28, -45));
-    JointConstraint* rightShoulder = new JointConstraint(torso, rightArm, torso->position + Vector2D(+28, -45));
-    JointConstraint* leftHip = new JointConstraint(torso, leftLeg, torso->position + Vector2D(-20, +50));
-    JointConstraint* rightHip = new JointConstraint(torso, rightLeg, torso->position + Vector2D(+20, +50));
+    JointConstraint* neck = new JointConstraint(head, torso, head->position + FVector2D(0, 25));
+    JointConstraint* leftShoulder = new JointConstraint(torso, leftArm, torso->position + FVector2D(-28, -45));
+    JointConstraint* rightShoulder = new JointConstraint(torso, rightArm, torso->position + FVector2D(+28, -45));
+    JointConstraint* leftHip = new JointConstraint(torso, leftLeg, torso->position + FVector2D(-20, +50));
+    JointConstraint* rightHip = new JointConstraint(torso, rightLeg, torso->position + FVector2D(+20, +50));
     world->AddConstraint(string);
     world->AddConstraint(neck);
     world->AddConstraint(leftShoulder);
@@ -112,9 +112,9 @@ void Application::Input()
             case SDL_MOUSEMOTION:
                 int x, y;
                 SDL_GetMouseState(&x, &y);
-                Vector2D mouse = Vector2D(x, y);
+                FVector2D mouse = FVector2D(x, y);
                 Body* bob = world->GetBodies()[0];
-                Vector2D direction = (mouse - bob->position).Normalize();
+                FVector2D direction = (mouse - bob->position).Normalize();
                 float speed = 2.0;
                 bob->position += direction * speed;
                 break;
@@ -164,15 +164,15 @@ void Application::Render() {
     // Draw a line between the bob and the ragdoll head
     Body* bob = world->GetBodies()[0];
     Body* head = world->GetBodies()[1];
-    Graphics::DrawLine(bob->position.x, bob->position.y, head->position.x, head->position.y, 0xFF555555);
+    Graphics::DrawLine(bob->position.X, bob->position.Y, head->position.X, head->position.Y, 0xFF555555);
 
     // Draw all joints anchor points
     for (auto joint: world->GetConstraints()) 
     {
         if (debug) 
         {
-            const Vector2D anchorPoint = joint->a->LocalSpaceToWorldSpace(joint->aPoint);
-            Graphics::DrawFillCircle(anchorPoint.x, anchorPoint.y, 3, 0xFF0000FF);
+            const FVector2D anchorPoint = joint->a->LocalSpaceToWorldSpace(joint->aPoint);
+            Graphics::DrawFillCircle(anchorPoint.X, anchorPoint.Y, 3, 0xFF0000FF);
         }
     }
 
@@ -184,11 +184,11 @@ void Application::Render() {
             SDL_Texture* texture = bodyTextures.Get(body);
             if (!debug && texture) 
             {
-                Graphics::DrawTexture(body->position.x, body->position.y, circleShape->radius * 2, circleShape->radius * 2, body->rotation, texture);
+                Graphics::DrawTexture(body->position.X, body->position.Y, circleShape->radius * 2, circleShape->radius * 2, body->rotation, texture);
             } 
             else 
             {
-                Graphics::DrawCircle(body->position.x, body->position.y, circleShape->radius, body->rotation, 0xFF00FF00);
+                Graphics::DrawCircle(body->position.X, body->position.Y, circleShape->radius, body->rotation, 0xFF00FF00);
             }
         }
         if (body->shape->GetType() == BOX) 
@@ -197,11 +197,11 @@ void Application::Render() {
             SDL_Texture* texture = bodyTextures.Get(body);
             if (!debug && texture) 
             {
-                Graphics::DrawTexture(body->position.x, body->position.y, boxShape->width, boxShape->height, body->rotation, texture);
+                Graphics::DrawTexture(body->position.X, body->position.Y, boxShape->width, boxShape->height, body->rotation, texture);
             } 
             else 
             {
-                Graphics::DrawPolygon(body->position.x, body->position.y, boxShape->worldVertices, 0xFF00FF00);
+                Graphics::DrawPolygon(body->position.X, body->position.Y, boxShape->worldVertices, 0xFF00FF00);
             }
         }
         if (body->shape->GetType() == POLYGON) 
@@ -209,11 +209,11 @@ void Application::Render() {
             PolygonShape* polygonShape = static_cast<PolygonShape*>(body->shape);
             if (!debug) 
             {
-                Graphics::DrawFillPolygon(body->position.x, body->position.y, polygonShape->worldVertices, 0xFF444444);
+                Graphics::DrawFillPolygon(body->position.X, body->position.Y, polygonShape->worldVertices, 0xFF444444);
             } 
             else 
             {
-                Graphics::DrawPolygon(body->position.x, body->position.y, polygonShape->worldVertices, 0xFF00FF00);
+                Graphics::DrawPolygon(body->position.X, body->position.Y, polygonShape->worldVertices, 0xFF00FF00);
             }
         }
     }

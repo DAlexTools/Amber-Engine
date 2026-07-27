@@ -17,8 +17,8 @@ public:
     void SetIsSelected(bool value);
     bool IsActive() const;
     uint32_t GetRenderColor() const;
-    Vector2D GetPoint0Position() const;
-    Vector2D GetPoint1Position() const;
+    FVector2D GetPoint0Position() const;
+    FVector2D GetPoint1Position() const;
 
     void Update();
     void Break();

@@ -15,12 +15,12 @@ struct Particle
     float       mass;
     float       invMass;
 
-    Vector2D    position;
-    Vector2D    velocity;
-    Vector2D    acceleration;
-    Vector2D    sumForces;
+    FVector2D    position;
+    FVector2D    velocity;
+    FVector2D    acceleration;
+    FVector2D    sumForces;
 
-    void        AddForce(const Vector2D& force);
+    void        AddForce(const FVector2D& force);
     void        ClearForces();
     void        Integrate(float dt);
 };

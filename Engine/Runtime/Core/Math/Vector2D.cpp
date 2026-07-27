@@ -7,291 +7,208 @@ namespace AE::Physics
 
 const float k_pi = 3.14159265358979323846264f;
 
-const Vector2D Vector2D::Zero       (0.0f, 0.0f);
-const Vector2D Vector2D::UnitX      (1.0f, 0.0f);
-const Vector2D Vector2D::UnitY      (0.0f, 1.0f);
-const Vector2D Vector2D::NegUnitX   (-1.0f, 0.0f);
-const Vector2D Vector2D::NegUnitY   (0.0f, -1.0f);
+const FVector2D FVector2D::Zero       (0.0f, 0.0f);
+const FVector2D FVector2D::UnitX      (1.0f, 0.0f);
+const FVector2D FVector2D::UnitY      (0.0f, 1.0f);
+const FVector2D FVector2D::NegUnitX   (-1.0f, 0.0f);
+const FVector2D FVector2D::NegUnitY   (0.0f, -1.0f);
 
 
-/**
- * 
- */
-Vector2D::Vector2D() : x(0.0), y(0.0) 
+FVector2D::FVector2D() : X(0.0), Y(0.0) 
 {
 
 }
 
-/**
- * 
- */
-Vector2D::Vector2D(float x, float y) : x(x), y(y) 
+FVector2D::FVector2D(float InX, float InY) : X(InX), Y(InY) 
 {
 
 }
 
-/**
- * 
- */
-Vector2D Vector2D::ZeroVector()
+FVector2D FVector2D::ZeroVector()
 {
-    return Vector2D(0.0, 0.0);
+    return FVector2D(0.0, 0.0);
 }
 
-/**
- * 
- */
-void Vector2D::Add(const Vector2D& v)
+void FVector2D::Add(const FVector2D& V)
 {
-    x += v.x;
-    y += v.y;
+    X += V.X;
+    Y += V.Y;
 }
 
-/**
- * 
- */
-void Vector2D::Sub(const Vector2D& v)
+void FVector2D::Sub(const FVector2D& V)
 {
-    x -= v.x;
-    y -= v.y;
+    X -= V.X;
+    Y -= V.Y;
 }
 
-/**
- * 
- */
-void Vector2D::Scale(const float n)
+void FVector2D::Scale(const float N)
 {
-    x *= n;
-    y *= n;
+    X *= N;
+    Y *= N;
 }
 
-/**
- * 
- */
-Vector2D Vector2D::Rotate(const float angle) const
+FVector2D FVector2D::Rotate(const float Angle) const
 {
-    Vector2D result;
-    result.x = x * Math::Cos(angle) - y * Math::Sin(angle);
-    result.y = x * Math::Sin(angle) + y * Math::Cos(angle);
+    FVector2D Result;
+    Result.X = Y * Math::Cos(Angle) - Y * Math::Sin(Angle);
+    Result.Y = X * Math::Sin(Angle) + Y * Math::Cos(Angle);
 
-    return result;
+    return Result;
 }
 
-/**
- * 
- */
-float Vector2D::Magnitude() const
+float FVector2D::Magnitude() const
 {
-    return Math::Sqrt(x * x + y * y);
+    return Math::Sqrt(X * X + Y * Y);
 }
 
-/**
- * 
- */
-float Vector2D::MagnitudeSquared() const
+float FVector2D::MagnitudeSquared() const
 {
-    return (x * x + y * y);
+    return (X * X + Y * Y);
 }
 
-/**
- * 
- */
-Vector2D& Vector2D::Normalize()
+FVector2D& FVector2D::Normalize()
 {
-    float length = Magnitude();
+    float Length = Magnitude();
 
-    if (length != 0.0)
+    if (Length != 0.0)
     {
-        x /= length;
-        y /= length;
+        X /= Length;
+        Y /= Length;
     }
 
     return *this;
 }
 
-/**
- * 
- */
-Vector2D Vector2D::UnitVector() const
+FVector2D FVector2D::UnitVector() const
 {
-    Vector2D Result = Vector2D(0, 0);
-    float length = Magnitude();
+    FVector2D Result = FVector2D(0, 0);
+    float Length = Magnitude();
 
-    if (length != 0.0)
+    if (Length != 0.0)
     {
-        Result.x = x / length;
-        Result.y = y / length;
+        Result.X = X / Length;
+        Result.Y = Y / Length;
     }
 
     return Result;
 }
 
-/**
- * 
- */
-Vector2D Vector2D::Normal() const
+FVector2D FVector2D::Normal() const
 {
-    return Vector2D(y, -x).Normalize();
+    return FVector2D(Y, -X).Normalize();
 }
 
-/**
- * 
- */
-float Vector2D::DotProduct(const Vector2D& v) const
+float FVector2D::DotProduct(const FVector2D& V) const
 {
-    return (x * v.x) + (y * v.y);
+    return (X * V.X) + (Y * V.Y);
 }
 
-/**
- * 
- */
-float Vector2D::CrossProduct(const Vector2D& v) const
+float FVector2D::CrossProduct(const FVector2D& V) const
 {
-    return (x * v.y) - (y * v.x);
+    return (X * V.Y) - (Y * V.X);
 }
 
-/**
- * 
- */
-float Vector2D::Length() const
+float FVector2D::Length() const
 {
-    return sqrtf(x * x + y * y);
+    return sqrtf(X * X + Y * Y);
 }
 
-/**
- * 
- */
-float Vector2D::LengthSq() const
+float FVector2D::LengthSq() const
 {
-    return (x * x + y * y);
+    return (X * X + Y * Y);
 }
 
-/**
- * 
- */
-Vector2D& Vector2D::operator=(const Vector2D& v)
+FVector2D& FVector2D::operator=(const FVector2D& V)
 {
-    x = v.x;
-    y = v.y;
+    X = V.X;
+    Y = V.Y;
     return *this;
 }
 
-/**
- * 
- */
-bool Vector2D::operator==(const Vector2D& v) const
+bool FVector2D::operator==(const FVector2D& V) const
 {
-    return x == v.x && y == v.y;
+    return X == V.X && Y == V.Y;
 }
 
-/**
- * 
- */
-bool Vector2D::operator!=(const Vector2D& v) const
+bool FVector2D::operator!=(const FVector2D& V) const
 {
-    return !(*this == v);
+    return !(*this == V);
 }
 
-/**
- * 
- */
-Vector2D Vector2D::operator+(const Vector2D& v) const
+FVector2D FVector2D::operator+(const FVector2D& V) const
 {
-    Vector2D Result;
-    Result.x = x + v.x;
-    Result.y = y + v.y;
+    FVector2D Result;
+    Result.X = X + V.X;
+    Result.Y = Y + V.Y;
 
     return Result;
 }
 
-/**
- * 
- */
-Vector2D Vector2D::operator-(const Vector2D& v) const
+
+FVector2D FVector2D::operator-(const FVector2D& V) const
 {
-    Vector2D Result;
-    Result.x = x - v.x;
-    Result.y = y - v.y;
+    FVector2D Result;
+    Result.X = X - V.X;
+    Result.Y = Y - V.Y;
 
     return Result;
 }
 
-/**
- * 
- */
-Vector2D Vector2D::operator*(const float n) const
+FVector2D FVector2D::operator*(const float N) const
 {
-    Vector2D Result;
-    Result.x = x * n;
-    Result.y = y * n;
+    FVector2D Result;
+    Result.X = X * N;
+    Result.Y = Y * N;
 
     return Result;
 }
 
-/**
- * 
- */
-Vector2D Vector2D::operator/(const float n) const
+FVector2D FVector2D::operator/(const float N) const
 {
-    Vector2D Result;
-    Result.x = x / n;
-    Result.y = y / n;
+    FVector2D Result;
+    Result.X = X / N;
+    Result.Y = Y / N;
 
     return Result;
 }
 
-/**
- * 
- */
-Vector2D& Vector2D::operator+=(const Vector2D& v)
+FVector2D& FVector2D::operator+=(const FVector2D& V)
 {
-    x += v.x;
-    y += v.y;
+    X += V.X;
+    Y += V.Y;
 
     return *this;
 }
 
-/**
- * 
- */
-Vector2D& Vector2D::operator-=(const Vector2D& v)
+FVector2D& FVector2D::operator-=(const FVector2D& V)
 {
-    x -= v.x;
-    y -= v.y;
+    X -= V.X;
+    Y -= V.Y;
 
     return *this;
 }
 
-/**
- * 
- */
-Vector2D& Vector2D::operator*=(const float n)
+FVector2D& FVector2D::operator*=(const float N)
 {
-    x *= n;
-    y *= n;
+    X *= N;
+    Y *= N;
 
     return *this;
 }
 
-/**
- * 
- */
-Vector2D& Vector2D::operator/=(const float n)
+FVector2D& FVector2D::operator/=(const float N)
 {
-    x /= n;
-    y /= n;
+    X /= N;
+    Y /= N;
 
     return *this;
 }
 
-/**
- * 
- */
-Vector2D Vector2D::operator-()
+FVector2D FVector2D::operator-()
 {
-    Vector2D Result;
-    Result.x = x * -1;
-    Result.y = y * -1;
+    FVector2D Result;
+    Result.X = X * -1;
+    Result.Y = Y * -1;
 
     return Result;
 }

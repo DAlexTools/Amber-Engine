@@ -12,9 +12,9 @@ namespace AE::Physics
 struct Body
 {
     // Linear motion
-    Vector2D position;
-    Vector2D velocity;
-    Vector2D acceleration;
+    FVector2D position;
+    FVector2D velocity;
+    FVector2D acceleration;
 
     // Angular motion
     float rotation;
@@ -22,7 +22,7 @@ struct Body
     float angularAcceleration;
 
     // Forces and torque
-    Vector2D sumForces;
+    FVector2D sumForces;
     float sumTorque;
 
     // Mass and Moment of Inertia
@@ -53,17 +53,17 @@ struct Body
     bool IsStatic() const;
     bool CanCollideWith(const Body& other) const;
 
-    void AddForce(const Vector2D& force);
+    void AddForce(const FVector2D& force);
     void AddTorque(float torque);
     void ClearForces();
     void ClearTorque();
 
-    Vector2D LocalSpaceToWorldSpace(const Vector2D& point) const;
-    Vector2D WorldSpaceToLocalSpace(const Vector2D& point) const;
+    FVector2D LocalSpaceToWorldSpace(const FVector2D& point) const;
+    FVector2D WorldSpaceToLocalSpace(const FVector2D& point) const;
 
-    void ApplyImpulseLinear(const Vector2D& j);
+    void ApplyImpulseLinear(const FVector2D& j);
     void ApplyImpulseAngular(const float j);
-    void ApplyImpulseAtPoint(const Vector2D& j, const Vector2D& r);
+    void ApplyImpulseAtPoint(const FVector2D& j, const FVector2D& r);
 
     void IntegrateLinear(float dt);
     void IntegrateAngular(float dt);

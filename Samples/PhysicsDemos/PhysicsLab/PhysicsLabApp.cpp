@@ -132,7 +132,7 @@ bool PhysicsLabApp::RunSmokeTest()
     {
         Step(FixedTimeStep, InputState{});
     }
-    const float settledContainerX = containerParticles.empty() ? 0.0f : containerParticles.front()->position.x;
+    const float settledContainerX = containerParticles.empty() ? 0.0f : containerParticles.front()->position.X;
     InputState tiltRight;
     tiltRight.rotateRight = true;
     for (int frame = 0; frame < 100; ++frame)
@@ -140,7 +140,7 @@ bool PhysicsLabApp::RunSmokeTest()
         Step(FixedTimeStep, tiltRight);
     }
     passed = passed && containerAngle > 0.2f && !containerParticles.empty() &&
-        std::abs(containerParticles.front()->position.x - settledContainerX) > 0.5f;
+        std::abs(containerParticles.front()->position.X - settledContainerX) > 0.5f;
 
     ResetScene(Scene::StackStress);
     const int stackBodies = BodyCount();
@@ -158,13 +158,13 @@ bool PhysicsLabApp::RunSmokeTest()
     passed = passed && BodyCount() >= 10;
 
     ResetScene(Scene::MovingPlatforms);
-    const float platformStartX = movingPlatforms.empty() ? 0.0f : movingPlatforms.front().body->position.x;
+    const float platformStartX = movingPlatforms.empty() ? 0.0f : movingPlatforms.front().body->position.X;
     for (int frame = 0; frame < 160; ++frame)
     {
         Step(FixedTimeStep, InputState{});
     }
     passed = passed && !movingPlatforms.empty() &&
-        std::abs(movingPlatforms.front().body->position.x - platformStartX) > 12.0f;
+        std::abs(movingPlatforms.front().body->position.X - platformStartX) > 12.0f;
 
     ResetScene(Scene::Pinball);
     launchRequested = true;
@@ -545,7 +545,7 @@ void PhysicsLabApp::ResetScene(Scene newScene)
     paused = false;
     sceneTime = 0.0f;
     containerAngle = 0.0f;
-    containerCenter = AE::Physics::Vector2D(
+    containerCenter = AE::Physics::FVector2D(
         static_cast<float>(WindowWidth) * 0.5f,
         static_cast<float>(WindowHeight) * 0.54f);
 
@@ -617,7 +617,7 @@ void PhysicsLabApp::BuildContainerScene()
 
     for (int index = 0; index < particleCount; ++index)
     {
-        const AE::Physics::Vector2D position = ContainerToWorld(ContainerParticleLocalPosition(static_cast<std::size_t>(index)));
+        const AE::Physics::FVector2D position = ContainerToWorld(ContainerParticleLocalPosition(static_cast<std::size_t>(index)));
         const SDL_Color fill = index % 3 == 0 ? Warm : (index % 3 == 1 ? Cool : Dark);
         AE::Physics::Body* particle = AddCircle(position, particleRadius, 1.0f, fill, WithAlpha(fill, 220));
         particle->friction = particleFriction;
@@ -628,9 +628,9 @@ void PhysicsLabApp::BuildContainerScene()
 
 void PhysicsLabApp::BuildStackStressScene()
 {
-    AddBox(AE::Physics::Vector2D(640.0f, 665.0f), 900.0f, 32.0f, 0.0f, WallFill, WallEdge);
-    AddBox(AE::Physics::Vector2D(184.0f, 510.0f), 28.0f, 310.0f, 0.0f, WallFill, WallEdge, -0.08f);
-    AddBox(AE::Physics::Vector2D(1096.0f, 510.0f), 28.0f, 310.0f, 0.0f, WallFill, WallEdge, 0.08f);
+    AddBox(AE::Physics::FVector2D(640.0f, 665.0f), 900.0f, 32.0f, 0.0f, WallFill, WallEdge);
+    AddBox(AE::Physics::FVector2D(184.0f, 510.0f), 28.0f, 310.0f, 0.0f, WallFill, WallEdge, -0.08f);
+    AddBox(AE::Physics::FVector2D(1096.0f, 510.0f), 28.0f, 310.0f, 0.0f, WallFill, WallEdge, 0.08f);
 
     const float boxWidth = 46.0f;
     const float boxHeight = 26.0f;
@@ -643,7 +643,7 @@ void PhysicsLabApp::BuildStackStressScene()
                 (row % 2 == 0 ? 0.0f : boxWidth * 0.5f);
             const float y = 610.0f - static_cast<float>(row) * boxHeight * 1.18f;
             AE::Physics::Body* body = AddBox(
-                AE::Physics::Vector2D(x, y),
+                AE::Physics::FVector2D(x, y),
                 boxWidth,
                 boxHeight,
                 1.0f,
@@ -658,9 +658,9 @@ void PhysicsLabApp::BuildStackStressScene()
 
 void PhysicsLabApp::BuildCollisionFiltersScene()
 {
-    AddBox(AE::Physics::Vector2D(640.0f, 665.0f), 940.0f, 32.0f, 0.0f, WallFill, WallEdge);
+    AddBox(AE::Physics::FVector2D(640.0f, 665.0f), 940.0f, 32.0f, 0.0f, WallFill, WallEdge);
     AddBox(
-        AE::Physics::Vector2D(640.0f, 470.0f),
+        AE::Physics::FVector2D(640.0f, 470.0f),
         340.0f,
         160.0f,
         0.0f,
@@ -678,17 +678,18 @@ void PhysicsLabApp::BuildCollisionFiltersScene()
     for (int index = 0; index < 6; ++index)
     {
         AE::Physics::Body* red = AddCircle(
-            AE::Physics::Vector2D(460.0f + index * 26.0f, 210.0f - index * 18.0f),
+            AE::Physics::FVector2D(460.0f + index * 26.0f, 210.0f - index * 18.0f),
             16.0f,
             1.0f,
             Red,
             Dark,
             CategoryRed,
             redMask);
-        red->velocity.x = 80.0f;
+        red->velocity.
+            X = 80.0f;
 
         AE::Physics::Body* blue = AddBox(
-            AE::Physics::Vector2D(820.0f - index * 28.0f, 210.0f - index * 18.0f),
+            AE::Physics::FVector2D(820.0f - index * 28.0f, 210.0f - index * 18.0f),
             30.0f,
             30.0f,
             1.0f,
@@ -697,26 +698,26 @@ void PhysicsLabApp::BuildCollisionFiltersScene()
             0.0f,
             CategoryBlue,
             blueMask);
-        blue->velocity.x = -80.0f;
+        blue->velocity.X = -80.0f;
     }
 }
 
 void PhysicsLabApp::BuildMovingPlatformsScene()
 {
-    AddBox(AE::Physics::Vector2D(640.0f, 665.0f), 940.0f, 32.0f, 0.0f, WallFill, WallEdge);
+    AddBox(AE::Physics::FVector2D(640.0f, 665.0f), 940.0f, 32.0f, 0.0f, WallFill, WallEdge);
 
-    AE::Physics::Body* first = AddBox(AE::Physics::Vector2D(420.0f, 520.0f), 210.0f, 24.0f, 0.0f, WallFill, WallEdge);
-    AE::Physics::Body* second = AddBox(AE::Physics::Vector2D(810.0f, 400.0f), 190.0f, 24.0f, 0.0f, WallFill, WallEdge, 0.12f);
-    movingPlatforms.push_back(KinematicBody{first, first->position, AE::Physics::Vector2D(1.0f, 0.0f), 0.0f});
-    movingPlatforms.push_back(KinematicBody{second, second->position, AE::Physics::Vector2D(0.0f, 1.0f), 1.7f});
+    AE::Physics::Body* first = AddBox(AE::Physics::FVector2D(420.0f, 520.0f), 210.0f, 24.0f, 0.0f, WallFill, WallEdge);
+    AE::Physics::Body* second = AddBox(AE::Physics::FVector2D(810.0f, 400.0f), 190.0f, 24.0f, 0.0f, WallFill, WallEdge, 0.12f);
+    movingPlatforms.push_back(KinematicBody{first, first->position, AE::Physics::FVector2D(1.0f, 0.0f), 0.0f});
+    movingPlatforms.push_back(KinematicBody{second, second->position, AE::Physics::FVector2D(0.0f, 1.0f), 1.7f});
 
     for (int index = 0; index < 10; ++index)
     {
         const float x = 360.0f + static_cast<float>(index % 5) * 42.0f;
         const float y = 210.0f - static_cast<float>(index / 5) * 38.0f;
         AE::Physics::Body* body = index % 2 == 0
-            ? AddBox(AE::Physics::Vector2D(x, y), 32.0f, 32.0f, 1.0f, Warm, Dark)
-            : AddCircle(AE::Physics::Vector2D(x, y), 16.0f, 1.0f, Cool, Dark);
+            ? AddBox(AE::Physics::FVector2D(x, y), 32.0f, 32.0f, 1.0f, Warm, Dark)
+            : AddCircle(AE::Physics::FVector2D(x, y), 16.0f, 1.0f, Cool, Dark);
         body->friction = 0.04f;
         body->restitution = 0.08f;
     }
@@ -724,27 +725,27 @@ void PhysicsLabApp::BuildMovingPlatformsScene()
 
 void PhysicsLabApp::BuildPinballScene()
 {
-    AddBox(AE::Physics::Vector2D(640.0f, 668.0f), 520.0f, 28.0f, 0.0f, WallFill, WallEdge);
-    AddBox(AE::Physics::Vector2D(380.0f, 410.0f), 28.0f, 520.0f, 0.0f, WallFill, WallEdge, -0.12f);
-    AddBox(AE::Physics::Vector2D(900.0f, 410.0f), 28.0f, 520.0f, 0.0f, WallFill, WallEdge, 0.12f);
-    AddBox(AE::Physics::Vector2D(520.0f, 570.0f), 170.0f, 24.0f, 0.0f, WallFill, WallEdge, 0.45f);
-    AddBox(AE::Physics::Vector2D(760.0f, 570.0f), 170.0f, 24.0f, 0.0f, WallFill, WallEdge, -0.45f);
+    AddBox(AE::Physics::FVector2D(640.0f, 668.0f), 520.0f, 28.0f, 0.0f, WallFill, WallEdge);
+    AddBox(AE::Physics::FVector2D(380.0f, 410.0f), 28.0f, 520.0f, 0.0f, WallFill, WallEdge, -0.12f);
+    AddBox(AE::Physics::FVector2D(900.0f, 410.0f), 28.0f, 520.0f, 0.0f, WallFill, WallEdge, 0.12f);
+    AddBox(AE::Physics::FVector2D(520.0f, 570.0f), 170.0f, 24.0f, 0.0f, WallFill, WallEdge, 0.45f);
+    AddBox(AE::Physics::FVector2D(760.0f, 570.0f), 170.0f, 24.0f, 0.0f, WallFill, WallEdge, -0.45f);
 
     for (int index = 0; index < 4; ++index)
     {
         const float x = 520.0f + static_cast<float>(index % 2) * 230.0f;
         const float y = 225.0f + static_cast<float>(index / 2) * 145.0f;
-        AE::Physics::Body* bumper = AddCircle(AE::Physics::Vector2D(x, y), 34.0f, 0.0f, Violet, WallEdge);
+        AE::Physics::Body* bumper = AddCircle(AE::Physics::FVector2D(x, y), 34.0f, 0.0f, Violet, WallEdge);
         bumper->restitution = 1.1f;
         bumper->friction = 0.0f;
     }
 
-    AE::Physics::Body* leftFlipper = AddBox(AE::Physics::Vector2D(550.0f, 615.0f), 140.0f, 20.0f, 0.0f, Green, Dark, 0.22f);
-    AE::Physics::Body* rightFlipper = AddBox(AE::Physics::Vector2D(730.0f, 615.0f), 140.0f, 20.0f, 0.0f, Green, Dark, -0.22f);
+    AE::Physics::Body* leftFlipper = AddBox(AE::Physics::FVector2D(550.0f, 615.0f), 140.0f, 20.0f, 0.0f, Green, Dark, 0.22f);
+    AE::Physics::Body* rightFlipper = AddBox(AE::Physics::FVector2D(730.0f, 615.0f), 140.0f, 20.0f, 0.0f, Green, Dark, -0.22f);
     flippers.push_back(leftFlipper);
     flippers.push_back(rightFlipper);
 
-    AE::Physics::Body* ball = AddCircle(AE::Physics::Vector2D(640.0f, 515.0f), 18.0f, 1.0f, Warm, Dark);
+    AE::Physics::Body* ball = AddCircle(AE::Physics::FVector2D(640.0f, 515.0f), 18.0f, 1.0f, Warm, Dark);
     ball->restitution = 0.85f;
     ball->friction = 0.0f;
     pinballBalls.push_back(ball);
@@ -752,9 +753,9 @@ void PhysicsLabApp::BuildPinballScene()
 
 void PhysicsLabApp::BuildBridgeRopeScene()
 {
-    AE::Physics::Body* leftAnchor = AddBox(AE::Physics::Vector2D(310.0f, 265.0f), 54.0f, 30.0f, 0.0f, WallFill, WallEdge);
-    AE::Physics::Body* rightAnchor = AddBox(AE::Physics::Vector2D(970.0f, 265.0f), 54.0f, 30.0f, 0.0f, WallFill, WallEdge);
-    AddBox(AE::Physics::Vector2D(640.0f, 675.0f), 980.0f, 28.0f, 0.0f, WallFill, WallEdge);
+    AE::Physics::Body* leftAnchor = AddBox(AE::Physics::FVector2D(310.0f, 265.0f), 54.0f, 30.0f, 0.0f, WallFill, WallEdge);
+    AE::Physics::Body* rightAnchor = AddBox(AE::Physics::FVector2D(970.0f, 265.0f), 54.0f, 30.0f, 0.0f, WallFill, WallEdge);
+    AddBox(AE::Physics::FVector2D(640.0f, 675.0f), 980.0f, 28.0f, 0.0f, WallFill, WallEdge);
 
     std::vector<AE::Physics::Body*> links;
     const float startX = 350.0f;
@@ -763,7 +764,7 @@ void PhysicsLabApp::BuildBridgeRopeScene()
     {
         const float x = startX + spacing * static_cast<float>(index);
         const float y = 310.0f + std::sin(static_cast<float>(index) * 0.55f) * 8.0f;
-        AE::Physics::Body* link = AddBox(AE::Physics::Vector2D(x, y), 34.0f, 16.0f, 1.0f, index % 2 == 0 ? Cool : Warm, Dark);
+        AE::Physics::Body* link = AddBox(AE::Physics::FVector2D(x, y), 34.0f, 16.0f, 1.0f, index % 2 == 0 ? Cool : Warm, Dark);
         link->friction = 0.18f;
         links.push_back(link);
     }
@@ -778,23 +779,23 @@ void PhysicsLabApp::BuildBridgeRopeScene()
         AddJoint(links.back(), rightAnchor, (links.back()->position + rightAnchor->position) * 0.5f);
     }
 
-    AE::Physics::Body* load = AddCircle(AE::Physics::Vector2D(640.0f, 155.0f), 34.0f, bridgeLoadMass, Red, Dark);
+    AE::Physics::Body* load = AddCircle(AE::Physics::FVector2D(640.0f, 155.0f), 34.0f, bridgeLoadMass, Red, Dark);
     load->restitution = 0.05f;
     load->friction = 0.12f;
 }
 
 void PhysicsLabApp::StepContainer(float dt, const InputState& input)
 {
-    const AE::Physics::Vector2D previousCenter = containerCenter;
+    const AE::Physics::FVector2D previousCenter = containerCenter;
     const float previousAngle = containerAngle;
 
     if (input.moveLeft != input.moveRight)
     {
-        containerCenter.x += (input.moveRight ? MoveSpeed : -MoveSpeed) * dt;
+        containerCenter.X += (input.moveRight ? MoveSpeed : -MoveSpeed) * dt;
     }
     if (input.moveUp != input.moveDown)
     {
-        containerCenter.y += (input.moveDown ? MoveSpeed : -MoveSpeed) * dt;
+        containerCenter.Y += (input.moveDown ? MoveSpeed : -MoveSpeed) * dt;
     }
     if (input.rotateLeft != input.rotateRight)
     {
@@ -802,8 +803,8 @@ void PhysicsLabApp::StepContainer(float dt, const InputState& input)
         containerAngle = ClampFloat(containerAngle, -MaxContainerAngle, MaxContainerAngle);
     }
 
-    containerCenter.x = ClampFloat(containerCenter.x, 260.0f, static_cast<float>(WindowWidth) - 260.0f);
-    containerCenter.y = ClampFloat(containerCenter.y, 245.0f, static_cast<float>(WindowHeight) - 110.0f);
+    containerCenter.X = ClampFloat(containerCenter.X, 260.0f, static_cast<float>(WindowWidth) - 260.0f);
+    containerCenter.Y = ClampFloat(containerCenter.Y, 245.0f, static_cast<float>(WindowHeight) - 110.0f);
     UpdateContainerWalls();
 
     const bool movedContainer = (containerCenter - previousCenter).MagnitudeSquared() > 0.01f ||
@@ -846,7 +847,7 @@ void PhysicsLabApp::StepMovingPlatforms()
     for (KinematicBody& platform : movingPlatforms)
     {
         const float offset = std::sin(sceneTime * platformSpeed + platform.phase) * platformAmplitude;
-        const AE::Physics::Vector2D previousPosition = platform.body->position;
+        const AE::Physics::FVector2D previousPosition = platform.body->position;
         platform.body->position = platform.basePosition + platform.axis * offset;
         platform.body->velocity = (platform.body->position - previousPosition) * (1.0f / FixedTimeStep);
         platform.body->shape->UpdateVertices(platform.body->rotation, platform.body->position);
@@ -875,8 +876,8 @@ void PhysicsLabApp::StepPinball(float dt, const InputState& input)
     if (launchRequested && !pinballBalls.empty())
     {
         AE::Physics::Body* ball = pinballBalls.front();
-        ball->position = AE::Physics::Vector2D(640.0f, 515.0f);
-        ball->velocity = AE::Physics::Vector2D(0.0f, -pinballLaunchSpeed);
+        ball->position = AE::Physics::FVector2D(640.0f, 515.0f);
+        ball->velocity = AE::Physics::FVector2D(0.0f, -pinballLaunchSpeed);
         ball->shape->UpdateVertices(ball->rotation, ball->position);
         launchRequested = false;
     }
@@ -889,13 +890,13 @@ void PhysicsLabApp::RespawnLostBodies()
         for (std::size_t index = 0; index < containerParticles.size(); ++index)
         {
             AE::Physics::Body* body = containerParticles[index];
-            const bool lost = body->position.y > static_cast<float>(WindowHeight) + 260.0f ||
-                body->position.x < -260.0f ||
-                body->position.x > static_cast<float>(WindowWidth) + 260.0f;
+            const bool lost = body->position.Y > static_cast<float>(WindowHeight) + 260.0f ||
+                body->position.X < -260.0f ||
+                body->position.X > static_cast<float>(WindowWidth) + 260.0f;
             if (lost)
             {
                 body->position = ContainerToWorld(ContainerParticleLocalPosition(index));
-                body->velocity = AE::Physics::Vector2D(0.0f, -35.0f);
+                body->velocity = AE::Physics::FVector2D(0.0f, -35.0f);
                 body->angularVelocity = 0.0f;
                 body->shape->UpdateVertices(body->rotation, body->position);
             }
@@ -905,10 +906,10 @@ void PhysicsLabApp::RespawnLostBodies()
     {
         for (AE::Physics::Body* body : pinballBalls)
         {
-            if (body->position.y > static_cast<float>(WindowHeight) + 120.0f)
+            if (body->position.Y > static_cast<float>(WindowHeight) + 120.0f)
             {
-                body->position = AE::Physics::Vector2D(640.0f, 515.0f);
-                body->velocity = AE::Physics::Vector2D(0.0f, -pinballLaunchSpeed * 0.6f);
+                body->position = AE::Physics::FVector2D(640.0f, 515.0f);
+                body->velocity = AE::Physics::FVector2D(0.0f, -pinballLaunchSpeed * 0.6f);
                 body->shape->UpdateVertices(body->rotation, body->position);
             }
         }
@@ -936,7 +937,7 @@ void PhysicsLabApp::ApplyDamping()
 }
 
 AE::Physics::Body* PhysicsLabApp::AddCircle(
-    AE::Physics::Vector2D position,
+    AE::Physics::FVector2D position,
     float radius,
     float mass,
     SDL_Color fill,
@@ -946,7 +947,7 @@ AE::Physics::Body* PhysicsLabApp::AddCircle(
     bool sensor)
 {
     AE::Physics::CircleShape shape(radius);
-    AE::Physics::Body* body = new AE::Physics::Body(shape, position.x, position.y, mass);
+    AE::Physics::Body* body = new AE::Physics::Body(shape, position.X, position.Y, mass);
     body->collisionCategory = category;
     body->collisionMask = mask;
     body->isSensor = sensor;
@@ -956,7 +957,7 @@ AE::Physics::Body* PhysicsLabApp::AddCircle(
 }
 
 AE::Physics::Body* PhysicsLabApp::AddBox(
-    AE::Physics::Vector2D position,
+    AE::Physics::FVector2D position,
     float width,
     float height,
     float mass,
@@ -969,7 +970,7 @@ AE::Physics::Body* PhysicsLabApp::AddBox(
     bool outlineOnly)
 {
     AE::Physics::BoxShape shape(width, height);
-    AE::Physics::Body* body = new AE::Physics::Body(shape, position.x, position.y, mass);
+    AE::Physics::Body* body = new AE::Physics::Body(shape, position.X, position.Y, mass);
     body->rotation = rotation;
     body->collisionCategory = category;
     body->collisionMask = mask;
@@ -980,7 +981,7 @@ AE::Physics::Body* PhysicsLabApp::AddBox(
     return body;
 }
 
-void PhysicsLabApp::AddJoint(AE::Physics::Body* first, AE::Physics::Body* second, const AE::Physics::Vector2D& anchor)
+void PhysicsLabApp::AddJoint(AE::Physics::Body* first, AE::Physics::Body* second, const AE::Physics::FVector2D& anchor)
 {
     world->AddConstraint(new AE::Physics::JointConstraint(first, second, anchor));
 }
@@ -990,33 +991,36 @@ std::vector<PhysicsLabApp::WallSpec> PhysicsLabApp::CreateContainerWallSpecs(Con
     switch (shape)
     {
         case ContainerShape::Tray:
-            return {
-                WallSpec{AE::Physics::Vector2D(0.0f, 122.0f), 620.0f, 28.0f, 0.0f},
-                WallSpec{AE::Physics::Vector2D(-310.0f, 44.0f), 28.0f, 174.0f, 0.0f},
-                WallSpec{AE::Physics::Vector2D(310.0f, 44.0f), 28.0f, 174.0f, 0.0f}
+            return 
+            {
+                WallSpec{AE::Physics::FVector2D(0.0f, 122.0f), 620.0f, 28.0f, 0.0f},
+                WallSpec{AE::Physics::FVector2D(-310.0f, 44.0f), 28.0f, 174.0f, 0.0f},
+                WallSpec{AE::Physics::FVector2D(310.0f, 44.0f), 28.0f, 174.0f, 0.0f}
             };
         case ContainerShape::Funnel:
-            return {
-                WallSpec{AE::Physics::Vector2D(0.0f, 152.0f), 132.0f, 28.0f, 0.0f},
-                WallSpec{AE::Physics::Vector2D(-146.0f, 26.0f), 28.0f, 336.0f, -0.48f},
-                WallSpec{AE::Physics::Vector2D(146.0f, 26.0f), 28.0f, 336.0f, 0.48f}
+            return 
+            {
+                WallSpec{AE::Physics::FVector2D(0.0f, 152.0f), 132.0f, 28.0f, 0.0f},
+                WallSpec{AE::Physics::FVector2D(-146.0f, 26.0f), 28.0f, 336.0f, -0.48f},
+                WallSpec{AE::Physics::FVector2D(146.0f, 26.0f), 28.0f, 336.0f, 0.48f}
             };
         case ContainerShape::Cup:
         default:
-            return {
-                WallSpec{AE::Physics::Vector2D(0.0f, 142.0f), 452.0f, 30.0f, 0.0f},
-                WallSpec{AE::Physics::Vector2D(-226.0f, 0.0f), 30.0f, 304.0f, 0.0f},
-                WallSpec{AE::Physics::Vector2D(226.0f, 0.0f), 30.0f, 304.0f, 0.0f}
+            return 
+            {
+                WallSpec{AE::Physics::FVector2D(0.0f, 142.0f), 452.0f, 30.0f, 0.0f},
+                WallSpec{AE::Physics::FVector2D(-226.0f, 0.0f), 30.0f, 304.0f, 0.0f},
+                WallSpec{AE::Physics::FVector2D(226.0f, 0.0f), 30.0f, 304.0f, 0.0f}
             };
     }
 }
 
-AE::Physics::Vector2D PhysicsLabApp::ContainerToWorld(const AE::Physics::Vector2D& localPosition) const
+AE::Physics::FVector2D PhysicsLabApp::ContainerToWorld(const AE::Physics::FVector2D& localPosition) const
 {
     return containerCenter + localPosition.Rotate(containerAngle);
 }
 
-AE::Physics::Vector2D PhysicsLabApp::ContainerParticleLocalPosition(std::size_t index) const
+AE::Physics::FVector2D PhysicsLabApp::ContainerParticleLocalPosition(std::size_t index) const
 {
     const int columns = containerShape == ContainerShape::Tray ? 12 : 9;
     const float spacing = particleRadius * 2.35f;
@@ -1024,7 +1028,7 @@ AE::Physics::Vector2D PhysicsLabApp::ContainerParticleLocalPosition(std::size_t 
     const int row = static_cast<int>(index / static_cast<std::size_t>(columns));
     const float jitterX = static_cast<float>((static_cast<int>(index) * 17) % 5 - 2) * 1.35f;
     const float jitterY = static_cast<float>((static_cast<int>(index) * 11) % 5 - 2) * 1.1f;
-    return AE::Physics::Vector2D(
+    return AE::Physics::FVector2D(
         (static_cast<float>(column) - (static_cast<float>(columns) - 1.0f) * 0.5f) * spacing + jitterX,
         94.0f - static_cast<float>(row) * spacing + jitterY);
 }
@@ -1037,7 +1041,7 @@ void PhysicsLabApp::UpdateContainerWalls()
         const WallSpec& wall = containerWallSpecs[index];
         body->position = ContainerToWorld(wall.localPosition);
         body->rotation = containerAngle + wall.localAngle;
-        body->velocity = AE::Physics::Vector2D::Zero;
+        body->velocity = AE::Physics::FVector2D::Zero;
         body->angularVelocity = 0.0f;
         body->shape->UpdateVertices(body->rotation, body->position);
     }
@@ -1359,9 +1363,9 @@ void PhysicsLabApp::DrawBody(const BodyVisual& visual) const
         const AE::Physics::CircleShape* circle = static_cast<const AE::Physics::CircleShape*>(visual.body->shape);
         if (!visual.outlineOnly)
         {
-            DrawFilledCircle(RoundToInt(visual.body->position.x), RoundToInt(visual.body->position.y), RoundToInt(circle->radius), visual.fill);
+            DrawFilledCircle(RoundToInt(visual.body->position.X), RoundToInt(visual.body->position.Y), RoundToInt(circle->radius), visual.fill);
         }
-        DrawFilledCircle(RoundToInt(visual.body->position.x), RoundToInt(visual.body->position.y), 2, visual.edge);
+        DrawFilledCircle(RoundToInt(visual.body->position.X), RoundToInt(visual.body->position.Y), 2, visual.edge);
     }
     else
     {
@@ -1400,7 +1404,7 @@ void PhysicsLabApp::DrawContacts() const
     for (const AE::Physics::Contact& contact : world->GetContacts())
     {
         DrawLine(contact.start, contact.end, ContactColor);
-        DrawFilledCircle(RoundToInt(contact.start.x), RoundToInt(contact.start.y), 3, ContactColor);
+        DrawFilledCircle(RoundToInt(contact.start.X), RoundToInt(contact.start.Y), 3, ContactColor);
     }
 }
 
@@ -1415,19 +1419,19 @@ void PhysicsLabApp::DrawFilledCircle(int centerX, int centerY, int radius, SDL_C
     }
 }
 
-void PhysicsLabApp::DrawFilledPolygon(const std::vector<AE::Physics::Vector2D>& vertices, SDL_Color color) const
+void PhysicsLabApp::DrawFilledPolygon(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color) const
 {
     if (vertices.size() < 3)
     {
         return;
     }
 
-    float minY = vertices.front().y;
-    float maxY = vertices.front().y;
-    for (const AE::Physics::Vector2D& vertex : vertices)
+    float minY = vertices.front().Y;
+    float maxY = vertices.front().Y;
+    for (const AE::Physics::FVector2D& vertex : vertices)
     {
-        minY = std::min(minY, vertex.y);
-        maxY = std::max(maxY, vertex.y);
+        minY = std::min(minY, vertex.Y);
+        maxY = std::max(maxY, vertex.Y);
     }
 
     const int startY = std::max(0, static_cast<int>(std::ceil(minY)));
@@ -1445,12 +1449,12 @@ void PhysicsLabApp::DrawFilledPolygon(const std::vector<AE::Physics::Vector2D>& 
 
         for (std::size_t i = 0; i < vertices.size(); ++i)
         {
-            const AE::Physics::Vector2D& a = vertices[i];
-            const AE::Physics::Vector2D& b = vertices[(i + 1) % vertices.size()];
-            if ((a.y <= scanY && b.y > scanY) || (b.y <= scanY && a.y > scanY))
+            const AE::Physics::FVector2D& a = vertices[i];
+            const AE::Physics::FVector2D& b = vertices[(i + 1) % vertices.size()];
+            if ((a.Y <= scanY && b.Y > scanY) || (b.Y <= scanY && a.Y > scanY))
             {
-                const float t = (scanY - a.y) / (b.y - a.y);
-                intersections.push_back(a.x + t * (b.x - a.x));
+                const float t = (scanY - a.Y) / (b.Y - a.Y);
+                intersections.push_back(a.X + t * (b.X - a.X));
             }
         }
 
@@ -1464,7 +1468,7 @@ void PhysicsLabApp::DrawFilledPolygon(const std::vector<AE::Physics::Vector2D>& 
     }
 }
 
-void PhysicsLabApp::DrawPolyline(const std::vector<AE::Physics::Vector2D>& vertices, SDL_Color color, bool closed) const
+void PhysicsLabApp::DrawPolyline(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color, bool closed) const
 {
     if (vertices.size() < 2)
     {
@@ -1477,27 +1481,27 @@ void PhysicsLabApp::DrawPolyline(const std::vector<AE::Physics::Vector2D>& verti
     {
         SDL_RenderDrawLine(
             renderer,
-            RoundToInt(vertices[i].x),
-            RoundToInt(vertices[i].y),
-            RoundToInt(vertices[i + 1].x),
-            RoundToInt(vertices[i + 1].y));
+            RoundToInt(vertices[i].X),
+            RoundToInt(vertices[i].Y),
+            RoundToInt(vertices[i + 1].X),
+            RoundToInt(vertices[i + 1].Y));
     }
     if (closed)
     {
         SDL_RenderDrawLine(
             renderer,
-            RoundToInt(vertices.back().x),
-            RoundToInt(vertices.back().y),
-            RoundToInt(vertices.front().x),
-            RoundToInt(vertices.front().y));
+            RoundToInt(vertices.back().X),
+            RoundToInt(vertices.back().Y),
+            RoundToInt(vertices.front().X),
+            RoundToInt(vertices.front().Y));
     }
 }
 
-void PhysicsLabApp::DrawLine(const AE::Physics::Vector2D& from, const AE::Physics::Vector2D& to, SDL_Color color) const
+void PhysicsLabApp::DrawLine(const AE::Physics::FVector2D& from, const AE::Physics::FVector2D& to, SDL_Color color) const
 {
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-    SDL_RenderDrawLine(renderer, RoundToInt(from.x), RoundToInt(from.y), RoundToInt(to.x), RoundToInt(to.y));
+    SDL_RenderDrawLine(renderer, RoundToInt(from.X), RoundToInt(from.Y), RoundToInt(to.X), RoundToInt(to.Y));
 }
 
 void PhysicsLabApp::DrawScreenRect(int x, int y, int w, int h, SDL_Color color) const

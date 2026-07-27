@@ -59,10 +59,10 @@ private:
     {
         for (const auto& contact : physicsWorldSystem.GetWorld().GetContacts())
         {
-            const int startX = static_cast<int>(contact.start.x - camera.x);
-            const int startY = static_cast<int>(contact.start.y - camera.y);
-            const int endX = static_cast<int>(contact.end.x - camera.x);
-            const int endY = static_cast<int>(contact.end.y - camera.y);
+            const int startX = static_cast<int>(contact.start.X - camera.x);
+            const int startY = static_cast<int>(contact.start.Y - camera.y);
+            const int endX = static_cast<int>(contact.end.X - camera.x);
+            const int endY = static_cast<int>(contact.end.Y - camera.y);
 
             SDL_SetRenderDrawColor(renderer, 255, 220, 0, 255);
             SDL_RenderDrawLine(renderer, startX - 3, startY, startX + 3, startY);
@@ -70,8 +70,8 @@ private:
             SDL_RenderDrawLine(renderer, endX - 3, endY, endX + 3, endY);
             SDL_RenderDrawLine(renderer, endX, endY - 3, endX, endY + 3);
 
-            const int normalEndX = startX + static_cast<int>(contact.normal.x * 18.0f);
-            const int normalEndY = startY + static_cast<int>(contact.normal.y * 18.0f);
+            const int normalEndX = startX + static_cast<int>(contact.normal.X * 18.0f);
+            const int normalEndY = startY + static_cast<int>(contact.normal.Y * 18.0f);
             SDL_SetRenderDrawColor(renderer, 0, 255, 120, 255);
             SDL_RenderDrawLine(renderer, startX, startY, normalEndX, normalEndY);
         }
@@ -93,10 +93,10 @@ private:
             const auto& end = vertices[(index + 1) % vertices.size()];
             SDL_RenderDrawLine(
                 renderer,
-                static_cast<int>(start.x - camera.x),
-                static_cast<int>(start.y - camera.y),
-                static_cast<int>(end.x - camera.x),
-                static_cast<int>(end.y - camera.y));
+                static_cast<int>(start.X - camera.x),
+                static_cast<int>(start.Y - camera.y),
+                static_cast<int>(end.X - camera.x),
+                static_cast<int>(end.Y - camera.y));
         }
     }
 
@@ -106,8 +106,8 @@ private:
         const AE::Physics::Body& body,
         const AE::Physics::CircleShape& shape)
     {
-        const int centerX = static_cast<int>(body.position.x - camera.x);
-        const int centerY = static_cast<int>(body.position.y - camera.y);
+        const int centerX = static_cast<int>(body.position.X - camera.x);
+        const int centerY = static_cast<int>(body.position.Y - camera.y);
         const int radius = static_cast<int>(shape.radius);
 
         int previousX = centerX + radius;

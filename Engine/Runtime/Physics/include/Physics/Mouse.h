@@ -14,15 +14,15 @@ private:
     float           maxCursorSize = 150;
     float           minCursorSize = 10;
     float           cursorSize = 20;
-    Vector2D        pos;
-    Vector2D        prevPos;
+    FVector2D        pos;
+    FVector2D        prevPos;
 
 public:
     Mouse()     = default;
     ~Mouse()    = default;
 
-    const Vector2D& GetPosition() const { return pos; }
-    const Vector2D& GetPreviousPosition() const { return prevPos; }
+    const FVector2D& GetPosition() const { return pos; }
+    const FVector2D& GetPreviousPosition() const { return prevPos; }
     void            UpdatePosition(int x, int y);
 
     bool            GetLeftButtonDown() const { return leftButtonDown; }

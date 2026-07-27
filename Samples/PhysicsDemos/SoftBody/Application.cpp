@@ -2,7 +2,8 @@
 #include "Physics/Constants.h"
 #include "Physics/Force.h"
 
-bool Application::IsRunning() {
+bool Application::IsRunning() 
+{
     return running;
 }
 
@@ -50,12 +51,15 @@ void Application::Setup()
 ///////////////////////////////////////////////////////////////////////////////
 // Input processing
 ///////////////////////////////////////////////////////////////////////////////
-void Application::Input() {
+void Application::Input() 
+{
     SDL_Event event;
-    while (SDL_PollEvent(&event)) {
+    while (SDL_PollEvent(&event)) 
+    {
         diagnostics.HandleEvent(event);
 
-        switch (event.type) {
+        switch (event.type)
+        {
             case SDL_QUIT:
                 running = false;
                 break;
@@ -63,42 +67,44 @@ void Application::Input() {
                 if (event.key.keysym.sym == SDLK_ESCAPE)
                     running = false;
                 if (event.key.keysym.sym == SDLK_UP)
-                    pushForce.y = -50 * AE::Physics::PIXELS_PER_METER;
+                    pushForce.Y = -50 * AE::Physics::PIXELS_PER_METER;
                 if (event.key.keysym.sym == SDLK_RIGHT)
-                    pushForce.x = 50 * AE::Physics::PIXELS_PER_METER;
+                    pushForce.X = 50 * AE::Physics::PIXELS_PER_METER;
                 if (event.key.keysym.sym == SDLK_DOWN)
-                    pushForce.y = 50 * AE::Physics::PIXELS_PER_METER;
+                    pushForce.Y = 50 * AE::Physics::PIXELS_PER_METER;
                 if (event.key.keysym.sym == SDLK_LEFT)
-                    pushForce.x = -50 * AE::Physics::PIXELS_PER_METER;
+                    pushForce.X = -50 * AE::Physics::PIXELS_PER_METER;
                 break;
             case SDL_KEYUP:
                 if (event.key.keysym.sym == SDLK_UP)
-                    pushForce.y = 0;
+                    pushForce.Y = 0;
                 if (event.key.keysym.sym == SDLK_RIGHT)
-                    pushForce.x = 0;
+                    pushForce.X = 0;
                 if (event.key.keysym.sym == SDLK_DOWN)
-                    pushForce.y = 0;
+                    pushForce.Y = 0;
                 if (event.key.keysym.sym == SDLK_LEFT)
-                    pushForce.x = 0;
+                    pushForce.X = 0;
                 break;
             case SDL_MOUSEMOTION:
-                mouseCursor.x = event.motion.x;
-                mouseCursor.y = event.motion.y;
+                mouseCursor.X = event.motion.x;
+                mouseCursor.Y = event.motion.y;
                 break;
             case SDL_MOUSEBUTTONDOWN:
-                if (!leftMouseButtonDown && event.button.button == SDL_BUTTON_LEFT) {
+                if (!leftMouseButtonDown && event.button.button == SDL_BUTTON_LEFT) 
+                {
                     leftMouseButtonDown = true;
-                    int x, y;
-                    SDL_GetMouseState(&x, &y);
-                    mouseCursor.x = x;
-                    mouseCursor.y = y;
+                    int X, Y;
+                    SDL_GetMouseState(&X, &Y);
+                    mouseCursor.X = X;
+                    mouseCursor.Y = Y;
                 }
                 break;
             case SDL_MOUSEBUTTONUP:
-                if (leftMouseButtonDown && event.button.button == SDL_BUTTON_LEFT) {
+                if (leftMouseButtonDown && event.button.button == SDL_BUTTON_LEFT) 
+                {
                     leftMouseButtonDown = false;
                     int lastParticle = NUM_PARTICLES - 1;
-                    Vector2D impulseDirection = (particles[lastParticle]->position - mouseCursor).UnitVector();
+                    FVector2D impulseDirection = (particles[lastParticle]->position - mouseCursor).UnitVector();
                     float impulseMagnitude = (particles[lastParticle]->position - mouseCursor).Magnitude() * 5.0;
                     particles[lastParticle]->velocity = impulseDirection * impulseMagnitude;
                 }
@@ -110,20 +116,25 @@ void Application::Input() {
 ///////////////////////////////////////////////////////////////////////////////
 // Update function (called several times per second to update objects)
 ///////////////////////////////////////////////////////////////////////////////
-void Application::Update() {
+void Application::Update() 
+{
     diagnostics.BeginFrame();
     const std::uint64_t updateStart = LegacyDiagnosticsOverlay::Counter();
 
     // Wait some time until the reach the target frame time in milliseconds
     static int timePreviousFrame;
     int timeToWait = AE::Physics::MILLISECS_PER_FRAME - (SDL_GetTicks() - timePreviousFrame);
-    if (timeToWait > 0)
+    if (timeToWait > 0) 
+    {
         SDL_Delay(timeToWait);
+    }
 
     // Calculate the deltatime in seconds
     float deltaTime = (SDL_GetTicks() - timePreviousFrame) / 1000.0f;
-    if (deltaTime > 0.016)
+    if (deltaTime > 0.016) 
+    {
         deltaTime = 0.016;
+    }
 
     // Set the time of the current frame to be used in the next one
     timePreviousFrame = SDL_GetTicks();
@@ -133,62 +144,71 @@ void Application::Update() {
         particles[0]->AddForce(pushForce);
 
         // Apply forces to the particles
-        for (auto particle: particles) {
+        for (auto particle: particles) 
+        {
             // Apply a drag force
-            Vector2D drag = Force::GenerateDragForce(*particle, 0.003);
+            FVector2D drag = Force::GenerateDragForce(*particle, 0.003);
             particle->AddForce(drag);
 
             // Apply weight force
-            Vector2D weight = Vector2D(0.0, particle->mass * 9.8 * AE::Physics::PIXELS_PER_METER);
+            FVector2D weight = FVector2D(0.0, particle->mass * 9.8 * AE::Physics::PIXELS_PER_METER);
             particle->AddForce(weight);
         }
 
         // Attach particles with springs
-        Vector2D ab = Force::GenerateSpringForce(*particles[0], *particles[1], restLength, k); // a <-> b
+        FVector2D ab = Force::GenerateSpringForce(*particles[0], *particles[1], restLength, k); // a <-> b
         particles[0]->AddForce(ab);
         particles[1]->AddForce(-ab);
 
-        Vector2D bc = Force::GenerateSpringForce(*particles[1], *particles[2], restLength, k); // b <-> c
+        FVector2D bc = Force::GenerateSpringForce(*particles[1], *particles[2], restLength, k); // b <-> c
         particles[1]->AddForce(bc);
         particles[2]->AddForce(-bc);
 
-        Vector2D cd = Force::GenerateSpringForce(*particles[2], *particles[3], restLength, k); // c <-> d
+        FVector2D cd = Force::GenerateSpringForce(*particles[2], *particles[3], restLength, k); // c <-> d
         particles[2]->AddForce(cd);
         particles[3]->AddForce(-cd);
 
-        Vector2D da = Force::GenerateSpringForce(*particles[3], *particles[0], restLength, k); // d <-> a
+        FVector2D da = Force::GenerateSpringForce(*particles[3], *particles[0], restLength, k); // d <-> a
         particles[3]->AddForce(da);
         particles[0]->AddForce(-da);
 
-        Vector2D ac = Force::GenerateSpringForce(*particles[0], *particles[2], restLength, k); // a <-> c
+        FVector2D ac = Force::GenerateSpringForce(*particles[0], *particles[2], restLength, k); // a <-> c
         particles[0]->AddForce(ac);
         particles[2]->AddForce(-ac);
 
-        Vector2D bd = Force::GenerateSpringForce(*particles[1], *particles[3], restLength, k); // b <-> d
+        FVector2D bd = Force::GenerateSpringForce(*particles[1], *particles[3], restLength, k); // b <-> d
         particles[1]->AddForce(bd);
         particles[3]->AddForce(-bd);
 
         // Integrate the acceleration and velocity to estimate the new position
-        for (auto particle: particles) {
+        for (auto particle: particles) 
+        {
             particle->Integrate(deltaTime);
         }
 
         // Check the boundaries of the window
-        for (auto particle: particles) {
+        for (auto particle: particles) 
+        {
             // Nasty hardcoded flip in velocity if it touches the limits of the screen window
-            if (particle->position.x - particle->radius <= 0) {
-                particle->position.x = particle->radius;
-                particle->velocity.x *= -0.9;
-            } else if (particle->position.x + particle->radius >= Graphics::Width()) {
-                particle->position.x = Graphics::Width() - particle->radius;
-                particle->velocity.x *= -0.9;
+            if (particle->position.X - particle->radius <= 0) 
+            {
+                particle->position.X = particle->radius;
+                particle->velocity.X *= -0.9;
+            } 
+            else if (particle->position.X + particle->radius >= Graphics::Width()) 
+            {
+                particle->position.X = Graphics::Width() - particle->radius;
+                particle->velocity.X *= -0.9;
             }
-            if (particle->position.y - particle->radius <= 0) {
-                particle->position.y = particle->radius;
-                particle->velocity.y *= -0.9;
-            } else if (particle->position.y + particle->radius >= Graphics::Height()) {
-                particle->position.y = Graphics::Height() - particle->radius;
-                particle->velocity.y *= -0.9;
+            if (particle->position.Y - particle->radius <= 0) 
+            {
+                particle->position.Y = particle->radius;
+                particle->velocity.Y *= -0.9;
+            } 
+            else if (particle->position.Y + particle->radius >= Graphics::Height()) 
+            {
+                particle->position.Y = Graphics::Height() - particle->radius;
+                particle->velocity.Y *= -0.9;
             }
         }
     }
@@ -199,7 +219,8 @@ void Application::Update() {
 ///////////////////////////////////////////////////////////////////////////////
 // Render function (called several times per second to draw objects)
 ///////////////////////////////////////////////////////////////////////////////
-void Application::Render() {
+void Application::Render() 
+{
     const std::uint64_t renderStart = LegacyDiagnosticsOverlay::Counter();
 
     Graphics::ClearScreen(0xFFFFFFFF);
@@ -207,22 +228,22 @@ void Application::Render() {
     if (leftMouseButtonDown)
     {
         int lastParticle = NUM_PARTICLES - 1;
-        Graphics::DrawLine(particles[lastParticle]->position.x, particles[lastParticle]->position.y, mouseCursor.x, mouseCursor.y, 0xFF0000FF);
+        Graphics::DrawLine(particles[lastParticle]->position.X, particles[lastParticle]->position.Y, mouseCursor.X, mouseCursor.Y, 0xFF0000FF);
     }
 
     // Draw all springs
-    Graphics::DrawLine(particles[0]->position.x, particles[0]->position.y, particles[1]->position.x, particles[1]->position.y, 0xFF313131);
-    Graphics::DrawLine(particles[1]->position.x, particles[1]->position.y, particles[2]->position.x, particles[2]->position.y, 0xFF313131);
-    Graphics::DrawLine(particles[2]->position.x, particles[2]->position.y, particles[3]->position.x, particles[3]->position.y, 0xFF313131);
-    Graphics::DrawLine(particles[3]->position.x, particles[3]->position.y, particles[0]->position.x, particles[0]->position.y, 0xFF313131);
-    Graphics::DrawLine(particles[0]->position.x, particles[0]->position.y, particles[2]->position.x, particles[2]->position.y, 0xFF313131);
-    Graphics::DrawLine(particles[1]->position.x, particles[1]->position.y, particles[3]->position.x, particles[3]->position.y, 0xFF313131);
+    Graphics::DrawLine(particles[0]->position.X, particles[0]->position.Y, particles[1]->position.X, particles[1]->position.Y, 0xFF313131);
+    Graphics::DrawLine(particles[1]->position.X, particles[1]->position.Y, particles[2]->position.X, particles[2]->position.Y, 0xFF313131);
+    Graphics::DrawLine(particles[2]->position.X, particles[2]->position.Y, particles[3]->position.X, particles[3]->position.Y, 0xFF313131);
+    Graphics::DrawLine(particles[3]->position.X, particles[3]->position.Y, particles[0]->position.X, particles[0]->position.Y, 0xFF313131);
+    Graphics::DrawLine(particles[0]->position.X, particles[0]->position.Y, particles[2]->position.X, particles[2]->position.Y, 0xFF313131);
+    Graphics::DrawLine(particles[1]->position.X, particles[1]->position.Y, particles[3]->position.X, particles[3]->position.Y, 0xFF313131);
 
     // Draw all particles
-    Graphics::DrawFillCircle(particles[0]->position.x, particles[0]->position.y, particles[0]->radius, 0xFFEEBB00);
-    Graphics::DrawFillCircle(particles[1]->position.x, particles[1]->position.y, particles[1]->radius, 0xFFEEBB00);
-    Graphics::DrawFillCircle(particles[2]->position.x, particles[2]->position.y, particles[2]->radius, 0xFFEEBB00);
-    Graphics::DrawFillCircle(particles[3]->position.x, particles[3]->position.y, particles[3]->radius, 0xFFEEBB00);
+    Graphics::DrawFillCircle(particles[0]->position.X, particles[0]->position.Y, particles[0]->radius, 0xFFEEBB00);
+    Graphics::DrawFillCircle(particles[1]->position.X, particles[1]->position.Y, particles[1]->radius, 0xFFEEBB00);
+    Graphics::DrawFillCircle(particles[2]->position.X, particles[2]->position.Y, particles[2]->radius, 0xFFEEBB00);
+    Graphics::DrawFillCircle(particles[3]->position.X, particles[3]->position.Y, particles[3]->radius, 0xFFEEBB00);
 
 
     // Draw all bodies
@@ -232,19 +253,19 @@ void Application::Render() {
         {
             CircleShape* circleShape = (CircleShape*)body->shape;
             
-            Graphics::DrawCircle(body->position.x, body->position.y, circleShape->radius, body->rotation, 0xFF0000FF);
+            Graphics::DrawCircle(body->position.X, body->position.Y, circleShape->radius, body->rotation, 0xFF0000FF);
         }
 
         if (body->shape->GetType() == BOX)
         {
             BoxShape* boxShape = (BoxShape*)body->shape;
-            Graphics::DrawPolygon(body->position.x, body->position.y, boxShape->worldVertices, 0xFF0000FF);
+            Graphics::DrawPolygon(body->position.X, body->position.Y, boxShape->worldVertices, 0xFF0000FF);
         }
 
         if (body->shape->GetType() == POLYGON)
         {
             PolygonShape* polygonShape = (PolygonShape*)body->shape;
-            Graphics::DrawPolygon(body->position.x, body->position.y, polygonShape->worldVertices, 0xFF0000FF);
+            Graphics::DrawPolygon(body->position.X, body->position.Y, polygonShape->worldVertices, 0xFF0000FF);
         }
     }
 
@@ -264,8 +285,10 @@ void Application::Render() {
 ///////////////////////////////////////////////////////////////////////////////
 // Destroy function to delete objects and close the window
 ///////////////////////////////////////////////////////////////////////////////
-void Application::Destroy() {
-    for (auto particle: particles) {
+void Application::Destroy() 
+{
+    for (auto particle: particles) 
+    {
         delete particle;
     }
 

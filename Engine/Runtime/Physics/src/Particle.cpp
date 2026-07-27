@@ -7,7 +7,7 @@ namespace AE::Physics
 
 Particle::Particle(float x, float y, float mass) 
 {
-    this->position = Vector2D(x, y);
+    this->position = FVector2D(x, y);
     this->mass = mass;
 
     if (mass != 0.0) 
@@ -26,14 +26,14 @@ Particle::~Particle()
     AE::Logger::Log("Particle destructor called!", "Physics");
 }
 
-void Particle::AddForce(const Vector2D& force) 
+void Particle::AddForce(const FVector2D& force) 
 {
     sumForces += force;
 }
 
 void Particle::ClearForces() 
 {
-    sumForces = Vector2D(0.0, 0.0);
+    sumForces = FVector2D(0.0, 0.0);
 }
 
 void Particle::Integrate(float dt) 

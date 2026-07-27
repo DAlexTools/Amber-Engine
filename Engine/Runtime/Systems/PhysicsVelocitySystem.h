@@ -30,11 +30,11 @@ public:
 
             if (physicsBody.body->IsStatic())
             {
-                physicsBody.body->velocity = AE::Physics::Vector2D::Zero;
+                physicsBody.body->velocity = AE::Physics::FVector2D::Zero;
                 continue;
             }
 
-            physicsBody.body->velocity = AE::Physics::Vector2D(
+            physicsBody.body->velocity = AE::Physics::FVector2D(
                 rigidBody.velocity.x,
                 rigidBody.velocity.y);
         }

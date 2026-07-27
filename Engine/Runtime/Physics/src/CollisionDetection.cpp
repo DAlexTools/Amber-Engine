@@ -47,7 +47,7 @@ bool CollisionDetection::IsCollidingCircleCircle(Body* a, Body* b, std::vector<C
     CircleShape* aCircleShape = (CircleShape*)a->shape;
     CircleShape* bCircleShape = (CircleShape*)b->shape;
 
-    const Vector2D ab = b->position - a->position;
+    const FVector2D ab = b->position - a->position;
     const float radiusSum = aCircleShape->radius + bCircleShape->radius;
 
     if (!(ab.MagnitudeSquared() <= (radiusSum * radiusSum))) return false;
@@ -84,7 +84,7 @@ bool CollisionDetection::IsCollidingPolygonPolygon(Body* a, Body* b, std::vector
     PolygonShape* bPolygonShape = (PolygonShape*)b->shape;
     
     int aIndexReferenceEdge, bIndexReferenceEdge;
-    Vector2D aSupportPoint, bSupportPoint;
+    FVector2D aSupportPoint, bSupportPoint;
     const float abSeparation = aPolygonShape->FindMinSeparation(bPolygonShape, aIndexReferenceEdge, aSupportPoint);
     
     if (abSeparation >= 0) return false;
@@ -112,7 +112,7 @@ bool CollisionDetection::IsCollidingPolygonPolygon(Body* a, Body* b, std::vector
     }
 
     // Find the reference edge based on the index that returned from the function
-    const Vector2D referenceEdge = referenceShape->EdgeAt(indexReferenceEdge);
+    const FVector2D referenceEdge = referenceShape->EdgeAt(indexReferenceEdge);
 
     /////////////////////////////////////
     // Clipping
@@ -120,18 +120,18 @@ bool CollisionDetection::IsCollidingPolygonPolygon(Body* a, Body* b, std::vector
     const int incidentIndex = incidentShape->FindIncidentEdge(referenceEdge.Normal());
     const int incidentNextIndex = (incidentIndex + 1) % incidentShape->worldVertices.size();
     
-    const Vector2D v0 = incidentShape->worldVertices[incidentIndex];
-    const Vector2D v1 = incidentShape->worldVertices[incidentNextIndex];
+    const FVector2D v0 = incidentShape->worldVertices[incidentIndex];
+    const FVector2D v1 = incidentShape->worldVertices[incidentNextIndex];
 
-    std::vector<Vector2D> contactPoints = { v0, v1 };
-    std::vector<Vector2D> clippedPoints = contactPoints;
+    std::vector<FVector2D> contactPoints = { v0, v1 };
+    std::vector<FVector2D> clippedPoints = contactPoints;
     
     for (int i = 0; i < static_cast<int>(referenceShape->worldVertices.size()); i++)
     {
         if (i == indexReferenceEdge) continue;
 
-        const Vector2D c0 = referenceShape->worldVertices[i];
-        const Vector2D c1 = referenceShape->worldVertices[(i + 1) % referenceShape->worldVertices.size()];
+        const FVector2D c0 = referenceShape->worldVertices[i];
+        const FVector2D c1 = referenceShape->worldVertices[(i + 1) % referenceShape->worldVertices.size()];
         
         const int numClipped = referenceShape->ClipSegmentToLine(contactPoints, clippedPoints, c0, c1);
         
@@ -183,11 +183,11 @@ bool CollisionDetection::IsCollidingPolygonCircle(Body* polygon, Body* circle, s
 {
     const PolygonShape* polygonShape = (PolygonShape*)polygon->shape;
     const CircleShape* circleShape = (CircleShape*)circle->shape;
-    const std::vector<Vector2D>& polygonVertices = polygonShape->worldVertices;
+    const std::vector<FVector2D>& polygonVertices = polygonShape->worldVertices;
 
     bool isOutside = false;
-    Vector2D minCurrVertex;
-    Vector2D minNextVertex;
+    FVector2D minCurrVertex;
+    FVector2D minNextVertex;
     float distanceCircleEdge = std::numeric_limits<float>::lowest();
 
     // Loop all the edges of the polygon/box finding the nearest edge to the circle center
@@ -195,11 +195,11 @@ bool CollisionDetection::IsCollidingPolygonCircle(Body* polygon, Body* circle, s
     {
         int currVertex = i;
         int nextVertex = (i + 1) % polygonVertices.size();
-        Vector2D edge = polygonShape->EdgeAt(currVertex);
-        Vector2D normal = edge.Normal();
+        FVector2D edge = polygonShape->EdgeAt(currVertex);
+        FVector2D normal = edge.Normal();
 
         // Compare the circle center with the rectangle vertex
-        const Vector2D vertexToCircleCenter = circle->position - polygonVertices[currVertex];
+        const FVector2D vertexToCircleCenter = circle->position - polygonVertices[currVertex];
         const float projection = vertexToCircleCenter.DotProduct(normal);
 
         // If we found a dot product projection that is in the positive/outside side of the normal
@@ -231,8 +231,8 @@ bool CollisionDetection::IsCollidingPolygonCircle(Body* polygon, Body* circle, s
         ///////////////////////////////////////
         // Check if we are inside region A:
         ///////////////////////////////////////
-        Vector2D v1 = circle->position - minCurrVertex;  // vector from the nearest vertex to the circle center
-        Vector2D v2 = minNextVertex - minCurrVertex;     // the nearest edge (from curr vertex to next vertex)
+        FVector2D v1 = circle->position - minCurrVertex;  // vector from the nearest vertex to the circle center
+        FVector2D v2 = minNextVertex - minCurrVertex;     // the nearest edge (from curr vertex to next vertex)
         if (v1.DotProduct(v2) < 0)
         {
             // Distance from vertex to circle center is greater than radius... no collision

@@ -18,13 +18,13 @@ namespace BodyConstants
 Body::Body(const Shape& shape, float x, float y, float mass)
 {
     this->shape = shape.Clone();
-    this->position = Vector2D(x, y);
-    this->velocity = Vector2D::Zero;
-    this->acceleration = Vector2D::Zero;
+    this->position = FVector2D(x, y);
+    this->velocity = FVector2D::Zero;
+    this->acceleration = FVector2D::Zero;
     this->rotation = AE::Physics::ZERO;
     this->angularVelocity = AE::Physics::ZERO;
     this->angularAcceleration = AE::Physics::ZERO;
-    this->sumForces = Vector2D::Zero;
+    this->sumForces = FVector2D::Zero;
     this->sumTorque = AE::Physics::ZERO;
     this->restitution = BodyConstants::Init_Restitution;
     this->friction = BodyConstants::Init_Friction;
@@ -70,7 +70,7 @@ bool Body::CanCollideWith(const Body& other) const
         (other.collisionMask & collisionCategory) != 0;
 }
 
-void Body::AddForce(const Vector2D& force)
+void Body::AddForce(const FVector2D& force)
 {
     sumForces += force;
 }
@@ -82,7 +82,7 @@ void Body::AddTorque(float torque)
 
 void Body::ClearForces()
 {
-    sumForces = Vector2D::Zero;
+    sumForces = FVector2D::Zero;
 }
 
 void Body::ClearTorque()
@@ -90,22 +90,22 @@ void Body::ClearTorque()
     sumTorque = AE::Physics::ZERO_FLOAT;
 }
 
-Vector2D Body::LocalSpaceToWorldSpace(const Vector2D& point) const
+FVector2D Body::LocalSpaceToWorldSpace(const FVector2D& point) const
 {
-    Vector2D rotated = point.Rotate(rotation);
+    FVector2D rotated = point.Rotate(rotation);
     return rotated + position;
 }
 
-Vector2D Body::WorldSpaceToLocalSpace(const Vector2D& point) const
+FVector2D Body::WorldSpaceToLocalSpace(const FVector2D& point) const
 {
-    float translatedX = point.x - position.x;
-    float translatedY = point.y - position.y;
+    float translatedX = point.X - position.X;
+    float translatedY = point.Y - position.Y;
     float rotatedX = cos(-rotation) * translatedX - sin(-rotation) * translatedY;
     float rotatedY = cos(-rotation) * translatedY + sin(-rotation) * translatedX;
-    return Vector2D(rotatedX, rotatedY);
+    return FVector2D(rotatedX, rotatedY);
 }
 
-void Body::ApplyImpulseLinear(const Vector2D& j)
+void Body::ApplyImpulseLinear(const FVector2D& j)
 {
     if (IsStatic()) return;
     velocity += j * invMass;
@@ -117,7 +117,7 @@ void Body::ApplyImpulseAngular(const float j)
     angularVelocity += j * invI;
 }
 
-void Body::ApplyImpulseAtPoint(const Vector2D& j, const Vector2D& r)
+void Body::ApplyImpulseAtPoint(const FVector2D& j, const FVector2D& r)
 {
     if (IsStatic()) return;
     velocity += j * invMass;

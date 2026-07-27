@@ -61,7 +61,7 @@ private:
 
     struct WallSpec
     {
-        AE::Physics::Vector2D localPosition;
+        AE::Physics::FVector2D localPosition;
         float width = 0.0f;
         float height = 0.0f;
         float localAngle = 0.0f;
@@ -78,8 +78,8 @@ private:
     struct KinematicBody
     {
         AE::Physics::Body* body = nullptr;
-        AE::Physics::Vector2D basePosition;
-        AE::Physics::Vector2D axis;
+        AE::Physics::FVector2D basePosition;
+        AE::Physics::FVector2D axis;
         float phase = 0.0f;
     };
 
@@ -117,7 +117,7 @@ private:
 
     Scene scene = Scene::Container;
     ContainerShape containerShape = ContainerShape::Cup;
-    AE::Physics::Vector2D containerCenter;
+    AE::Physics::FVector2D containerCenter;
     float containerAngle = 0.0f;
     float sceneTime = 0.0f;
     double lastUpdateMs = 0.0;
@@ -182,7 +182,7 @@ private:
     void ApplyDamping();
 
     AE::Physics::Body* AddCircle(
-        AE::Physics::Vector2D position,
+        AE::Physics::FVector2D position,
         float radius,
         float mass,
         SDL_Color fill,
@@ -191,7 +191,7 @@ private:
         std::uint32_t mask = 0xFFFFFFFFu,
         bool sensor = false);
     AE::Physics::Body* AddBox(
-        AE::Physics::Vector2D position,
+        AE::Physics::FVector2D position,
         float width,
         float height,
         float mass,
@@ -202,11 +202,11 @@ private:
         std::uint32_t mask = 0xFFFFFFFFu,
         bool sensor = false,
         bool outlineOnly = false);
-    void AddJoint(AE::Physics::Body* first, AE::Physics::Body* second, const AE::Physics::Vector2D& anchor);
+    void AddJoint(AE::Physics::Body* first, AE::Physics::Body* second, const AE::Physics::FVector2D& anchor);
 
     std::vector<WallSpec> CreateContainerWallSpecs(ContainerShape shape) const;
-    AE::Physics::Vector2D ContainerToWorld(const AE::Physics::Vector2D& localPosition) const;
-    AE::Physics::Vector2D ContainerParticleLocalPosition(std::size_t index) const;
+    AE::Physics::FVector2D ContainerToWorld(const AE::Physics::FVector2D& localPosition) const;
+    AE::Physics::FVector2D ContainerParticleLocalPosition(std::size_t index) const;
     void UpdateContainerWalls();
 
     void Render();
@@ -221,9 +221,9 @@ private:
     void DrawConstraints() const;
     void DrawContacts() const;
     void DrawFilledCircle(int centerX, int centerY, int radius, SDL_Color color) const;
-    void DrawFilledPolygon(const std::vector<AE::Physics::Vector2D>& vertices, SDL_Color color) const;
-    void DrawPolyline(const std::vector<AE::Physics::Vector2D>& vertices, SDL_Color color, bool closed) const;
-    void DrawLine(const AE::Physics::Vector2D& from, const AE::Physics::Vector2D& to, SDL_Color color) const;
+    void DrawFilledPolygon(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color) const;
+    void DrawPolyline(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color, bool closed) const;
+    void DrawLine(const AE::Physics::FVector2D& from, const AE::Physics::FVector2D& to, SDL_Color color) const;
     void DrawScreenRect(int x, int y, int w, int h, SDL_Color color) const;
 
     int BodyCount() const;

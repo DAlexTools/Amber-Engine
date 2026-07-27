@@ -167,7 +167,7 @@ private:
             auto& physicsBody = entity.GetComponent<PhysicsBodyComponent>();
             if (physicsBody.body)
             {
-                physicsBody.body->velocity = AE::Physics::Vector2D(
+                physicsBody.body->velocity = AE::Physics::FVector2D(
                     rigidBody.velocity.x,
                     rigidBody.velocity.y);
             }

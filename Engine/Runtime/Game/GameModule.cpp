@@ -385,14 +385,14 @@ bool GameModule::RunPhysicsObstacleSmokeTest()
 	const auto& playerPhysicsBody = player.GetComponent<PhysicsBodyComponent>();
 	const auto& playerTransform = player.GetComponent<TransformComponent>();
 	const bool playerVelocityStopped =
-		playerPhysicsBody.body && playerPhysicsBody.body->velocity.x <= 0.01f;
+		playerPhysicsBody.body && playerPhysicsBody.body->velocity.X <= 0.01f;
 	const bool playerDidNotMoveDeeper = playerTransform.position.x <= playerStartX + 0.01f;
 	const auto& enemyRigidBody = enemy.GetComponent<RigidBodyComponent>();
 	const auto& enemyPhysicsBody = enemy.GetComponent<PhysicsBodyComponent>();
 	const auto& enemySprite = enemy.GetComponent<SpriteComponent>();
 	const bool enemyBounceApplied = enemyRigidBody.velocity.x < 0.0f;
 	const bool enemyPhysicsVelocitySynced =
-		enemyPhysicsBody.body && enemyPhysicsBody.body->velocity.x < 0.0f;
+		enemyPhysicsBody.body && enemyPhysicsBody.body->velocity.X < 0.0f;
 	const bool enemySpriteFlipped = enemySprite.flip == SDL_FLIP_HORIZONTAL;
 
 	if (!hadPhysicsContact)
@@ -401,7 +401,7 @@ bool GameModule::RunPhysicsObstacleSmokeTest()
 	}
 	if (!playerVelocityStopped)
 	{
-		const float velocityX = playerPhysicsBody.body ? playerPhysicsBody.body->velocity.x : 0.0f;
+		const float velocityX = playerPhysicsBody.body ? playerPhysicsBody.body->velocity.X : 0.0f;
 		AE::Logger::Err("Physics obstacle smoke test failed: player velocity x is " + std::to_string(velocityX) + ", expected <= 0.01.");
 	}
 	if (!playerDidNotMoveDeeper)

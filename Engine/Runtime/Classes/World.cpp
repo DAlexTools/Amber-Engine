@@ -59,10 +59,10 @@ AABB ComputeAABB(const Body& body)
     {
         const CircleShape* circle = static_cast<const CircleShape*>(body.shape);
         return AABB{
-            body.position.x - circle->radius,
-            body.position.y - circle->radius,
-            body.position.x + circle->radius,
-            body.position.y + circle->radius
+            body.position.X - circle->radius,
+            body.position.Y - circle->radius,
+            body.position.X + circle->radius,
+            body.position.Y + circle->radius
         };
     }
 
@@ -74,12 +74,12 @@ AABB ComputeAABB(const Body& body)
         std::numeric_limits<float>::lowest()
     };
 
-    for (const Vector2D& vertex : polygon->worldVertices)
+    for (const FVector2D& vertex : polygon->worldVertices)
     {
-        bounds.minX = std::min(bounds.minX, vertex.x);
-        bounds.minY = std::min(bounds.minY, vertex.y);
-        bounds.maxX = std::max(bounds.maxX, vertex.x);
-        bounds.maxY = std::max(bounds.maxY, vertex.y);
+        bounds.minX = std::min(bounds.minX, vertex.X);
+        bounds.minY = std::min(bounds.minY, vertex.Y);
+        bounds.maxX = std::max(bounds.maxX, vertex.X);
+        bounds.maxY = std::max(bounds.maxY, vertex.Y);
     }
 
     return bounds;
@@ -313,7 +313,7 @@ void World::WakeAllBodies()
     }
 }
 
-void World::AddForce(const Vector2D& force)
+void World::AddForce(const FVector2D& force)
 {
     forces.push_back(force);
     WakeAllBodies();
@@ -353,16 +353,20 @@ void World::Update(float dt)
         }
 
         // Apply the weight force to all bodies
-        Vector2D weight = Vector2D(0.0, body->mass * G * AE::Physics::PIXELS_PER_METER);
+        FVector2D weight = FVector2D(0.0, body->mass * G * AE::Physics::PIXELS_PER_METER);
         body->AddForce(weight);
 
         // Apply forces to all bodies
-        for (auto force : forces)
+        for (auto force : forces) 
+        {
             body->AddForce(force);
+        }
 
         // Apply torque to all bodies
-        for (auto torque : torques)
+        for (auto torque : torques) 
+        {
             body->AddTorque(torque);
+        }
     }
 
     // Integrate all the forces
@@ -917,8 +921,8 @@ void World::UpdateSleepingBodies(float dt)
             if (body->sleepTime >= sleepTimeThreshold)
             {
                 body->sleeping = true;
-                body->velocity = Vector2D::Zero;
-                body->acceleration = Vector2D::Zero;
+                body->velocity = FVector2D::Zero;
+                body->acceleration = FVector2D::Zero;
                 body->angularVelocity = 0.0f;
                 body->angularAcceleration = 0.0f;
                 body->ClearForces();

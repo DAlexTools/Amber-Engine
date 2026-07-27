@@ -15,10 +15,10 @@ struct Contact
     Body* a;
     Body* b;
 
-    Vector2D start;
-    Vector2D end;
+    FVector2D start;
+    FVector2D end;
 
-    Vector2D normal;
+    FVector2D normal;
     float depth;
 
     Contact() = default;

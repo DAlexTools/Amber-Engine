@@ -16,9 +16,9 @@ class Point
 private:
     Stick* sticks[2] = {nullptr};
 
-    Vector2D pos;
-    Vector2D prevPos;
-    Vector2D initPos;
+    FVector2D pos;
+    FVector2D prevPos;
+    FVector2D initPos;
     bool isPinned = false;
 
     bool isSelected = false;
@@ -32,12 +32,12 @@ public:
 
     void AddStick(Stick* stick, int index);
 
-    const Vector2D& GetPosition() const { return pos; }
+    const FVector2D& GetPosition() const { return pos; }
     void SetPosition(float x, float y);
 
     void Pin();
 
-    void Update(float deltaTime, float drag, const Vector2D& acceleration, float elasticity, Mouse* mouse, int windowWidth, int windowHeight);
+    void Update(float deltaTime, float drag, const FVector2D& acceleration, float elasticity, Mouse* mouse, int windowWidth, int windowHeight);
 };
 
 }

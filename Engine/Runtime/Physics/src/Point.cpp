@@ -6,31 +6,31 @@ namespace AE::Physics
 
 Point::Point(float x, float y)
 {
-    pos = prevPos = initPos = Vector2D(x, y);
+    pos = prevPos = initPos = FVector2D(x, y);
 }
 
 void Point::KeepInsideView(int windowWidth, int windowHeight)
 {
-    if (pos.x > windowWidth)
+    if (pos.X > windowWidth)
     {
-        pos.x = windowWidth;
-        prevPos.x = pos.x;
+        pos.X = windowWidth;
+        prevPos.X = pos.X;
     }
-    else if (pos.x < 0)
+    else if (pos.X < 0)
     {
-        pos.x = 0;
-        prevPos.x = pos.x;
+        pos.X = 0;
+        prevPos.X = pos.X;
     }
 
-    if (pos.y > windowHeight)
+    if (pos.Y > windowHeight)
     {
-        pos.y = windowHeight;
-        prevPos.y = pos.y;
+        pos.Y = windowHeight;
+        prevPos.Y = pos.Y;
     }
-    else if (pos.y < 0)
+    else if (pos.Y < 0)
     {
-        pos.y = 0;
-        prevPos.y = pos.y;
+        pos.Y = 0;
+        prevPos.Y = pos.Y;
     }
 }
 
@@ -41,8 +41,8 @@ void Point::AddStick(Stick* stick, int index)
 
 void Point::SetPosition(float x, float y)
 {
-    pos.x = x;
-    pos.y = y;
+    pos.X = x;
+    pos.Y = y;
 }
 
 void Point::Pin()
@@ -50,10 +50,10 @@ void Point::Pin()
     isPinned = true;
 }
 
-void Point::Update(float deltaTime, float drag, const Vector2D& acceleration, float elasticity, Mouse* mouse, int windowWidth, int windowHeight)
+void Point::Update(float deltaTime, float drag, const FVector2D& acceleration, float elasticity, Mouse* mouse, int windowWidth, int windowHeight)
 {
-    Vector2D cursorToPosDir = pos - mouse->GetPosition();
-    float cursorToPosDist = cursorToPosDir.x * cursorToPosDir.x + cursorToPosDir.y * cursorToPosDir.y;
+    FVector2D cursorToPosDir = pos - mouse->GetPosition();
+    float cursorToPosDist = cursorToPosDir.X * cursorToPosDir.X + cursorToPosDir.Y * cursorToPosDir.Y;
     float cursorSize = mouse->GetCursorSize();
     isSelected = cursorToPosDist < cursorSize * cursorSize;
 
@@ -64,12 +64,12 @@ void Point::Update(float deltaTime, float drag, const Vector2D& acceleration, fl
 
     if (mouse->GetLeftButtonDown() && isSelected)
     {
-        Vector2D difference = mouse->GetPosition() - mouse->GetPreviousPosition();
+        FVector2D difference = mouse->GetPosition() - mouse->GetPreviousPosition();
 
-        if (difference.x > elasticity) difference.x = elasticity;
-        if (difference.y > elasticity) difference.y = elasticity;
-        if (difference.x < -elasticity) difference.x = -elasticity;
-        if (difference.y < -elasticity) difference.y = -elasticity;
+        if (difference.X > elasticity) difference.X = elasticity;
+        if (difference.Y > elasticity) difference.Y = elasticity;
+        if (difference.X < -elasticity) difference.X = -elasticity;
+        if (difference.Y < -elasticity) difference.Y = -elasticity;
 
         prevPos = pos - difference;
     }
@@ -88,7 +88,7 @@ void Point::Update(float deltaTime, float drag, const Vector2D& acceleration, fl
         return;
     }
 
-    Vector2D newPos = pos + (pos - prevPos) * (1.0f - drag) + acceleration * (1.0f - drag) * deltaTime * deltaTime;
+    FVector2D newPos = pos + (pos - prevPos) * (1.0f - drag) + acceleration * (1.0f - drag) * deltaTime * deltaTime;
     prevPos = pos;
     pos = newPos;
 

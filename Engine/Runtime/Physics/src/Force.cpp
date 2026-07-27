@@ -10,14 +10,14 @@ namespace AE::Physics
 /**
  * 
  */
-Vector2D Force::GenerateDragForce(const Body& Body, float k)
+FVector2D Force::GenerateDragForce(const Body& Body, float k)
 {
-    Vector2D dragForce = Vector2D::Zero;
+    FVector2D dragForce = FVector2D::Zero;
 
     if (Body.velocity.MagnitudeSquared() > AE::Physics::ZERO)
     {
         /* Calculate the drag direction (inverse of velocity unit vector).*/
-        Vector2D dragDirection = Body.velocity.UnitVector() * AE::Physics::NEGATIVE_FLOAT;
+        FVector2D dragDirection = Body.velocity.UnitVector() * AE::Physics::NEGATIVE_FLOAT;
         
         /* Calculate the drag magnitude , k * Lvl^2.*/
         float dragMagnitude = k * Body.velocity.MagnitudeSquared();
@@ -29,13 +29,13 @@ Vector2D Force::GenerateDragForce(const Body& Body, float k)
     return dragForce;
 }
 
-Vector2D Force::GenerateDragForce(const Particle& particle, float k) 
+FVector2D Force::GenerateDragForce(const Particle& particle, float k) 
 {
-    Vector2D dragForce = Vector2D(0, 0);
+    FVector2D dragForce = FVector2D(0, 0);
     if (particle.velocity.MagnitudeSquared() > 0) 
     {
         // Calculate the drag direction (inverse of velocity unit vector)
-        Vector2D dragDirection = particle.velocity.UnitVector() * -1.0;
+        FVector2D dragDirection = particle.velocity.UnitVector() * -1.0;
 
         // Calculate the drag magnitude, k * |v|^2
         float dragMagnitude = k * particle.velocity.MagnitudeSquared();
@@ -50,12 +50,12 @@ Vector2D Force::GenerateDragForce(const Particle& particle, float k)
 /**
  * 
  */
-Vector2D Force::GenerateFrictionForce(const Body& Body, float k)
+FVector2D Force::GenerateFrictionForce(const Body& Body, float k)
 {
-    Vector2D frictionForce = Vector2D::Zero;
+    FVector2D frictionForce = FVector2D::Zero;
 
     /* Calculate the friction direction (inverse of velocity unit vector) */
-    const Vector2D frictionDirection = Body.velocity.UnitVector() * AE::Physics::NEGATIVE_FLOAT;
+    const FVector2D frictionDirection = Body.velocity.UnitVector() * AE::Physics::NEGATIVE_FLOAT;
 
     /* Calculate the friction Magnitude */
     float frictionMagnitude = k;
@@ -69,10 +69,10 @@ Vector2D Force::GenerateFrictionForce(const Body& Body, float k)
 /**
  * 
  */
-Vector2D Force::GenerateGravitationalForce(const Body& a, const Body& b, float G, float minDistance, float maxDistance)
+FVector2D Force::GenerateGravitationalForce(const Body& a, const Body& b, float G, float minDistance, float maxDistance)
 {
     /* Calculate the distance between the two objects.*/
-    const Vector2D d = (b.position - a.position);
+    const FVector2D d = (b.position - a.position);
 
     float distanceSquared = d.MagnitudeSquared();
 
@@ -81,13 +81,13 @@ Vector2D Force::GenerateGravitationalForce(const Body& a, const Body& b, float G
     distanceSquared = Math::Clamp(distanceSquared, minDistance, maxDistance);
 
     /* Calculate the direction of the attraction force*/
-    Vector2D attractionDirection = d.UnitVector();
+    FVector2D attractionDirection = d.UnitVector();
 
     /* Calculate the strength of the attraction force */
     const float attractionMagnitude = G * (a.mass * b.mass) / distanceSquared;
 
     /* Calculate the final resulting attraction force vector*/
-    const Vector2D attractionForce = attractionDirection * attractionMagnitude;
+    const FVector2D attractionForce = attractionDirection * attractionMagnitude;
 
     return attractionForce; 
 }
@@ -95,82 +95,82 @@ Vector2D Force::GenerateGravitationalForce(const Body& a, const Body& b, float G
 /**
  * 
  */
-Vector2D Force::GenerateSpringForce(const Body& Body, Vector2D anchor, float restLength, float k) 
+FVector2D Force::GenerateSpringForce(const Body& Body, FVector2D anchor, float restLength, float k) 
 {
     /* Calculate the distance between the anchor and the object*/   
-    const Vector2D d = Body.position - anchor;
+    const FVector2D d = Body.position - anchor;
 
     /* Find the spring displacement considering the rest length*/
     const float displacement = d.Magnitude() - restLength;
 
     /* Calculate the direction and the magnitude of the spring force */
-    const Vector2D springDirection = d.UnitVector();
+    const FVector2D springDirection = d.UnitVector();
     const float springMagnitude = -k * displacement;
 
     /* Calculate the final resulting spring force vector*/
-    const Vector2D springForce = springDirection * springMagnitude;
+    const FVector2D springForce = springDirection * springMagnitude;
     return springForce;
 }
 
 /**
  * 
  */
-Vector2D Force::GenerateSpringForce(const Body& a, const Body& b, float restLength, float k)
+FVector2D Force::GenerateSpringForce(const Body& a, const Body& b, float restLength, float k)
 {
     /* Calculate the distance between the two Body */
-    const Vector2D d = a.position - b.position;
+    const FVector2D d = a.position - b.position;
 
     /* Find the spring displacement considering the rest length */
     const float displacement = d.Magnitude() - restLength;
 
     /* Calculate the direction of the spring force */
-    const Vector2D springDirection = d.UnitVector();
+    const FVector2D springDirection = d.UnitVector();
 
     /* Calculate the magnitude of the spring force */   
     const float springMagnutude = -k * displacement;
 
     /* Calculate the final resulting spring force vector*/
-    const Vector2D springForce = springDirection * springMagnutude;
+    const FVector2D springForce = springDirection * springMagnutude;
 
     return springForce;
 }
 
-Vector2D Force::GenerateSpringForce(const Particle& particle, Vector2D anchor, float restLength, float k) 
+FVector2D Force::GenerateSpringForce(const Particle& particle, FVector2D anchor, float restLength, float k) 
 {
     // Calculate the distance between the anchor and the object
-    Vector2D d = particle.position - anchor;
+    FVector2D d = particle.position - anchor;
 
     // Find the spring displacement considering the rest length
     float displacement = d.Magnitude() - restLength;
 
     // Calculate the direction of the spring force
-    Vector2D springDirection = d.UnitVector();
+    FVector2D springDirection = d.UnitVector();
 
     // Calculate the magnitude of the spring force
     float springMagnitude = -k * displacement;
 
     // Calculate the final resulting spring force vector
-    Vector2D springForce = springDirection * springMagnitude;
+    FVector2D springForce = springDirection * springMagnitude;
 
     return springForce;
 }
 
-Vector2D Force::GenerateSpringForce(const Particle& a, const Particle& b, float restLength, float k) 
+FVector2D Force::GenerateSpringForce(const Particle& a, const Particle& b, float restLength, float k) 
 {
     // Calculate the distance between the two particles
-    Vector2D d = a.position - b.position;
+    FVector2D d = a.position - b.position;
 
     // Find the spring displacement considering the rest length
     float displacement = d.Magnitude() - restLength;
 
     // Calculate the direction of the spring force
-    Vector2D springDirection = d.UnitVector();
+    FVector2D springDirection = d.UnitVector();
 
     // Calculate the magnitude of the spring force
     float springMagnitude = -k * displacement;
 
     // Calculate the final resulting spring force vector
-    Vector2D springForce = springDirection * springMagnitude;
+    FVector2D springForce = springDirection * springMagnitude;
 
     return springForce;
 }

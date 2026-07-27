@@ -14,10 +14,10 @@ void Mouse::IncreaseCursorSize(float increment)
 
 void Mouse::UpdatePosition(int x, int y)
 {
-    prevPos.x = pos.x;
-    prevPos.y = pos.y;
-    pos.x = x;
-    pos.y = y;
+    prevPos.X = pos.X;
+    prevPos.Y = pos.Y;
+    pos.X = x;
+    pos.Y = y;
 }
 
 }

@@ -31,7 +31,7 @@ Shape* CircleShape::Clone() const
     return new CircleShape(radius);
 }
 
-void CircleShape::UpdateVertices(float angle, const Vector2D& position)
+void CircleShape::UpdateVertices(float angle, const FVector2D& position)
 {
     return;  // Circles don't have vertices... nothing to do here
 }
@@ -62,10 +62,10 @@ PolygonShape::PolygonShape(const TVector2D vertices)
         worldVertices.push_back(vertex);
 
         // Find min and max X and Y to calculate polygon width and height
-        minX = Math::Min(minX, vertex.x);
-        maxX = Math::Max(maxX, vertex.x);
-        minY = Math::Min(minY, vertex.y);
-        maxY = Math::Max(maxY, vertex.y);
+        minX = Math::Min(minX, vertex.X);
+        maxX = Math::Max(maxX, vertex.X);
+        minY = Math::Min(minY, vertex.Y);
+        maxY = Math::Max(maxY, vertex.Y);
     }
     width = maxX - minX;
     height = maxY - minY;
@@ -100,9 +100,9 @@ float PolygonShape::PolygonArea() const
     return area / ShapeConstants::TwoDoubleValue;
 }
 
-Vector2D PolygonShape::PolygonCentroid() const
+FVector2D PolygonShape::PolygonCentroid() const
 {
-    Vector2D cg = Vector2D::Zero;
+    FVector2D cg = FVector2D::Zero;
 
     for (int i = AE::Physics::ZERO; i < static_cast<int>(localVertices.size()); i++)
     {
@@ -129,7 +129,7 @@ float PolygonShape::GetMomentOfInertia() const
     return acc0 / 6 / acc1;
 }
 
-Vector2D PolygonShape::EdgeAt(int index) const
+FVector2D PolygonShape::EdgeAt(int index) const
 {
     const int currVertex = index;
     const int nextVertex = (index + AE::Physics::POSITIVE) % worldVertices.size();
@@ -137,23 +137,23 @@ Vector2D PolygonShape::EdgeAt(int index) const
     return worldVertices[nextVertex] - worldVertices[currVertex];
 }
 
-float PolygonShape::FindMinSeparation(const PolygonShape* other, int& indexReferenceEdge, Vector2D& supportPoint) const
+float PolygonShape::FindMinSeparation(const PolygonShape* other, int& indexReferenceEdge, FVector2D& supportPoint) const
 {
     float separation = std::numeric_limits<float>::lowest();
     
     // Loop all the vertices of "this" polygon
     for (int i = AE::Physics::ZERO; i < static_cast<int>(this->worldVertices.size()); i++)
     {
-        const Vector2D va = this->worldVertices[i];
-        const Vector2D normal = this->EdgeAt(i).Normal();
+        const FVector2D va = this->worldVertices[i];
+        const FVector2D normal = this->EdgeAt(i).Normal();
         
         // Loop all the vertices of the "other" polygon
         float minSep = std::numeric_limits<float>::max();
-        Vector2D minVertex;
+        FVector2D minVertex;
         
         for (int j = 0; j < static_cast<int>(other->worldVertices.size()); j++)
         {
-            Vector2D vb = other->worldVertices[j];
+            FVector2D vb = other->worldVertices[j];
             const float proj = (vb - va).DotProduct(normal);
             
             if (proj < minSep)
@@ -173,7 +173,7 @@ float PolygonShape::FindMinSeparation(const PolygonShape* other, int& indexRefer
     return separation;
 }
 
-int PolygonShape::FindIncidentEdge(const Vector2D& normal) const
+int PolygonShape::FindIncidentEdge(const FVector2D& normal) const
 {
     int indexIncidentEdge = AE::Physics::ZERO;
 
@@ -193,13 +193,13 @@ int PolygonShape::FindIncidentEdge(const Vector2D& normal) const
     return indexIncidentEdge;
 }
 
-int PolygonShape::ClipSegmentToLine(const TVector2D& contactsIn, TVector2D& contactsOut, const Vector2D& c0, const Vector2D& c1) const
+int PolygonShape::ClipSegmentToLine(const TVector2D& contactsIn, TVector2D& contactsOut, const FVector2D& c0, const FVector2D& c1) const
 {
     // Start with no output points
     int numOut = AE::Physics::ZERO;
 
     // Calculate the distance of end points to the line
-    Vector2D normal = (c1 - c0).Normalize();
+    FVector2D normal = (c1 - c0).Normalize();
     const float dist0 = (contactsIn[0] - c0).CrossProduct(normal);
     const float dist1 = (contactsIn[1] - c0).CrossProduct(normal);
 
@@ -214,14 +214,14 @@ int PolygonShape::ClipSegmentToLine(const TVector2D& contactsIn, TVector2D& cont
 
         // Fint the intersection using linear interpolation: lerp(start,end) => start + t*(end-start)
         const float t = dist0 / (totalDist);
-        const Vector2D contact = contactsIn[0] + (contactsIn[1] - contactsIn[0]) * t;
+        const FVector2D contact = contactsIn[0] + (contactsIn[1] - contactsIn[0]) * t;
         contactsOut[numOut] = contact;
         numOut++;
     }
     return numOut;
 }
 
-void PolygonShape::UpdateVertices(float angle, const Vector2D& position)
+void PolygonShape::UpdateVertices(float angle, const FVector2D& position)
 {
     // Loop all the vertices, transforming from local to world space
     for (int i = 0; i < static_cast<int>(localVertices.size()); i++)
@@ -238,15 +238,15 @@ BoxShape::BoxShape(float width, float height)
     this->height = height;
 
     // Load the vertices of the box polygon
-    localVertices.push_back(Vector2D(-width / ShapeConstants::TwoDoubleValue, -height / ShapeConstants::TwoDoubleValue));
-    localVertices.push_back(Vector2D(+width / ShapeConstants::TwoDoubleValue, -height / ShapeConstants::TwoDoubleValue));
-    localVertices.push_back(Vector2D(+width / ShapeConstants::TwoDoubleValue, +height / ShapeConstants::TwoDoubleValue));
-    localVertices.push_back(Vector2D(-width / ShapeConstants::TwoDoubleValue, +height / ShapeConstants::TwoDoubleValue));
+    localVertices.push_back(FVector2D(-width / ShapeConstants::TwoDoubleValue, -height / ShapeConstants::TwoDoubleValue));
+    localVertices.push_back(FVector2D(+width / ShapeConstants::TwoDoubleValue, -height / ShapeConstants::TwoDoubleValue));
+    localVertices.push_back(FVector2D(+width / ShapeConstants::TwoDoubleValue, +height / ShapeConstants::TwoDoubleValue));
+    localVertices.push_back(FVector2D(-width / ShapeConstants::TwoDoubleValue, +height / ShapeConstants::TwoDoubleValue));
 
-    worldVertices.push_back(Vector2D(-width / ShapeConstants::TwoDoubleValue, -height / ShapeConstants::TwoDoubleValue));
-    worldVertices.push_back(Vector2D(+width / ShapeConstants::TwoDoubleValue, -height / ShapeConstants::TwoDoubleValue));
-    worldVertices.push_back(Vector2D(+width / ShapeConstants::TwoDoubleValue, +height / ShapeConstants::TwoDoubleValue));
-    worldVertices.push_back(Vector2D(-width / ShapeConstants::TwoDoubleValue, +height / ShapeConstants::TwoDoubleValue));
+    worldVertices.push_back(FVector2D(-width / ShapeConstants::TwoDoubleValue, -height / ShapeConstants::TwoDoubleValue));
+    worldVertices.push_back(FVector2D(+width / ShapeConstants::TwoDoubleValue, -height / ShapeConstants::TwoDoubleValue));
+    worldVertices.push_back(FVector2D(+width / ShapeConstants::TwoDoubleValue, +height / ShapeConstants::TwoDoubleValue));
+    worldVertices.push_back(FVector2D(-width / ShapeConstants::TwoDoubleValue, +height / ShapeConstants::TwoDoubleValue));
 }
 
 BoxShape::~BoxShape()

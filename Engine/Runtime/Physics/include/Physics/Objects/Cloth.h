@@ -12,7 +12,7 @@ class Mouse;
 class Cloth
 {
 private:
-    Vector2D gravity = {0.0f, 981.0f}; // 981.0f standart
+    FVector2D gravity = {0.0f, 981.0f}; // 981.0f standart
     float drag = 0.01f;
     float elasticity = 10000.0f;
 

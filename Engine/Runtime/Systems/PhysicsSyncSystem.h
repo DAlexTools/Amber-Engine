@@ -30,8 +30,8 @@ public:
 
             if (physicsBody.pullPositionFromPhysics)
             {
-                transform.position.x = physicsBody.body->position.x - physicsBody.localCenterOffset.x;
-                transform.position.y = physicsBody.body->position.y - physicsBody.localCenterOffset.y;
+                transform.position.x = physicsBody.body->position.X - physicsBody.localCenterOffset.x;
+                transform.position.y= physicsBody.body->position.Y- physicsBody.localCenterOffset.y;
             }
 
             if (physicsBody.pullRotationFromPhysics)
@@ -53,7 +53,7 @@ public:
                 continue;
             }
 
-            physicsBody.body->position = AE::Physics::Vector2D(
+            physicsBody.body->position = AE::Physics::FVector2D(
                 transform.position.x + physicsBody.localCenterOffset.x,
                 transform.position.y + physicsBody.localCenterOffset.y);
             physicsBody.body->rotation = EnginePhysics::DegreesToRadians(static_cast<float>(transform.rotation));

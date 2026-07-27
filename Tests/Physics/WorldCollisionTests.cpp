@@ -95,7 +95,7 @@ TEST(WorldCollisionTests, DynamicBodyRespondsToStaticObstacle)
     AE::Physics::Body* player = CreateBoxBody(0.0f, 0.0f, 1.0f);
     player->collisionCategory = Player;
     player->collisionMask = Obstacle;
-    player->velocity = AE::Physics::Vector2D(60.0f, 0.0f);
+    player->velocity = AE::Physics::FVector2D(60.0f, 0.0f);
 
     AE::Physics::Body* obstacle = CreateBoxBody(9.0f, 0.0f, 0.0f);
     obstacle->collisionCategory = Obstacle;
@@ -107,7 +107,7 @@ TEST(WorldCollisionTests, DynamicBodyRespondsToStaticObstacle)
 
     EXPECT_FALSE(world.GetContacts().empty());
     EXPECT_TRUE(world.GetConstraints().empty());
-    EXPECT_LE(player->velocity.x, 0.0f);
+    EXPECT_LE(player->velocity.X, 0.0f);
 }
 
 TEST(WorldCollisionTests, RemoveBodyClearsContactsThatReferenceRemovedBody)
@@ -226,7 +226,7 @@ TEST(WorldCollisionTests, AwakeDynamicBodyWakesSleepingDynamicBody)
 
     AE::Physics::Body* sleeper = CreateBoxBody(0.0f, 0.0f, 1.0f);
     AE::Physics::Body* mover = CreateBoxBody(0.0f, 0.0f, 1.0f);
-    mover->velocity = AE::Physics::Vector2D(40.0f, 0.0f);
+    mover->velocity = AE::Physics::FVector2D(40.0f, 0.0f);
     world.AddBody(sleeper);
     world.AddBody(mover);
 
@@ -244,7 +244,7 @@ TEST(WorldCollisionTests, MovingStaticBodyWakesSleepingDynamicBody)
 
     AE::Physics::Body* sleeper = CreateBoxBody(0.0f, 0.0f, 1.0f);
     AE::Physics::Body* movingPlatform = CreateBoxBody(0.0f, 0.0f, 0.0f);
-    movingPlatform->velocity = AE::Physics::Vector2D(30.0f, 0.0f);
+    movingPlatform->velocity = AE::Physics::FVector2D(30.0f, 0.0f);
     world.AddBody(sleeper);
     world.AddBody(movingPlatform);
 
@@ -281,10 +281,10 @@ TEST(WorldCollisionTests, ParallelSolverMatchesSequentialForIndependentIslands)
 {
     struct SolverProbe
     {
-        AE::Physics::Vector2D firstPosition;
-        AE::Physics::Vector2D secondPosition;
-        AE::Physics::Vector2D firstVelocity;
-        AE::Physics::Vector2D secondVelocity;
+        AE::Physics::FVector2D firstPosition;
+        AE::Physics::FVector2D secondPosition;
+        AE::Physics::FVector2D firstVelocity;
+        AE::Physics::FVector2D secondVelocity;
         AE::Physics::WorldStats stats;
     };
 
@@ -327,14 +327,14 @@ TEST(WorldCollisionTests, ParallelSolverMatchesSequentialForIndependentIslands)
 
     EXPECT_EQ(parallel.stats.solverIslandCount, sequential.stats.solverIslandCount);
     EXPECT_EQ(parallel.stats.solverConstraintCount, sequential.stats.solverConstraintCount);
-    EXPECT_NEAR(parallel.firstPosition.x, sequential.firstPosition.x, 0.0001f);
-    EXPECT_NEAR(parallel.firstPosition.y, sequential.firstPosition.y, 0.0001f);
-    EXPECT_NEAR(parallel.secondPosition.x, sequential.secondPosition.x, 0.0001f);
-    EXPECT_NEAR(parallel.secondPosition.y, sequential.secondPosition.y, 0.0001f);
-    EXPECT_NEAR(parallel.firstVelocity.x, sequential.firstVelocity.x, 0.0001f);
-    EXPECT_NEAR(parallel.firstVelocity.y, sequential.firstVelocity.y, 0.0001f);
-    EXPECT_NEAR(parallel.secondVelocity.x, sequential.secondVelocity.x, 0.0001f);
-    EXPECT_NEAR(parallel.secondVelocity.y, sequential.secondVelocity.y, 0.0001f);
+    EXPECT_NEAR(parallel.firstPosition.X, sequential.firstPosition.X, 0.0001f);
+    EXPECT_NEAR(parallel.firstPosition.Y, sequential.firstPosition.X, 0.0001f);
+    EXPECT_NEAR(parallel.secondPosition.X, sequential.secondPosition.X, 0.0001f);
+    EXPECT_NEAR(parallel.secondPosition.Y, sequential.secondPosition.Y, 0.0001f);
+    EXPECT_NEAR(parallel.firstVelocity.X, sequential.firstVelocity.X, 0.0001f);
+    EXPECT_NEAR(parallel.firstVelocity.Y, sequential.firstVelocity.Y, 0.0001f);
+    EXPECT_NEAR(parallel.secondVelocity.X, sequential.secondVelocity.X, 0.0001f);
+    EXPECT_NEAR(parallel.secondVelocity.Y, sequential.secondVelocity.Y, 0.0001f);
 
     if (threadPool.WorkerCount() > 1u)
     {

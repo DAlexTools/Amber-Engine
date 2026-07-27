@@ -8,14 +8,14 @@ namespace
 {
 constexpr float ConstraintEpsilon = 0.000001f;
 
-Vector2D VelocityAtPoint(const Body& body, const Vector2D& radius)
+FVector2D VelocityAtPoint(const Body& body, const FVector2D& radius)
 {
-    return Vector2D(
-        body.velocity.x - body.angularVelocity * radius.y,
-        body.velocity.y + body.angularVelocity * radius.x);
+    return FVector2D(
+        body.velocity.X - body.angularVelocity * radius.Y,
+        body.velocity.Y + body.angularVelocity * radius.X);
 }
 
-void ApplyContactImpulse(Body& a, Body& b, const Vector2D& impulse, const Vector2D& ra, const Vector2D& rb)
+void ApplyContactImpulse(Body& a, Body& b, const FVector2D& impulse, const FVector2D& ra, const FVector2D& rb)
 {
     if (a.invMass > 0.0f)
     {
@@ -32,9 +32,9 @@ void ApplyContactImpulse(Body& a, Body& b, const Vector2D& impulse, const Vector
 float ComputeEffectiveMass(
     const Body& a,
     const Body& b,
-    const Vector2D& ra,
-    const Vector2D& rb,
-    const Vector2D& axis)
+    const FVector2D& ra,
+    const FVector2D& rb,
+    const FVector2D& axis)
 {
     const float raCrossAxis = ra.CrossProduct(axis);
     const float rbCrossAxis = rb.CrossProduct(axis);
@@ -86,11 +86,11 @@ VectorN Constraint::GetVelocities() const
 {
     VectorN V(6);
     V.Zero();
-    V[0] = a->velocity.x;
-    V[1] = a->velocity.y;
+    V[0] = a->velocity.X;
+    V[1] = a->velocity.Y;
     V[2] = a->angularVelocity;
-    V[3] = b->velocity.x;
-    V[4] = b->velocity.y;
+    V[3] = b->velocity.X;
+    V[4] = b->velocity.Y;
     V[5] = b->angularVelocity;
     return V;
 }
@@ -107,7 +107,7 @@ JointConstraint::JointConstraint()
 /**
  * 
  */
-JointConstraint::JointConstraint(Body* a, Body* b, const Vector2D& anchorPoint)
+JointConstraint::JointConstraint(Body* a, Body* b, const FVector2D& anchorPoint)
 : Constraint(), jacobian(1, 6), cachedLambda(1), bias(0.0f)
 {
     this->a = a;
@@ -123,24 +123,24 @@ JointConstraint::JointConstraint(Body* a, Body* b, const Vector2D& anchorPoint)
 void JointConstraint::PreSolve(const float dt)
 {
     // Get the anchor point position in world space
-    const Vector2D pa = a->LocalSpaceToWorldSpace(aPoint);
-    const Vector2D pb = b->LocalSpaceToWorldSpace(bPoint);
+    const FVector2D pa = a->LocalSpaceToWorldSpace(aPoint);
+    const FVector2D pb = b->LocalSpaceToWorldSpace(bPoint);
 
-    const Vector2D ra = pa - a->position;
-    const Vector2D rb = pb - b->position;
+    const FVector2D ra = pa - a->position;
+    const FVector2D rb = pb - b->position;
 
     jacobian.Zero();
 
-    Vector2D J1 = (pa - pb) * 2.0;
-    jacobian.rows[0][0] = J1.x;  // A linear velocity.x
-    jacobian.rows[0][1] = J1.y;  // A linear velocity.y
+    FVector2D J1 = (pa - pb) * 2.0;
+    jacobian.rows[0][0] = J1.X;  // A linear velocity.x
+    jacobian.rows[0][1] = J1.Y;  // A linear velocity.y
 
     float J2 = ra.CrossProduct(pa - pb) * 2.0;
     jacobian.rows[0][2] = J2;  // A angular velocity
 
-    Vector2D J3 = (pb - pa) * 2.0;
-    jacobian.rows[0][3] = J3.x;  // B linear velocity.x
-    jacobian.rows[0][4] = J3.y;  // B linear velocity.y
+    FVector2D J3 = (pb - pa) * 2.0;
+    jacobian.rows[0][3] = J3.X;  // B linear velocity.x
+    jacobian.rows[0][4] = J3.Y;  // B linear velocity.y
 
     float J4 = rb.CrossProduct(pb - pa) * 2.0;
     jacobian.rows[0][5] = J4;  // B angular velocity
@@ -150,9 +150,9 @@ void JointConstraint::PreSolve(const float dt)
     VectorN impulses = Jt * cachedLambda;
 
     // Apply the impulses to both bodies
-    a->ApplyImpulseLinear(Vector2D(impulses[0], impulses[1]));      // A linear impulse
+    a->ApplyImpulseLinear(FVector2D(impulses[0], impulses[1]));      // A linear impulse
     a->ApplyImpulseAngular(impulses[2]);                            // A angular impulse
-    b->ApplyImpulseLinear(Vector2D(impulses[3], impulses[4]));      // B linear impulse
+    b->ApplyImpulseLinear(FVector2D(impulses[3], impulses[4]));      // B linear impulse
     b->ApplyImpulseAngular(impulses[5]);                            // B angular impulse
 
     // Compute the bias term (baumgarte stabilization)
@@ -184,9 +184,9 @@ void JointConstraint::Solve()
     const VectorN impulses = Jt * lambda;
 
     // Apply the impulses to both bodies
-    a->ApplyImpulseLinear(Vector2D(impulses[0], impulses[1]));  // A linear impulse
+    a->ApplyImpulseLinear(FVector2D(impulses[0], impulses[1]));  // A linear impulse
     a->ApplyImpulseAngular(impulses[2]);                    // A angular impulse
-    b->ApplyImpulseLinear(Vector2D(impulses[3], impulses[4]));  // B linear impulse
+    b->ApplyImpulseLinear(FVector2D(impulses[3], impulses[4]));  // B linear impulse
     b->ApplyImpulseAngular(impulses[5]);                    // B angular impulse
 }
 
@@ -204,10 +204,10 @@ void JointConstraint::PostSolve()
  */
 PenetrationConstraint::PenetrationConstraint() :
     Constraint(),
-    normal(Vector2D::Zero),
-    tangent(Vector2D::Zero),
-    ra(Vector2D::Zero),
-    rb(Vector2D::Zero),
+    normal(FVector2D::Zero),
+    tangent(FVector2D::Zero),
+    ra(FVector2D::Zero),
+    rb(FVector2D::Zero),
     cachedNormalLambda(0.0f),
     cachedTangentLambda(0.0f),
     bias(0.0f),
@@ -220,12 +220,12 @@ PenetrationConstraint::PenetrationConstraint() :
 /**
  * 
  */
-PenetrationConstraint::PenetrationConstraint(Body* a, Body* b, const Vector2D& aCollisionPoint, const Vector2D& bCollisionPoint, const Vector2D& normal)
+PenetrationConstraint::PenetrationConstraint(Body* a, Body* b, const FVector2D& aCollisionPoint, const FVector2D& bCollisionPoint, const FVector2D& normal)
     : Constraint(),
       normal(normal),
-      tangent(Vector2D::Zero),
-      ra(Vector2D::Zero),
-      rb(Vector2D::Zero),
+      tangent(FVector2D::Zero),
+      ra(FVector2D::Zero),
+      rb(FVector2D::Zero),
       cachedNormalLambda(0.0f),
       cachedTangentLambda(0.0f),
       bias(0.0f),
@@ -245,8 +245,8 @@ PenetrationConstraint::PenetrationConstraint(Body* a, Body* b, const Vector2D& a
 void PenetrationConstraint::PreSolve(const float dt)
 {
     // Get the collision points and normal in world space
-    const Vector2D pa = a->LocalSpaceToWorldSpace(aPoint);
-    const Vector2D pb = b->LocalSpaceToWorldSpace(bPoint);
+    const FVector2D pa = a->LocalSpaceToWorldSpace(aPoint);
+    const FVector2D pb = b->LocalSpaceToWorldSpace(bPoint);
     normal.Normalize();
     tangent = normal.Normal();
     ra = pa - a->position;
@@ -256,7 +256,7 @@ void PenetrationConstraint::PreSolve(const float dt)
     normalMass = ComputeEffectiveMass(*a, *b, ra, rb, normal);
     tangentMass = friction > 0.0f ? ComputeEffectiveMass(*a, *b, ra, rb, tangent) : 0.0f;
 
-    const Vector2D warmImpulse = normal * cachedNormalLambda + tangent * cachedTangentLambda;
+    const FVector2D warmImpulse = normal * cachedNormalLambda + tangent * cachedTangentLambda;
     ApplyContactImpulse(*a, *b, warmImpulse, ra, rb);
 
     // Compute the bias term (baumgarte stabilization)
@@ -271,7 +271,7 @@ void PenetrationConstraint::PreSolve(const float dt)
  */
 void PenetrationConstraint::Solve()
 {
-    Vector2D relativeVelocity = VelocityAtPoint(*b, rb) - VelocityAtPoint(*a, ra);
+    FVector2D relativeVelocity = VelocityAtPoint(*b, rb) - VelocityAtPoint(*a, ra);
 
     float lambdaNormal = -(relativeVelocity.DotProduct(normal) + bias) * normalMass;
     const float oldNormalLambda = cachedNormalLambda;

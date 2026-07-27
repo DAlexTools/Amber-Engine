@@ -61,7 +61,7 @@ private:
     std::vector<Constraint*> constraints;
     std::vector<Contact> lastContacts;
 
-    std::vector<Vector2D> forces;
+    std::vector<FVector2D> forces;
     std::vector<float> torques;
     WorldStats lastStats;
     bool broadPhaseEnabled = true;
@@ -135,7 +135,7 @@ public:
     void WakeBody(Body& body);
     void WakeAllBodies();
 
-    void AddForce(const Vector2D& force);
+    void AddForce(const FVector2D& force);
     void AddTorque(float torque);
 
     void Update(float dt);

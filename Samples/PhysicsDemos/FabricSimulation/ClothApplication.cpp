@@ -50,25 +50,25 @@ void Application::Input()
 
             case SDL_KEYDOWN:
                 if (event.key.keysym.sym == SDLK_ESCAPE)    running = false;
-                if (event.key.keysym.sym == SDLK_UP)        pushForce.y = -50 * AE::Physics::PIXELS_PER_METER;
-                if (event.key.keysym.sym == SDLK_RIGHT)     pushForce.x = 50 * AE::Physics::PIXELS_PER_METER;
-                if (event.key.keysym.sym == SDLK_DOWN)      pushForce.y = 50 * AE::Physics::PIXELS_PER_METER;
-                if (event.key.keysym.sym == SDLK_LEFT)      pushForce.x = -50 * AE::Physics::PIXELS_PER_METER;
+                if (event.key.keysym.sym == SDLK_UP)        pushForce.Y = -50 * AE::Physics::PIXELS_PER_METER;
+                if (event.key.keysym.sym == SDLK_RIGHT)     pushForce.X = 50 * AE::Physics::PIXELS_PER_METER;
+                if (event.key.keysym.sym == SDLK_DOWN)      pushForce.Y = 50 * AE::Physics::PIXELS_PER_METER;
+                if (event.key.keysym.sym == SDLK_LEFT)      pushForce.X = -50 * AE::Physics::PIXELS_PER_METER;
                 break;
 
             case SDL_KEYUP:
-                if (event.key.keysym.sym == SDLK_UP)        pushForce.y = AE::Physics::ZERO;
-                if (event.key.keysym.sym == SDLK_RIGHT)     pushForce.x = AE::Physics::ZERO;
-                if (event.key.keysym.sym == SDLK_DOWN)      pushForce.y = AE::Physics::ZERO;
-                if (event.key.keysym.sym == SDLK_LEFT)      pushForce.x = AE::Physics::ZERO;
+                if (event.key.keysym.sym == SDLK_UP)        pushForce.Y = AE::Physics::ZERO;
+                if (event.key.keysym.sym == SDLK_RIGHT)     pushForce.X = AE::Physics::ZERO;
+                if (event.key.keysym.sym == SDLK_DOWN)      pushForce.Y = AE::Physics::ZERO;
+                if (event.key.keysym.sym == SDLK_LEFT)      pushForce.X = AE::Physics::ZERO;
                 break;
 
             case SDL_MOUSEMOTION:
                 int a, n;
-                mouseCursor.x = event.motion.x;
-                a = mouseCursor.x;
-                n = mouseCursor.y;
-                mouseCursor.y = event.motion.y;
+                mouseCursor.X = event.motion.x;
+                a = mouseCursor.X;
+                n = mouseCursor.Y;
+                mouseCursor.Y = event.motion.y;
                 mouse->UpdatePosition(a, n);
                 break;
 
@@ -146,9 +146,9 @@ void Application::Render()
             continue;
         }
 
-        const Vector2D p0 = stick->GetPoint0Position();
-        const Vector2D p1 = stick->GetPoint1Position();
-        graphic->DrawLine(p0.x, p0.y, p1.x, p1.y, stick->GetRenderColor());
+        const FVector2D p0 = stick->GetPoint0Position();
+        const FVector2D p1 = stick->GetPoint1Position();
+        graphic->DrawLine(p0.X, p0.Y, p1.X, p1.Y, stick->GetRenderColor());
     }
 
     diagnostics.SetRenderMs(LegacyDiagnosticsOverlay::ElapsedMilliseconds(renderStart));

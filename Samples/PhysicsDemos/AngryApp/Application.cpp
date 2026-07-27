@@ -60,7 +60,7 @@ void Application::Setup()
     for (int i = 1; i <= 4; i++)
     {
         const float mass = 10.0 / static_cast<float>(i);
-        Body* box = new Body(BoxShape(50, 50), 600, floor->position.y - i * 55, mass);
+        Body* box = new Body(BoxShape(50, 50), 600, floor->position.Y - i * 55, mass);
         bodyTextures.Set(box, "../Content/angrybirds/wood-box.png");
         box->friction = 0.9;
         box->restitution = 0.1;
@@ -68,9 +68,9 @@ void Application::Setup()
     }
 
     // Add structure with blocks
-    Body* plank1 = new Body(BoxShape(50, 150), Graphics::Width() / 2.0 + 20, floor->position.y - 100, 5.0);
-    Body* plank2 = new Body(BoxShape(50, 150), Graphics::Width() / 2.0 + 180, floor->position.y - 100, 5.0);
-    Body* plank3 = new Body(BoxShape(250, 25), Graphics::Width() / 2.0 + 100.0f, floor->position.y - 200, 2.0);
+    Body* plank1 = new Body(BoxShape(50, 150), Graphics::Width() / 2.0 + 20, floor->position.Y - 100, 5.0);
+    Body* plank2 = new Body(BoxShape(50, 150), Graphics::Width() / 2.0 + 180, floor->position.Y - 100, 5.0);
+    Body* plank3 = new Body(BoxShape(250, 25), Graphics::Width() / 2.0 + 100.0f, floor->position.Y - 200, 2.0);
     bodyTextures.Set(plank1, "../Content/angrybirds/wood-plank-solid.png");
     bodyTextures.Set(plank2, "../Content/angrybirds/wood-plank-solid.png");
     bodyTextures.Set(plank3, "../Content/angrybirds/wood-plank-cracked.png");
@@ -79,8 +79,8 @@ void Application::Setup()
     world->AddBody(plank3);
 
     // Add a triangle polygon
-    std::vector<Vector2D> triangleVertices = {Vector2D(30, 30), Vector2D(-30, 30), Vector2D(0, -30)};
-    Body* triangle = new Body(PolygonShape(triangleVertices), plank3->position.x, plank3->position.y - 50, 0.5);
+    std::vector<FVector2D> triangleVertices = {FVector2D(30, 30), FVector2D(-30, 30), FVector2D(0, -30)};
+    Body* triangle = new Body(PolygonShape(triangleVertices), plank3->position.X, plank3->position.Y - 50, 0.5);
     bodyTextures.Set(triangle, "../Content/angrybirds/wood-triangle.png");
     world->AddBody(triangle);
 
@@ -90,8 +90,8 @@ void Application::Setup()
     {
         for (int row = 0; row < col; row++)
         {
-            const float x = (plank3->position.x + 200.0f) + col * 50.0f - (row * 25.0f);
-            const float y = (floor->position.y - 50.0f) - row * 52.0f;
+            const float x = (plank3->position.X + 200.0f) + col * 50.0f - (row * 25.0f);
+            const float y = (floor->position.Y - 50.0f) - row * 52.0f;
             const float mass = (5.0f / (row + 1.0f));
             Body* box = new Body(BoxShape(50, 50), x, y, mass);
             box->friction = 0.9;
@@ -111,8 +111,8 @@ void Application::Setup()
 
     for (int i = 1; i <= numSteps; i++)
     {
-        const float x = startStep->position.x + 30 + (i * spacing);
-        const float y = startStep->position.y + 20;
+        const float x = startStep->position.X + 30 + (i * spacing);
+        const float y = startStep->position.Y + 20;
         const float mass = (i == numSteps) ? 0.0 : 3.0;
         
         Body* step = new Body(CircleShape(15), x, y, mass);
@@ -125,14 +125,14 @@ void Application::Setup()
         last = step;
     }
 
-    Body* endStep = new Body(BoxShape(80, 20), last->position.x + 60, last->position.y - 20, 0.0);
+    Body* endStep = new Body(BoxShape(80, 20), last->position.X + 60, last->position.Y - 20, 0.0);
     bodyTextures.Set(endStep, "../Content/angrybirds/rock-bridge-anchor.png");
     world->AddBody(endStep);
 
     // Add pigs
-    Body* pig1 = new Body(CircleShape(30), plank1->position.x + 80, floor->position.y - 50, 3.0);
-    Body* pig2 = new Body(CircleShape(30), plank2->position.x + 400, floor->position.y - 50, 3.0);
-    Body* pig3 = new Body(CircleShape(30), plank2->position.x + 460, floor->position.y - 50, 3.0);
+    Body* pig1 = new Body(CircleShape(30), plank1->position.X + 80, floor->position.Y - 50, 3.0);
+    Body* pig2 = new Body(CircleShape(30), plank2->position.X + 400, floor->position.Y - 50, 3.0);
+    Body* pig3 = new Body(CircleShape(30), plank2->position.X + 460, floor->position.Y - 50, 3.0);
     Body* pig4 = new Body(CircleShape(30), 220, 130, 1.0);
     bodyTextures.Set(pig1, "../Content/angrybirds/pig-1.png");
     bodyTextures.Set(pig2, "../Content/angrybirds/pig-2.png");
@@ -178,15 +178,15 @@ void Application::Input()
                 }
                 if (event.key.keysym.sym == SDLK_UP || event.key.keysym.sym == SDLK_SPACE)
                 {
-                    world->GetBodies()[0]->ApplyImpulseLinear(Vector2D(0.0, -1110.0));
+                    world->GetBodies()[0]->ApplyImpulseLinear(FVector2D(0.0, -1110.0));
                 }
                 if (event.key.keysym.sym == SDLK_LEFT) 
                 {
-                    world->GetBodies()[0]->ApplyImpulseLinear(Vector2D(-150.0, 0.0));
+                    world->GetBodies()[0]->ApplyImpulseLinear(FVector2D(-150.0, 0.0));
                 }
                 if (event.key.keysym.sym == SDLK_RIGHT) 
                 {
-                    world->GetBodies()[0]->ApplyImpulseLinear(Vector2D(+150.0, 0.0));
+                    world->GetBodies()[0]->ApplyImpulseLinear(FVector2D(+150.0, 0.0));
                 }
                 break;
 
@@ -285,11 +285,11 @@ void Application::Render()
             
             if (!debug && texture)
             {
-                Graphics::DrawTexture(body->position.x, body->position.y, circleShape->radius * 2, circleShape->radius * 2, body->rotation, texture);
+                Graphics::DrawTexture(body->position.X, body->position.Y, circleShape->radius * 2, circleShape->radius * 2, body->rotation, texture);
             }
             else if (debug)
             {
-                Graphics::DrawCircle(body->position.x, body->position.y, circleShape->radius, body->rotation, 0xFF0000FF);
+                Graphics::DrawCircle(body->position.X, body->position.Y, circleShape->radius, body->rotation, 0xFF0000FF);
             }
         }
 
@@ -299,11 +299,11 @@ void Application::Render()
             SDL_Texture* texture = bodyTextures.Get(body);
             if (!debug && texture)
             {
-                Graphics::DrawTexture(body->position.x, body->position.y, boxShape->width, boxShape->height, body->rotation, texture);
+                Graphics::DrawTexture(body->position.X, body->position.Y, boxShape->width, boxShape->height, body->rotation, texture);
             }
             else if (debug)
             {
-                Graphics::DrawPolygon(body->position.x, body->position.y, boxShape->worldVertices, 0xFF0000FF);
+                Graphics::DrawPolygon(body->position.X, body->position.Y, boxShape->worldVertices, 0xFF0000FF);
             }
         }
 
@@ -314,11 +314,11 @@ void Application::Render()
             if (!debug && texture)
             {
                 Graphics::DrawTexture(
-                    body->position.x, body->position.y, polygonShape->width, polygonShape->height, body->rotation, texture);
+                    body->position.X, body->position.Y, polygonShape->width, polygonShape->height, body->rotation, texture);
             }
             else if (debug)
             {
-                Graphics::DrawPolygon(body->position.x, body->position.y, polygonShape->worldVertices, 0xFF0000FF);
+                Graphics::DrawPolygon(body->position.X, body->position.Y, polygonShape->worldVertices, 0xFF0000FF);
             }
         }
     }

@@ -71,7 +71,7 @@ namespace
         AE::Physics::Body* player = CreateBoxBody(0.0f, 0.0f, 1.0f);
         player->collisionCategory = Player;
         player->collisionMask = Obstacle;
-        player->velocity = AE::Physics::Vector2D(60.0f, 0.0f);
+        player->velocity = AE::Physics::FVector2D(60.0f, 0.0f);
 
         AE::Physics::Body* obstacle = CreateBoxBody(9.0f, 0.0f, 0.0f);
         obstacle->collisionCategory = Obstacle;
@@ -83,7 +83,7 @@ namespace
 
         assert(!world.GetContacts().empty());
         assert(world.GetConstraints().empty());
-        assert(player->velocity.x <= 0.0f);
+        assert(player->velocity.X <= 0.0f);
     }
 }
 

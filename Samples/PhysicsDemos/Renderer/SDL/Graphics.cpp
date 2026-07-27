@@ -7,11 +7,13 @@ SDL_Renderer* Graphics::Renderer = nullptr;
 int Graphics::windowWidth = 0;
 int Graphics::windowHeight = 0;
 
-int Graphics::Width() {
+int Graphics::Width() 
+{
     return windowWidth;
 }
 
-int Graphics::Height() {
+int Graphics::Height() 
+{
     return windowHeight;
 }
 
@@ -80,28 +82,28 @@ void Graphics::DrawFillRect(int x, int y, int width, int height, Uint32 color) {
     boxColor(Renderer, x - width / 2.0, y - height / 2.0, x + width / 2.0, y + height / 2.0, color);
 }
 
-void Graphics::DrawPolygon(int x, int y, const std::vector<Vector2D>& vertices, Uint32 color) 
+void Graphics::DrawPolygon(int x, int y, const std::vector<FVector2D>& vertices, Uint32 color) 
 {
     for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
         int currIndex = i;
         int nextIndex = (i + 1) % vertices.size();
-        lineColor(Renderer, vertices[currIndex].x, vertices[currIndex].y, vertices[nextIndex].x, vertices[nextIndex].y, color);
+        lineColor(Renderer, vertices[currIndex].X, vertices[currIndex].Y, vertices[nextIndex].X, vertices[nextIndex].Y, color);
     }
     filledCircleColor(Renderer, x, y, 1, color);
 }
 
-void Graphics::DrawFillPolygon(int x, int y, const std::vector<Vector2D>& vertices, Uint32 color) 
+void Graphics::DrawFillPolygon(int x, int y, const std::vector<FVector2D>& vertices, Uint32 color) 
 {
     std::vector<short> vx;
     std::vector<short> vy;
 
     for (int i = 0; i < static_cast<int>(vertices.size()); i++) 
     {
-        vx.push_back(static_cast<int>(vertices[i].x));
+        vx.push_back(static_cast<int>(vertices[i].X));
     }
     for (int i = 0; i < static_cast<int>(vertices.size()); i++) 
     {
-        vy.push_back(static_cast<int>(vertices[i].y));
+        vy.push_back(static_cast<int>(vertices[i].Y));
     }
     filledPolygonColor(Renderer, &vx[0], &vy[0], vertices.size(), color);
     filledCircleColor(Renderer, x, y, 1, 0xFF000000);

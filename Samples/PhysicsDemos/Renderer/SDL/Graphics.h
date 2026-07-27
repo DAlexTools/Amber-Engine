@@ -24,8 +24,8 @@ struct Graphics
     static void DrawFillCircle(int x, int y, int radius, Uint32 color);
     static void DrawRect(int x, int y, int width, int height, Uint32 color);
     static void DrawFillRect(int x, int y, int width, int height, Uint32 color);
-    static void DrawPolygon(int x, int y, const std::vector<Vector2D>& vertices, Uint32 color);
-    static void DrawFillPolygon(int x, int y, const std::vector<Vector2D>& vertices, Uint32 color);
+    static void DrawPolygon(int x, int y, const std::vector<FVector2D>& vertices, Uint32 color);
+    static void DrawFillPolygon(int x, int y, const std::vector<FVector2D>& vertices, Uint32 color);
     static void DrawTexture(int x, int y, int width, int height, float rotation, SDL_Texture* texture);
 };
 

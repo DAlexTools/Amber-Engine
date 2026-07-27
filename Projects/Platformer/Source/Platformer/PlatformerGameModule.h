@@ -58,8 +58,8 @@ private:
 
     struct Player
     {
-        AE::Physics::Vector2D position;
-        AE::Physics::Vector2D velocity;
+        AE::Physics::FVector2D position;
+        AE::Physics::FVector2D velocity;
         float width = 28.0f;
         float height = 42.0f;
         bool grounded = false;
@@ -77,9 +77,9 @@ private:
     struct Enemy
     {
         std::string name;
-        AE::Physics::Vector2D spawnPosition;
-        AE::Physics::Vector2D position;
-        AE::Physics::Vector2D velocity;
+        AE::Physics::FVector2D spawnPosition;
+        AE::Physics::FVector2D position;
+        AE::Physics::FVector2D velocity;
         float width = 30.0f;
         float height = 26.0f;
         float speed = 70.0f;
@@ -106,8 +106,8 @@ private:
 
     struct Projectile
     {
-        AE::Physics::Vector2D position;
-        AE::Physics::Vector2D velocity;
+        AE::Physics::FVector2D position;
+        AE::Physics::FVector2D velocity;
         float width = 16.0f;
         float height = 6.0f;
         float timeToLive = 1.2f;
@@ -135,8 +135,8 @@ private:
     struct KinematicBody
     {
         AE::Physics::Body* body = nullptr;
-        AE::Physics::Vector2D basePosition;
-        AE::Physics::Vector2D axis;
+        AE::Physics::FVector2D basePosition;
+        AE::Physics::FVector2D axis;
         float amplitude = 0.0f;
         float speed = 0.0f;
         float phase = 0.0f;
@@ -234,7 +234,7 @@ private:
     std::vector<std::string> levelTiles;
     std::vector<SolidPlatform> solidPlatforms;
     Player player;
-    AE::Physics::Vector2D playerSpawn;
+    AE::Physics::FVector2D playerSpawn;
     std::vector<Coin> coins;
     std::vector<Enemy> enemies;
     std::vector<Projectile> projectiles;
@@ -325,13 +325,13 @@ private:
     void DrawFinish() const;
     void DrawHud() const;
     void DrawRect(const RectF& rect, SDL_Color color) const;
-    void DrawWorldLine(const AE::Physics::Vector2D& from, const AE::Physics::Vector2D& to, SDL_Color color) const;
+    void DrawWorldLine(const AE::Physics::FVector2D& from, const AE::Physics::FVector2D& to, SDL_Color color) const;
     void DrawFilledCircle(int centerX, int centerY, int radius, SDL_Color color) const;
-    void DrawFilledPolygon(const std::vector<AE::Physics::Vector2D>& vertices, SDL_Color color) const;
-    void DrawPolyline(const std::vector<AE::Physics::Vector2D>& vertices, SDL_Color color, bool closed) const;
+    void DrawFilledPolygon(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color) const;
+    void DrawPolyline(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color, bool closed) const;
     void DrawScreenRect(int x, int y, int w, int h, SDL_Color color) const;
     AE::Physics::Body* AddPhysicsBox(
-        AE::Physics::Vector2D position,
+        AE::Physics::FVector2D position,
         float width,
         float height,
         float mass,
@@ -340,7 +340,7 @@ private:
         float rotation = 0.0f,
         bool gameplayBody = true);
     AE::Physics::Body* AddPhysicsCircle(
-        AE::Physics::Vector2D position,
+        AE::Physics::FVector2D position,
         float radius,
         float mass,
         SDL_Color fill,

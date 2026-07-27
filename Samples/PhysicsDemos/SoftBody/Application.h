@@ -16,8 +16,8 @@ class Application
     float restLength = 200;
     const int NUM_PARTICLES = 4;
 
-    Vector2D pushForce = Vector2D(0, 0);
-    Vector2D mouseCursor = Vector2D(0, 0);
+    FVector2D pushForce = FVector2D(0, 0);
+    FVector2D mouseCursor = FVector2D(0, 0);
 
     std::vector<Particle*> particles;
     World* world = nullptr;
