@@ -473,23 +473,37 @@ bool PlatformerGameModule::RunSmokeTest()
             enemy.shootTimer = 999.0f;
         }
 
-        Enemy& target = enemies.back();
-        player.position = AE::Physics::Vector2D(target.position.x - 190.0f, target.position.y);
+        Enemy* target = &enemies.back();
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+        if (sceneEnemiesLoaded)
+        {
+            for (Enemy& enemy : enemies)
+            {
+                if (ContainsText(enemy.name, "hopper"))
+                {
+                    target = &enemy;
+                    break;
+                }
+            }
+        }
+#endif
+        const float projectileY = target->position.y + target->height * 0.5f - 3.0f;
+        player.position = AE::Physics::Vector2D(target->position.x - 190.0f, projectileY - player.height * 0.42f);
         player.velocity = AE::Physics::Vector2D::Zero;
         player.facing = 1;
 
-        for (int shot = 0; shot < 5 && target.alive; ++shot)
+        for (int shot = 0; shot < 5 && target->alive; ++shot)
         {
             InputState shootInput;
             shootInput.shootPressed = true;
             Step(FixedTimeStep, shootInput);
             shootInput.shootPressed = false;
-            for (int frame = 0; frame < 34 && target.alive; ++frame)
+            for (int frame = 0; frame < 34 && target->alive; ++frame)
             {
                 Step(FixedTimeStep, shootInput);
             }
         }
-        shootingWorks = !target.alive;
+        shootingWorks = !target->alive;
     }
 
     ResetLevel();
