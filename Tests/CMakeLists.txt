@@ -3,6 +3,8 @@ set(PHYSICS_UNIT_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Physics/WorldCollisionTests.cpp
 )
 
+file(TO_CMAKE_PATH "${CMAKE_SOURCE_DIR}" AMBER_TEST_SOURCE_ROOT)
+
 add_executable(PhysicsUnitTests
     ${PHYSICS_UNIT_TEST_SOURCES}
 )
@@ -25,9 +27,19 @@ gtest_discover_tests(PhysicsUnitTests
         LABELS "unit;physics"
 )
 
-add_executable(EngineUnitTests
+set(ENGINE_UNIT_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Engine/AssetResolverTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Engine/LogBusTests.cpp
+)
+if(TARGET EngineRuntimePlayer)
+    list(APPEND ENGINE_UNIT_TEST_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/Engine/RuntimeRendererConfigTests.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Engine/RuntimeWorldTests.cpp
+    )
+endif()
+
+add_executable(EngineUnitTests
+    ${ENGINE_UNIT_TEST_SOURCES}
 )
 amber_target_folder(EngineUnitTests "Tests/Engine")
 amber_group_sources(EngineUnitTests "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -41,6 +53,9 @@ target_link_libraries(EngineUnitTests PRIVATE
     GTest::gtest
     GTest::gtest_main
 )
+if(TARGET EngineRuntimePlayer)
+    target_link_libraries(EngineUnitTests PRIVATE EngineRuntimePlayer)
+endif()
 target_compile_definitions(EngineUnitTests PRIVATE C_UNIT_TEST=1)
 
 gtest_discover_tests(EngineUnitTests
@@ -48,3 +63,29 @@ gtest_discover_tests(EngineUnitTests
     PROPERTIES
         LABELS "unit;engine"
 )
+
+if(TARGET EditorShell)
+    add_executable(EditorUnitTests
+        ${CMAKE_CURRENT_SOURCE_DIR}/Editor/RuntimeParityTests.cpp
+    )
+    amber_target_folder(EditorUnitTests "Tests/Editor")
+    amber_group_sources(EditorUnitTests "${CMAKE_CURRENT_SOURCE_DIR}")
+    amber_enable_pch(EditorUnitTests)
+
+    target_link_libraries(EditorUnitTests PRIVATE
+        AmberBuildConfig
+        EditorShell
+        GTest::gtest
+        GTest::gtest_main
+    )
+    target_compile_definitions(EditorUnitTests PRIVATE
+        C_UNIT_TEST=1
+        AMBER_TEST_SOURCE_ROOT="${AMBER_TEST_SOURCE_ROOT}"
+    )
+
+    gtest_discover_tests(EditorUnitTests
+        DISCOVERY_MODE PRE_TEST
+        PROPERTIES
+            LABELS "unit;editor;parity"
+    )
+endif()

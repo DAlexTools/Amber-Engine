@@ -12,6 +12,8 @@
 #include <optional>
 #include <string>
 
+class Registry;
+
 namespace AE::Editor
 {
 
@@ -65,6 +67,7 @@ public:
         const ProjectDescriptor* activeProject,
         ViewportMode mode,
         bool paused,
+        Registry* runtimeRegistry = nullptr,
         const RuntimeRenderCallback& runtimeRenderCallback = {});
 
     float GetZoom() const;

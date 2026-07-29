@@ -1000,6 +1000,7 @@ void EditorApplication::DrawSceneView(float x, float y, float width, float heigh
                 EditorViewport::ViewportMode::PlayOutput :
                 EditorViewport::ViewportMode::EditPreview,
             playSession.IsPaused(),
+            playSession.GetRuntimeRegistry(),
             [&](AE::RuntimeRenderContextSDL& renderContext) {
                 playSession.Render(&renderContext);
                 playRenderSubmitted = true;

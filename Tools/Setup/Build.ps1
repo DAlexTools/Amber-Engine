@@ -132,6 +132,9 @@ function Get-Targets {
         "FabricSimulationApp"
     )
     $testTargets = @("PhysicsUnitTests", "EngineUnitTests")
+    if ($BuildMode -eq "Editor") {
+        $testTargets += "EditorUnitTests"
+    }
     $coreTargets = @("Physics", "EnginePhysicsBridgeCheck", "PhysicsCollisionFilteringCheck")
     $editorTargets = if ($BuildMode -eq "Editor") { @("AmberEditor") } else { @() }
 
@@ -204,7 +207,11 @@ function Invoke-SmokeChecks {
         }
 
         if ($BuildMode -eq "Editor" -and $BuildTarget -in @("Editor", "All")) {
-            $editorSmoke = Join-Path $BuildDirectory "Engine\Editor\Shell\$Configuration\AmberEditor.exe"
+            $editorSmoke = Join-Path $BuildDirectory "Engine\Editor\$Configuration\AmberEditor.exe"
+            $legacyEditorSmoke = Join-Path $BuildDirectory "Engine\Editor\Shell\$Configuration\AmberEditor.exe"
+            if (-not (Test-Path $editorSmoke) -and (Test-Path $legacyEditorSmoke)) {
+                $editorSmoke = $legacyEditorSmoke
+            }
             $platformerProject = Join-Path (Get-Location) "Projects\Platformer\Platformer.amberproject"
             Invoke-CommandChecked "AmberEditor smoke" $editorSmoke @("--smoke-test", "--project", $platformerProject)
         }

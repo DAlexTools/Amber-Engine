@@ -2,8 +2,10 @@
 #define AMBER_RUNTIME_GAME_RUNTIME_VIEWER_SDL_H
 
 #include "Assets/AssetResolver.h"
-#include "Project/ProjectDescriptor.h"
+#include "Components/SpriteComponent.h"
+#include "Components/TransformComponent.h"
 #include "Game/RuntimeTextureCacheSDL.h"
+#include "Project/ProjectDescriptor.h"
 #include "Scene/SceneAsset.h"
 
 #include <SDL2/SDL.h>
@@ -12,8 +14,16 @@
 #include <string>
 #include <vector>
 
+class Registry;
+
 namespace AE
 {
+
+enum class RuntimeCameraPolicy
+{
+    Explicit,
+    SceneCamera
+};
 
 struct RuntimeSceneRendererConfig
 {
@@ -21,11 +31,15 @@ struct RuntimeSceneRendererConfig
     std::filesystem::path engineRoot;
     std::filesystem::path contentRoot;
     std::vector<RuntimeAssetRoot> assetRoots;
+    RuntimeCameraPolicy cameraPolicy = RuntimeCameraPolicy::Explicit;
     float cameraX = 0.0f;
     float cameraY = 0.0f;
     float zoom = 1.0f;
     bool showGrid = true;
 };
+
+bool ApplyRuntimeSceneCamera(const Scene::Document& scene, RuntimeSceneRendererConfig& config);
+RuntimeSceneRendererConfig BuildRuntimeSceneRendererConfig(const ProjectDescriptor& project, const Scene::Document& scene);
 
 struct RuntimeRenderContextSDL
 {
@@ -56,10 +70,17 @@ public:
     void SetRenderer(SDL_Renderer* value);
     void ClearTextureCache();
     void RenderScene(const Scene::Document& scene, const RuntimeSceneRendererConfig& config, const SDL_Rect& viewport);
+    void RenderWorld(Registry& registry, const Scene::Document& scene, const RuntimeSceneRendererConfig& config, const SDL_Rect& viewport);
 
 private:
+    RuntimeSceneRendererConfig ResolveEffectiveConfig(const Scene::Document& scene, const RuntimeSceneRendererConfig& config) const;
+    void RenderBackgroundAndGrid(const Scene::Document& scene, const RuntimeSceneRendererConfig& config, const SDL_Rect& viewport);
+    void RenderDocumentObjects(const Scene::Document& scene, const RuntimeSceneRendererConfig& config, const SDL_Rect& viewport);
+    bool RenderRegistryObjects(Registry& registry, const RuntimeSceneRendererConfig& config, const SDL_Rect& viewport);
     SDL_Texture* GetTexture(const std::string& assetId, const RuntimeSceneRendererConfig& config);
     SDL_Rect GetObjectRect(const Scene::ObjectData& object, const SDL_Rect& viewport, const RuntimeSceneRendererConfig& config) const;
+    SDL_Rect GetSceneEntityRect(const TransformComponent& transform, float width, float height, const SDL_Rect& viewport, const RuntimeSceneRendererConfig& config) const;
+    SDL_Rect GetLegacySpriteRect(const TransformComponent& transform, const SpriteComponent& sprite, const SDL_Rect& viewport, const RuntimeSceneRendererConfig& config) const;
     SDL_Point WorldToScreen(const Scene::Vec2& point, const SDL_Rect& viewport, const RuntimeSceneRendererConfig& config) const;
 
     SDL_Renderer* renderer = nullptr;
@@ -81,6 +102,7 @@ public:
     bool PollEvents();
     void BeginFrame();
     void RenderScene(const Scene::Document& scene, const RuntimeSceneRendererConfig& config);
+    void RenderWorld(Registry& registry, const Scene::Document& scene, const RuntimeSceneRendererConfig& config);
     void Present();
 
     RuntimeRenderContextSDL MakeRenderContext(const ProjectDescriptor& project, const Scene::Document& scene) const;

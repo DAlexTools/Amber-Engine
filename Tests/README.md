@@ -8,6 +8,7 @@ Current target:
 
 - `PhysicsUnitTests`
 - `EngineUnitTests`
+- `EditorUnitTests` when editor targets are enabled
 
 Build and run:
 

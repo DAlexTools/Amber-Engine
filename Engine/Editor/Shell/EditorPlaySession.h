@@ -5,6 +5,7 @@
 #include "SceneDocument.h"
 #include "EntityComponentSystem/ECS.h"
 #include "Game/GameModuleInterface.h"
+#include "Game/RuntimeWorld.h"
 #include "Scene/Object.h"
 
 #include <filesystem>
@@ -39,6 +40,8 @@ public:
     bool IsPaused() const;
     SceneDocument* GetRuntimeSceneDocument();
     const SceneDocument* GetRuntimeSceneDocument() const;
+    Registry* GetRuntimeRegistry();
+    const Registry* GetRuntimeRegistry() const;
     std::size_t GetRuntimeObjectCount() const;
     unsigned long GetFrameCount() const;
     unsigned long GetRenderCount() const;
@@ -54,8 +57,7 @@ private:
     AE::Scene::Document runtimeDocument;
     GameModuleResolver gameModuleResolver;
     std::unique_ptr<LoadedGameModule> activeGameModule;
-    std::unique_ptr<Registry> runtimeRegistry;
-    std::vector<std::unique_ptr<AE::Scene::Object>> runtimeObjects;
+    std::unique_ptr<AE::RuntimeWorld> runtimeWorld;
     unsigned long frameCount = 0;
     unsigned long renderCount = 0;
     bool gameModuleStarted = false;

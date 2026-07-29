@@ -203,6 +203,7 @@ if(BUILD_SDL_MODULES AND SDL2_TARGET_FOUND AND SDL2_IMAGE_TARGET_FOUND)
         ${ENGINE_RUNTIME_DIR}/Game/RuntimePlayer.cpp
         ${ENGINE_RUNTIME_DIR}/Game/RuntimeTextureCacheSDL.cpp
         ${ENGINE_RUNTIME_DIR}/Game/RuntimeViewerSDL.cpp
+        ${ENGINE_RUNTIME_DIR}/Game/RuntimeWorld.cpp
     )
 
     target_include_directories(EngineRuntimePlayer PUBLIC

@@ -88,6 +88,7 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
     const ProjectDescriptor* activeProject,
     ViewportMode mode,
     bool paused,
+    Registry* runtimeRegistry,
     const RuntimeRenderCallback& runtimeRenderCallback)
 {
     (void)assetRegistry;
@@ -193,16 +194,28 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
             rendererConfig.engineRoot = activeProject->engineRoot;
             rendererConfig.contentRoot = activeProject->ResolveProjectPath(activeProject->contentRoot);
             rendererConfig.assetRoots = assetRegistry.GetRoots();
-            rendererConfig.cameraX = cameraX;
-            rendererConfig.cameraY = cameraY;
-            rendererConfig.zoom = zoom;
+            rendererConfig.cameraPolicy = playing ? RuntimeCameraPolicy::SceneCamera : RuntimeCameraPolicy::Explicit;
+            rendererConfig.cameraX = playing ? 0.0f : cameraX;
+            rendererConfig.cameraY = playing ? 0.0f : cameraY;
+            rendererConfig.zoom = playing ? 1.0f : zoom;
             rendererConfig.showGrid = showGrid;
 
             const AE::Scene::Document runtimeDocument = sceneDocument.ToRuntimeDocument();
-            runtimeSceneRenderer.RenderScene(
-                runtimeDocument,
-                rendererConfig,
-                SDL_Rect{0, 0, previewWidth, previewHeight});
+            if (runtimeRegistry)
+            {
+                runtimeSceneRenderer.RenderWorld(
+                    *runtimeRegistry,
+                    runtimeDocument,
+                    rendererConfig,
+                    SDL_Rect{0, 0, previewWidth, previewHeight});
+            }
+            else
+            {
+                runtimeSceneRenderer.RenderScene(
+                    runtimeDocument,
+                    rendererConfig,
+                    SDL_Rect{0, 0, previewWidth, previewHeight});
+            }
             if (playing && runtimeRenderCallback)
             {
                 RuntimeRenderContextSDL renderContext{

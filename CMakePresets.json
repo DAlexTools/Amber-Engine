@@ -130,7 +130,8 @@
       "configurePreset": "full-local-vcpkg",
       "targets": [
         "PhysicsUnitTests",
-        "EngineUnitTests"
+        "EngineUnitTests",
+        "EditorUnitTests"
       ]
     },
     {

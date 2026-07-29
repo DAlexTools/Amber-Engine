@@ -3,7 +3,7 @@ name "Platformer Test Scene"
 object Camera "Editor Camera" "" "Object" 0.000 0.000 0.000 1.000 1.000 88.000 60.000 1 1
 object Grid "Grid" "" "Object" 0.000 0.000 0.000 1.000 1.000 80.000 80.000 1 1
 object RuntimeWorld "Runtime World" "" "Object" 180.000 96.000 0.000 1.000 1.000 224.000 144.000 1 1
-object Box "Player Spawn" "" "PlayerSpawnObject" 147.084 305.042 0.000 1.000 1.000 28.000 42.000 1 0
+object Box "Player Spawn" "" "PlayerSpawnObject" 1001.280 227.771 0.000 1.000 1.000 28.000 42.000 1 0
 object Box "Finish Goal" "" "GoalObject" 2928.000 432.000 0.000 1.000 1.000 32.000 96.000 1 0
 object Circle "Editor Coin 1" "" "CoinObject" 186.243 198.340 0.000 1.000 1.000 18.000 18.000 1 0
 object Circle "Editor Coin 2" "" "CoinObject" 694.574 393.000 0.000 1.000 1.000 18.000 18.000 1 0
@@ -12,7 +12,7 @@ object Circle "Editor Coin 4" "" "CoinObject" 1705.000 322.600 0.000 1.000 1.000
 object Circle "Editor Coin 5" "" "CoinObject" 2153.000 386.600 0.000 1.000 1.000 18.000 18.000 1 0
 object Circle "Editor Coin 6" "" "CoinObject" 2569.000 290.600 0.000 1.000 1.000 18.000 18.000 1 0
 object Box "Ground Main" "" "SolidPlatformObject" 1536.000 512.000 0.000 1.000 1.000 3072.000 64.000 1 0
-object Box "Ground Ledge 1" "" "SolidPlatformObject" -67.885 169.900 0.000 1.000 1.000 192.000 32.000 1 0
+object Box "Ground Ledge 1" "" "SolidPlatformObject" 581.192 148.826 0.000 1.000 1.000 192.000 32.000 1 0
 object Box "Ground Ledge 2" "" "SolidPlatformObject" 896.000 432.000 0.000 1.000 1.000 192.000 32.000 1 0
 object Box "Ground Ledge 3" "" "SolidPlatformObject" 1264.000 400.000 0.000 1.000 1.000 224.000 32.000 1 0
 object Box "Ground Ledge 4" "" "SolidPlatformObject" 1696.000 368.000 0.000 1.000 1.000 192.000 32.000 1 0
@@ -22,7 +22,7 @@ object Box "Low Step 1" "" "SolidPlatformObject" 1904.000 464.000 0.000 1.000 1.
 object Box "Low Step 2" "" "SolidPlatformObject" 2368.000 464.000 0.000 1.000 1.000 128.000 32.000 1 0
 object Box "Floating Platform 1" "" "SolidPlatformObject" 400.000 400.000 0.000 1.000 1.000 96.000 32.000 1 0
 object Box "Floating Platform 2" "" "SolidPlatformObject" 560.000 336.000 0.000 1.000 1.000 96.000 32.000 1 0
-object Box "Floating Platform 3" "" "SolidPlatformObject" 736.000 272.000 0.000 1.000 1.000 128.000 32.000 1 0
+object Box "Floating Platform 3" "" "SolidPlatformObject" 736.000 110.433 0.000 1.000 1.000 128.000 32.000 1 0
 object Box "Floating Platform 4" "" "SolidPlatformObject" 1024.000 336.000 0.000 1.000 1.000 128.000 32.000 1 0
 object Box "Floating Platform 5" "" "SolidPlatformObject" 1504.000 304.000 0.000 1.000 1.000 128.000 32.000 1 0
 object Box "Floating Platform 6" "" "SolidPlatformObject" 1824.000 272.000 0.000 1.000 1.000 128.000 32.000 1 0
@@ -53,7 +53,7 @@ object Box "Physics Crate 6" "" "PhysicsBoxObject" 611.000 419.000 0.000 1.000 1
 object Box "Physics Crate 7" "" "PhysicsBoxObject" 645.000 419.000 0.000 1.000 1.000 30.000 30.000 1 0
 object Box "Physics Crate 8" "" "PhysicsBoxObject" 594.000 388.000 0.000 1.000 1.000 30.000 30.000 1 0
 object Box "Physics Crate 9" "" "PhysicsBoxObject" 628.000 388.000 0.000 1.000 1.000 30.000 30.000 1 0
-object Box "Physics Crate 10" "" "PhysicsBoxObject" 478.754 246.466 0.000 1.000 1.000 30.000 30.000 1 0
+object Box "Physics Crate 10" "" "PhysicsBoxObject" 376.194 246.466 0.000 1.000 1.000 30.000 30.000 1 0
 object Circle "Physics Ball 1" "" "PhysicsCircleObject" 1110.000 250.000 0.000 1.000 1.000 26.000 26.000 1 0
 object Circle "Physics Ball 2" "" "PhysicsCircleObject" 1138.000 250.000 0.000 1.000 1.000 26.000 26.000 1 0
 object Circle "Physics Ball 3" "" "PhysicsCircleObject" 1166.000 250.000 0.000 1.000 1.000 26.000 26.000 1 0

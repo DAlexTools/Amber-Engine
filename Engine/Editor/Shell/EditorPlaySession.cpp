@@ -1,9 +1,8 @@
 #include "EditorPlaySession.h"
 
 #include "Game/GameModuleInterface.h"
+#include "Game/RuntimeWorld.h"
 #include "Logging/LogBus.h"
-#include "Scene/Object.h"
-#include "Scene/ObjectFactory.h"
 
 namespace AE::Editor
 {
@@ -20,26 +19,27 @@ void EditorPlaySession::Update()
         return;
     }
 
-    if (runtimeRegistry)
+    if (runtimeWorld)
     {
+        Registry& registry = runtimeWorld->GetRegistry();
         if (activeGameModule)
         {
-            AE::GameModuleTickContext tickContext{*runtimeRegistry, 1.0f / 60.0f, frameCount};
+            AE::GameModuleTickContext tickContext{registry, 1.0f / 60.0f, frameCount};
             activeGameModule->Get()->Tick(tickContext);
         }
-        runtimeRegistry->Update();
+        registry.Update();
     }
     ++frameCount;
 }
 
 void EditorPlaySession::Render(void* nativeRenderContext)
 {
-    if (!playing || !runtimeRegistry || !activeGameModule)
+    if (!playing || !runtimeWorld || !activeGameModule)
     {
         return;
     }
 
-    AE::GameModuleRenderContext renderContext{*runtimeRegistry, frameCount, nativeRenderContext};
+    AE::GameModuleRenderContext renderContext{runtimeWorld->GetRegistry(), frameCount, nativeRenderContext};
     activeGameModule->Get()->Render(renderContext);
     ++renderCount;
 }
@@ -55,7 +55,7 @@ bool EditorPlaySession::PlayInPIE(const PlayInPIERequest& request, const SceneDo
     activeRequest = request;
     runtimeSceneDocument = editScene;
     runtimeSceneDocument.SetDirty(false);
-    runtimeRegistry = std::make_unique<Registry>();
+    runtimeWorld = std::make_unique<AE::RuntimeWorld>();
     runtimeDocument = editScene.ToRuntimeDocument();
     std::string resolverWarning;
     activeGameModule = gameModuleResolver.Resolve(request.gameModuleTarget, request.projectRoot, &resolverWarning);
@@ -67,12 +67,9 @@ bool EditorPlaySession::PlayInPIE(const PlayInPIERequest& request, const SceneDo
     renderCount = 0;
     gameModuleStarted = false;
 
-    AE::Scene::ObjectFactory factory;
-    if (activeGameModule && !activeGameModule->IsDynamic())
-    {
-        activeGameModule->Get()->RegisterSceneObjects(factory);
-    }
-    else if (activeGameModule && activeGameModule->IsDynamic())
+    AE::RuntimeWorldBuildOptions buildOptions;
+    buildOptions.registerGameModuleSceneObjects = activeGameModule && !activeGameModule->IsDynamic();
+    if (activeGameModule && activeGameModule->IsDynamic())
     {
         LogBus::Add(
             LogLevel::Info,
@@ -80,10 +77,21 @@ bool EditorPlaySession::PlayInPIE(const PlayInPIERequest& request, const SceneDo
             "Dynamic PIE module loaded; scene object registration stays editor-side until the runtime ABI is shared.");
     }
 
-    runtimeObjects = factory.CreateObjects(runtimeDocument, runtimeRegistry.get());
-    if (runtimeRegistry)
+    std::string buildError;
+    if (!AE::BuildRuntimeWorld(
+            runtimeDocument,
+            activeGameModule ? activeGameModule->Get() : nullptr,
+            *runtimeWorld,
+            buildOptions,
+            &buildError))
     {
-        runtimeRegistry->Update();
+        DestroyRuntimeWorld();
+        activeRequest = {};
+        runtimeDocument = {};
+        runtimeSceneDocument.NewScene();
+        runtimeSceneDocument.SetDirty(false);
+        LogBus::Add(LogLevel::Error, "Editor", buildError.empty() ? "PIE runtime world build failed." : buildError);
+        return false;
     }
 
     if (activeGameModule)
@@ -94,9 +102,9 @@ bool EditorPlaySession::PlayInPIE(const PlayInPIERequest& request, const SceneDo
             activeRequest.projectRoot,
             activeRequest.scenePath,
             runtimeDocument,
-            *runtimeRegistry,
-            factory,
-            runtimeObjects
+            runtimeWorld->GetRegistry(),
+            runtimeWorld->GetObjectFactory(),
+            runtimeWorld->GetSceneObjects()
         };
         if (!activeGameModule->Get()->StartPlay(startContext, &error))
         {
@@ -116,16 +124,16 @@ bool EditorPlaySession::PlayInPIE(const PlayInPIERequest& request, const SceneDo
 
     LogBus::Add(
         LogLevel::Info,
-        "Editor",
-        "PIE session started for " + activeRequest.projectName +
-            " using game module " + std::string(GetRuntimeModuleName()) +
-            ". Runtime objects: " + std::to_string(runtimeObjects.size()));
+            "Editor",
+            "PIE session started for " + activeRequest.projectName +
+                " using game module " + std::string(GetRuntimeModuleName()) +
+            ". Runtime objects: " + std::to_string(GetRuntimeObjectCount()));
     return true;
 }
 
 void EditorPlaySession::Stop()
 {
-    if (!playing && runtimeObjects.empty() && !runtimeRegistry)
+    if (!playing && (!runtimeWorld || runtimeWorld->GetObjectCount() == 0))
     {
         paused = false;
         frameCount = 0;
@@ -177,9 +185,19 @@ const SceneDocument* EditorPlaySession::GetRuntimeSceneDocument() const
     return playing ? &runtimeSceneDocument : nullptr;
 }
 
+Registry* EditorPlaySession::GetRuntimeRegistry()
+{
+    return playing && runtimeWorld ? &runtimeWorld->GetRegistry() : nullptr;
+}
+
+const Registry* EditorPlaySession::GetRuntimeRegistry() const
+{
+    return playing && runtimeWorld ? &runtimeWorld->GetRegistry() : nullptr;
+}
+
 std::size_t EditorPlaySession::GetRuntimeObjectCount() const
 {
-    return runtimeObjects.size();
+    return runtimeWorld ? runtimeWorld->GetObjectCount() : 0;
 }
 
 unsigned long EditorPlaySession::GetFrameCount() const
@@ -214,16 +232,12 @@ void EditorPlaySession::DestroyRuntimeWorld()
         activeGameModule->Get()->StopPlay();
     }
 
-    for (std::unique_ptr<AE::Scene::Object>& object : runtimeObjects)
+    if (runtimeWorld)
     {
-        if (object)
-        {
-            object->OnDestroy();
-        }
+        runtimeWorld->DestroyObjects();
     }
 
-    runtimeObjects.clear();
-    runtimeRegistry.reset();
+    runtimeWorld.reset();
     activeGameModule.reset();
     gameModuleStarted = false;
 }

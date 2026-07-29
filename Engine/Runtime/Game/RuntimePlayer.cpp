@@ -1,9 +1,9 @@
 #include "Game/RuntimePlayer.h"
 
 #include "Game/RuntimeViewerSDL.h"
+#include "Game/RuntimeWorld.h"
 #include "Logging/Logger.h"
 #include "Project/ProjectDescriptor.h"
-#include "Scene/ObjectFactory.h"
 #include "Scene/SceneAsset.h"
 
 #include <SDL2/SDL.h>
@@ -123,33 +123,6 @@ namespace
         return descriptor.ResolveProjectPath(descriptor.startupScene);
     }
 
-    RuntimeSceneRendererConfig BuildRendererConfig(const ProjectDescriptor& descriptor, const Scene::Document& scene)
-    {
-        RuntimeSceneRendererConfig config;
-        config.projectRoot = descriptor.projectRoot;
-        config.engineRoot = descriptor.engineRoot;
-        config.contentRoot = descriptor.ResolveProjectPath(descriptor.contentRoot);
-        config.assetRoots = BuildRuntimeAssetRoots(RuntimeAssetResolverConfig{
-            descriptor.projectRoot,
-            descriptor.engineRoot,
-            descriptor.contentRoot,
-            {}
-        });
-        config.zoom = 1.0f;
-
-        for (const Scene::ObjectData& object : scene.objects)
-        {
-            if (object.visible && object.kind == Scene::ObjectKind::Camera)
-            {
-                config.cameraX = object.transform.position.x;
-                config.cameraY = object.transform.position.y;
-                break;
-            }
-        }
-
-        return config;
-    }
-
     bool ParsePositiveInt(const char* value, int& output)
     {
         if (!value)
@@ -218,11 +191,14 @@ int RuntimePlayer::Run(IGameModule& module, const RuntimePlayerOptions& options,
         return 1;
     }
 
-    Registry registry;
-    Scene::ObjectFactory objectFactory;
-    module.RegisterSceneObjects(objectFactory);
-    std::vector<std::unique_ptr<Scene::Object>> sceneObjects = objectFactory.CreateObjects(scene, &registry);
-    registry.Update();
+    RuntimeWorld world;
+    if (!BuildRuntimeWorld(scene, &module, world, RuntimeWorldBuildOptions{}, error))
+    {
+        return 1;
+    }
+    Registry& registry = world.GetRegistry();
+    Scene::ObjectFactory& objectFactory = world.GetObjectFactory();
+    std::vector<std::unique_ptr<Scene::Object>>& sceneObjects = world.GetSceneObjects();
 
     RuntimeViewerSDL viewer;
     RuntimeViewerSDLConfig viewerConfig;
@@ -254,7 +230,7 @@ int RuntimePlayer::Run(IGameModule& module, const RuntimePlayerOptions& options,
     }
     moduleStarted = true;
 
-    const RuntimeSceneRendererConfig rendererConfig = BuildRendererConfig(descriptor, scene);
+    const RuntimeSceneRendererConfig rendererConfig = BuildRuntimeSceneRendererConfig(descriptor, scene);
     const Uint64 frequency = SDL_GetPerformanceFrequency();
     Uint64 previousCounter = SDL_GetPerformanceCounter();
     unsigned long frame = 0;
@@ -274,7 +250,7 @@ int RuntimePlayer::Run(IGameModule& module, const RuntimePlayerOptions& options,
         registry.Update();
 
         viewer.BeginFrame();
-        viewer.RenderScene(scene, rendererConfig);
+        viewer.RenderWorld(registry, scene, rendererConfig);
         RuntimeRenderContextSDL renderContext = viewer.MakeRenderContext(descriptor, scene);
         module.Render(GameModuleRenderContext{registry, frame, &renderContext});
         viewer.Present();
@@ -291,13 +267,7 @@ int RuntimePlayer::Run(IGameModule& module, const RuntimePlayerOptions& options,
         module.StopPlay();
     }
 
-    for (std::unique_ptr<Scene::Object>& object : sceneObjects)
-    {
-        if (object)
-        {
-            object->OnDestroy();
-        }
-    }
+    world.DestroyObjects();
 
     viewer.Shutdown();
     return 0;
