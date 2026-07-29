@@ -3,32 +3,32 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstdint>
 #include <string>
+
+#include "Core/Platform/PlatformTypes.h"
 
 namespace EnginePhysicsCollision
 {
-constexpr std::uint32_t Player = 1u << 0;
-constexpr std::uint32_t Enemy = 1u << 1;
-constexpr std::uint32_t PlayerProjectile = 1u << 2;
-constexpr std::uint32_t EnemyProjectile = 1u << 3;
-constexpr std::uint32_t Obstacle = 1u << 4;
-constexpr std::uint32_t All = 0xFFFFFFFFu;
+constexpr uint32 Player = 1u << 0;
+constexpr uint32 Enemy = 1u << 1;
+constexpr uint32 PlayerProjectile = 1u << 2;
+constexpr uint32 EnemyProjectile = 1u << 3;
+constexpr uint32 Obstacle = 1u << 4;
+constexpr uint32 All = 0xFFFFFFFFu;
 
 inline std::string NormalizeLayerName(std::string layerName)
 {
 	std::transform(layerName.begin(), layerName.end(), layerName.begin(), [](unsigned char character)
-				{
+				   {
 					if (character == '-')
 					{
 						return '_';
 					}
-					return static_cast<char>(std::tolower(character)); 
-				});
+					return static_cast<char>(std::tolower(character)); });
 	return layerName;
 }
 
-inline std::uint32_t FromName(const std::string& layerName, std::uint32_t defaultValue = All)
+inline uint32 FromName(const std::string& layerName, uint32 defaultValue = All)
 {
 	const std::string normalizedName = NormalizeLayerName(layerName);
 	if (normalizedName == "player")

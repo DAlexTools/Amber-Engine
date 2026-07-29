@@ -18,7 +18,7 @@ std::filesystem::path SourceRoot()
 }
 
 template <typename TSystem>
-std::size_t CountSystemEntities(const Registry& registry)
+AE::SizeT CountSystemEntities(const Registry& registry)
 {
 	return registry.GetSystem<TSystem>().GetSystemEntity().size();
 }
@@ -69,7 +69,7 @@ TEST(EditorRuntimeParityTests, ProjectStartupSceneBuildsSameRuntimeWorldForPIEAn
 		CountSystemEntities<AE::RuntimeSceneShapeRenderSystem>(standaloneWorld.GetRegistry()));
 
 	pie.Update();
-	EXPECT_EQ(pie.GetFrameCount(), 1ul);
+	EXPECT_EQ(pie.GetFrameCount(), AE::uint64{1});
 
 	pie.Stop();
 	EXPECT_FALSE(pie.IsPlaying());

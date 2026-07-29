@@ -1,7 +1,8 @@
 #ifndef AMBER_EDITOR_SHELL_SELECTION_SERVICE_H
 #define AMBER_EDITOR_SHELL_SELECTION_SERVICE_H
 
-#include <cstdint>
+#include "Core/Platform/PlatformTypes.h"
+
 #include <string>
 
 namespace AE::Editor
@@ -9,33 +10,33 @@ namespace AE::Editor
 
 enum class EditorSelectionType
 {
-    None,
-    SceneObject,
-    Asset
+	None,
+	SceneObject,
+	Asset
 };
 
 struct EditorSelection
 {
-    EditorSelectionType type = EditorSelectionType::None;
-    std::uint32_t objectId = 0;
-    std::string assetId;
+	EditorSelectionType type = EditorSelectionType::None;
+	uint32 objectId = 0;
+	std::string assetId;
 };
 
 class SelectionService
 {
 public:
-    void Clear();
-    void SelectSceneObject(std::uint32_t objectId);
-    void SelectAsset(std::string assetId);
+	void Clear();
+	void SelectSceneObject(uint32 objectId);
+	void SelectAsset(std::string assetId);
 
-    const EditorSelection& GetSelection() const;
-    bool IsSceneObjectSelected(std::uint32_t objectId) const;
-    bool IsAssetSelected(const std::string& assetId) const;
+	const EditorSelection& GetSelection() const;
+	bool IsSceneObjectSelected(uint32 objectId) const;
+	bool IsAssetSelected(const std::string& assetId) const;
 
 private:
-    EditorSelection selection;
+	EditorSelection selection;
 };
 
-}
+} // namespace AE::Editor
 
 #endif

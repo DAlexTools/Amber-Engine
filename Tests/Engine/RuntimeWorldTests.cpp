@@ -47,7 +47,7 @@ AE::Scene::ObjectData MakeObject(
 }
 
 template <typename TSystem>
-std::size_t CountSystemEntities(const Registry& registry)
+AE::SizeT CountSystemEntities(const Registry& registry)
 {
 	return registry.GetSystem<TSystem>().GetSystemEntity().size();
 }
@@ -73,8 +73,8 @@ TEST(RuntimeWorldTests, BuildsRegistryObjectsAndRuntimeRenderSystems)
 	EXPECT_TRUE(world.GetRegistry().HasSystem<AE::RuntimeSceneSpriteRenderSystem>());
 	EXPECT_TRUE(world.GetRegistry().HasSystem<AE::RuntimeSceneShapeRenderSystem>());
 	EXPECT_TRUE(world.GetRegistry().HasSystem<AE::RuntimeLegacySpriteRenderSystem>());
-	EXPECT_EQ(CountSystemEntities<AE::RuntimeSceneSpriteRenderSystem>(world.GetRegistry()), 1u);
-	EXPECT_EQ(CountSystemEntities<AE::RuntimeSceneShapeRenderSystem>(world.GetRegistry()), 2u);
+	EXPECT_EQ(CountSystemEntities<AE::RuntimeSceneSpriteRenderSystem>(world.GetRegistry()), AE::SizeT{1});
+	EXPECT_EQ(CountSystemEntities<AE::RuntimeSceneShapeRenderSystem>(world.GetRegistry()), AE::SizeT{2});
 }
 
 TEST(RuntimeWorldTests, CanSkipGameModuleSceneObjectRegistrationForEditorDynamicBoundary)
@@ -89,6 +89,6 @@ TEST(RuntimeWorldTests, CanSkipGameModuleSceneObjectRegistrationForEditorDynamic
 
 	ASSERT_TRUE(AE::BuildRuntimeWorld(scene, &module, world, options));
 	EXPECT_EQ(module.registerSceneObjectCalls, 0);
-	EXPECT_EQ(world.GetObjectCount(), 1u);
-	EXPECT_EQ(CountSystemEntities<AE::RuntimeSceneShapeRenderSystem>(world.GetRegistry()), 1u);
+	EXPECT_EQ(world.GetObjectCount(), AE::SizeT{1});
+	EXPECT_EQ(CountSystemEntities<AE::RuntimeSceneShapeRenderSystem>(world.GetRegistry()), AE::SizeT{1});
 }

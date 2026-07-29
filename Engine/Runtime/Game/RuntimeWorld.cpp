@@ -64,7 +64,7 @@ const std::vector<std::unique_ptr<Scene::Object>>& RuntimeWorld::GetSceneObjects
 	return sceneObjects;
 }
 
-std::size_t RuntimeWorld::GetObjectCount() const
+SizeT RuntimeWorld::GetObjectCount() const
 {
 	return sceneObjects.size();
 }

@@ -1,6 +1,7 @@
 #ifndef AMBER_RUNTIME_GAME_RUNTIME_WORLD_H
 #define AMBER_RUNTIME_GAME_RUNTIME_WORLD_H
 
+#include "Core/Platform/PlatformTypes.h"
 #include "EntityComponentSystem/ECS.h"
 #include "Game/GameModuleInterface.h"
 #include "Scene/ObjectFactory.h"
@@ -12,13 +13,13 @@
 namespace AE
 {
 
-struct RuntimeWorldBuildOptions
+struct RuntimeWorldBuildOptions final
 {
 	bool registerRenderSystems = true;
 	bool registerGameModuleSceneObjects = true;
 };
 
-class RuntimeWorld
+class RuntimeWorld final
 {
 public:
 	RuntimeWorld();
@@ -36,7 +37,7 @@ public:
 	const Scene::ObjectFactory& GetObjectFactory() const;
 	std::vector<std::unique_ptr<Scene::Object>>& GetSceneObjects();
 	const std::vector<std::unique_ptr<Scene::Object>>& GetSceneObjects() const;
-	std::size_t GetObjectCount() const;
+	SizeT GetObjectCount() const;
 
 private:
 	std::unique_ptr<Registry> registry;
@@ -44,12 +45,7 @@ private:
 	std::vector<std::unique_ptr<Scene::Object>> sceneObjects;
 };
 
-bool BuildRuntimeWorld(
-	const Scene::Document& scene,
-	IGameModule* gameModule,
-	RuntimeWorld& world,
-	const RuntimeWorldBuildOptions& options = RuntimeWorldBuildOptions{},
-	std::string* error = nullptr);
+bool BuildRuntimeWorld(const Scene::Document& scene, IGameModule* gameModule, RuntimeWorld& world, const RuntimeWorldBuildOptions& options = RuntimeWorldBuildOptions{}, std::string* error = nullptr);
 
 } // namespace AE
 

@@ -11,27 +11,27 @@ namespace AE
 
 struct RuntimePlayerOptions
 {
-    std::filesystem::path projectFilePath;
-    std::filesystem::path sceneOverride;
-    std::string windowTitle;
-    int windowWidth = 1280;
-    int windowHeight = 720;
-    bool smokeTest = false;
-    unsigned long smokeFrameCount = 1;
+	std::filesystem::path projectFilePath;
+	std::filesystem::path sceneOverride;
+	std::string windowTitle;
+	int windowWidth = 1280;
+	int windowHeight = 720;
+	bool smokeTest = false;
+	uint64 smokeFrameCount = 1;
 };
 
 class RuntimePlayer
 {
 public:
-    int Run(IGameModule& module, const RuntimePlayerOptions& options, std::string* error = nullptr);
+	int Run(IGameModule& module, const RuntimePlayerOptions& options, std::string* error = nullptr);
 
-    static int RunFromArguments(
-        IGameModule& module,
-        int argc,
-        char** argv,
-        const RuntimePlayerOptions& defaults = RuntimePlayerOptions{});
+	static int RunFromArguments(
+		IGameModule& module,
+		int argc,
+		char** argv,
+		const RuntimePlayerOptions& defaults = RuntimePlayerOptions{});
 };
 
-}
+} // namespace AE
 
 #endif

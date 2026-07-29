@@ -12,693 +12,682 @@ namespace AE::Editor
 {
 namespace
 {
-    bool Contains(float x, float y, const EditorViewport::ObjectBounds& bounds)
-    {
-        return x >= bounds.x && x <= bounds.x + bounds.w &&
-            y >= bounds.y && y <= bounds.y + bounds.h;
-    }
-
-    ImTextureID ToImTextureId(SDL_Texture* texture)
-    {
-        return reinterpret_cast<ImTextureID>(texture);
-    }
-
-    bool IsShapeObject(const SceneObject& object)
-    {
-        return object.kind == SceneObjectKind::Box || object.kind == SceneObjectKind::Circle;
-    }
-
-    ImU32 ShapeFillColor(const SceneObject& object, bool playing)
-    {
-        if (object.className == "PlayerSpawnObject")
-        {
-            return IM_COL32(74, 178, 116, playing ? 95 : 72);
-        }
-        if (object.className == "GoalObject")
-        {
-            return IM_COL32(228, 83, 86, playing ? 95 : 72);
-        }
-        if (object.className == "CoinObject")
-        {
-            return IM_COL32(232, 186, 68, playing ? 120 : 96);
-        }
-        if (object.className == "SolidPlatformObject")
-        {
-            return IM_COL32(95, 142, 78, playing ? 105 : 82);
-        }
-        return object.kind == SceneObjectKind::Circle ?
-            IM_COL32(225, 142, 72, playing ? 95 : 72) :
-            IM_COL32(78, 150, 204, playing ? 90 : 68);
-    }
-
-    ImU32 ShapeOutlineColor(const SceneObject& object, bool selected, bool playing)
-    {
-        if (selected)
-        {
-            return IM_COL32(255, 211, 91, 255);
-        }
-        if (object.className == "PlayerSpawnObject")
-        {
-            return IM_COL32(104, 224, 152, 235);
-        }
-        if (object.className == "GoalObject")
-        {
-            return IM_COL32(255, 116, 118, 235);
-        }
-        if (object.className == "CoinObject")
-        {
-            return IM_COL32(255, 214, 86, 245);
-        }
-        if (object.className == "SolidPlatformObject")
-        {
-            return IM_COL32(128, 184, 96, 235);
-        }
-        return playing ? IM_COL32(102, 206, 138, 230) : IM_COL32(104, 184, 238, 230);
-    }
+bool Contains(float x, float y, const EditorViewport::ObjectBounds& bounds)
+{
+	return x >= bounds.x && x <= bounds.x + bounds.w &&
+		   y >= bounds.y && y <= bounds.y + bounds.h;
 }
 
-std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
-    SceneDocument& sceneDocument,
-    SelectionService& selection,
-    const AssetRegistry& assetRegistry,
-    TextureCache& textureCache,
-    EditorTool activeTool,
-    SDL_Window* window,
-    SDL_Renderer* renderer,
-    const ProjectDescriptor* activeProject,
-    ViewportMode mode,
-    bool paused,
-    Registry* runtimeRegistry,
-    const RuntimeRenderCallback& runtimeRenderCallback)
+ImTextureID ToImTextureId(SDL_Texture* texture)
 {
-    (void)assetRegistry;
-    (void)textureCache;
+	return reinterpret_cast<ImTextureID>(texture);
+}
 
-    std::optional<AssetDropRequest> dropRequest;
-    const bool playing = mode == ViewportMode::PlayOutput;
-    const bool editEnabled = mode == ViewportMode::EditPreview;
+bool IsShapeObject(const SceneObject& object)
+{
+	return object.kind == SceneObjectKind::Box || object.kind == SceneObjectKind::Circle;
+}
 
-    if (editEnabled)
-    {
-        if (ImGui::Button("Focus Origin"))
-        {
-            FocusOrigin();
-        }
-        ImGui::SameLine();
-        ImGui::Checkbox("Grid", &showGrid);
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(160.0f);
-        ImGui::SliderFloat("Zoom", &zoom, 0.25f, 2.0f, "%.2fx");
-    }
+ImU32 ShapeFillColor(const SceneObject& object, bool playing)
+{
+	if (object.className == "PlayerSpawnObject")
+	{
+		return IM_COL32(74, 178, 116, playing ? 95 : 72);
+	}
+	if (object.className == "GoalObject")
+	{
+		return IM_COL32(228, 83, 86, playing ? 95 : 72);
+	}
+	if (object.className == "CoinObject")
+	{
+		return IM_COL32(232, 186, 68, playing ? 120 : 96);
+	}
+	if (object.className == "SolidPlatformObject")
+	{
+		return IM_COL32(95, 142, 78, playing ? 105 : 82);
+	}
+	return object.kind == SceneObjectKind::Circle ? IM_COL32(225, 142, 72, playing ? 95 : 72) : IM_COL32(78, 150, 204, playing ? 90 : 68);
+}
 
-    ImVec2 canvasPos = ImGui::GetCursorScreenPos();
-    ImVec2 canvasSize = ImGui::GetContentRegionAvail();
-    canvasSize.x = std::max(1.0f, canvasSize.x);
-    canvasSize.y = std::max(1.0f, canvasSize.y);
-    ImGui::InvisibleButton("SceneCanvas", canvasSize);
-    const bool canvasHovered = ImGui::IsItemHovered();
+ImU32 ShapeOutlineColor(const SceneObject& object, bool selected, bool playing)
+{
+	if (selected)
+	{
+		return IM_COL32(255, 211, 91, 255);
+	}
+	if (object.className == "PlayerSpawnObject")
+	{
+		return IM_COL32(104, 224, 152, 235);
+	}
+	if (object.className == "GoalObject")
+	{
+		return IM_COL32(255, 116, 118, 235);
+	}
+	if (object.className == "CoinObject")
+	{
+		return IM_COL32(255, 214, 86, 245);
+	}
+	if (object.className == "SolidPlatformObject")
+	{
+		return IM_COL32(128, 184, 96, 235);
+	}
+	return playing ? IM_COL32(102, 206, 138, 230) : IM_COL32(104, 184, 238, 230);
+}
+} // namespace
 
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-    const ImVec2 canvasEnd(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y);
-    const ImVec2 canvasCenter(canvasPos.x + canvasSize.x * 0.5f, canvasPos.y + canvasSize.y * 0.5f);
-    auto worldToScreen = [&](EditorVec2 world) {
-        return ImVec2(
-            canvasCenter.x + (world.x - cameraX) * zoom,
-            canvasCenter.y + (world.y - cameraY) * zoom);
-    };
-    auto screenToWorld = [&](ImVec2 screen) {
-        return EditorVec2{
-            cameraX + (screen.x - canvasCenter.x) / zoom,
-            cameraY + (screen.y - canvasCenter.y) / zoom
-        };
-    };
-    auto boundsToScreen = [&](const ObjectBounds& bounds) {
-        const ImVec2 topLeft = worldToScreen(EditorVec2{bounds.x, bounds.y});
-        return ObjectBounds{
-            topLeft.x,
-            topLeft.y,
-            bounds.w * zoom,
-            bounds.h * zoom
-        };
-    };
+std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
+	SceneDocument& sceneDocument,
+	SelectionService& selection,
+	const AssetRegistry& assetRegistry,
+	TextureCache& textureCache,
+	EditorTool activeTool,
+	SDL_Window* window,
+	SDL_Renderer* renderer,
+	const ProjectDescriptor* activeProject,
+	ViewportMode mode,
+	bool paused,
+	Registry* runtimeRegistry,
+	const RuntimeRenderCallback& runtimeRenderCallback)
+{
+	(void)assetRegistry;
+	(void)textureCache;
 
-    bool canvasClickConsumed = false;
-    const ImGuiIO& io = ImGui::GetIO();
+	std::optional<AssetDropRequest> dropRequest;
+	const bool playing = mode == ViewportMode::PlayOutput;
+	const bool editEnabled = mode == ViewportMode::EditPreview;
 
-    if (canvasHovered && io.MouseWheel != 0.0f)
-    {
-        const EditorVec2 mouseWorldBeforeZoom = screenToWorld(io.MousePos);
-        SetZoom(zoom * std::pow(1.12f, io.MouseWheel));
-        const EditorVec2 mouseWorldAfterZoom = screenToWorld(io.MousePos);
-        cameraX += mouseWorldBeforeZoom.x - mouseWorldAfterZoom.x;
-        cameraY += mouseWorldBeforeZoom.y - mouseWorldAfterZoom.y;
-    }
+	if (editEnabled)
+	{
+		if (ImGui::Button("Focus Origin"))
+		{
+			FocusOrigin();
+		}
+		ImGui::SameLine();
+		ImGui::Checkbox("Grid", &showGrid);
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(160.0f);
+		ImGui::SliderFloat("Zoom", &zoom, 0.25f, 2.0f, "%.2fx");
+	}
 
-    if (canvasHovered && ImGui::IsMouseClicked(2))
-    {
-        panning = true;
-        panStartMouseScreen = EditorVec2{io.MousePos.x, io.MousePos.y};
-        panStartCamera = EditorVec2{cameraX, cameraY};
-        activeGizmoAxis = GizmoAxis::None;
-        activeGizmoObjectId = 0;
-    }
+	ImVec2 canvasPos = ImGui::GetCursorScreenPos();
+	ImVec2 canvasSize = ImGui::GetContentRegionAvail();
+	canvasSize.x = std::max(1.0f, canvasSize.x);
+	canvasSize.y = std::max(1.0f, canvasSize.y);
+	ImGui::InvisibleButton("SceneCanvas", canvasSize);
+	const bool canvasHovered = ImGui::IsItemHovered();
 
-    if (panning)
-    {
-        if (!ImGui::IsMouseDown(2))
-        {
-            panning = false;
-        }
-        else
-        {
-            cameraX = panStartCamera.x - (io.MousePos.x - panStartMouseScreen.x) / zoom;
-            cameraY = panStartCamera.y - (io.MousePos.y - panStartMouseScreen.y) / zoom;
-            canvasClickConsumed = true;
-        }
-    }
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+	const ImVec2 canvasEnd(canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y);
+	const ImVec2 canvasCenter(canvasPos.x + canvasSize.x * 0.5f, canvasPos.y + canvasSize.y * 0.5f);
+	auto worldToScreen = [&](EditorVec2 world)
+	{
+		return ImVec2(
+			canvasCenter.x + (world.x - cameraX) * zoom,
+			canvasCenter.y + (world.y - cameraY) * zoom);
+	};
+	auto screenToWorld = [&](ImVec2 screen)
+	{
+		return EditorVec2{
+			cameraX + (screen.x - canvasCenter.x) / zoom,
+			cameraY + (screen.y - canvasCenter.y) / zoom};
+	};
+	auto boundsToScreen = [&](const ObjectBounds& bounds)
+	{
+		const ImVec2 topLeft = worldToScreen(EditorVec2{bounds.x, bounds.y});
+		return ObjectBounds{
+			topLeft.x,
+			topLeft.y,
+			bounds.w * zoom,
+			bounds.h * zoom};
+	};
 
-    const int previewWidth = std::max(1, static_cast<int>(std::round(canvasSize.x)));
-    const int previewHeight = std::max(1, static_cast<int>(std::round(canvasSize.y)));
-    bool runtimeSceneRendered = false;
-    if (renderer && activeProject && EnsureRuntimePreviewTexture(renderer, previewWidth, previewHeight))
-    {
-        SDL_Texture* previousTarget = SDL_GetRenderTarget(renderer);
-        SDL_Rect previousViewport{};
-        SDL_RenderGetViewport(renderer, &previousViewport);
+	bool canvasClickConsumed = false;
+	const ImGuiIO& io = ImGui::GetIO();
 
-        if (SDL_SetRenderTarget(renderer, runtimePreviewTexture) == 0)
-        {
-            SDL_RenderSetViewport(renderer, nullptr);
-            RuntimeSceneRendererConfig rendererConfig;
-            rendererConfig.projectRoot = activeProject->projectRoot;
-            rendererConfig.engineRoot = activeProject->engineRoot;
-            rendererConfig.contentRoot = activeProject->ResolveProjectPath(activeProject->contentRoot);
-            rendererConfig.assetRoots = assetRegistry.GetRoots();
-            rendererConfig.cameraPolicy = playing ? RuntimeCameraPolicy::SceneCamera : RuntimeCameraPolicy::Explicit;
-            rendererConfig.cameraX = playing ? 0.0f : cameraX;
-            rendererConfig.cameraY = playing ? 0.0f : cameraY;
-            rendererConfig.zoom = playing ? 1.0f : zoom;
-            rendererConfig.showGrid = showGrid;
+	if (canvasHovered && io.MouseWheel != 0.0f)
+	{
+		const EditorVec2 mouseWorldBeforeZoom = screenToWorld(io.MousePos);
+		SetZoom(zoom * std::pow(1.12f, io.MouseWheel));
+		const EditorVec2 mouseWorldAfterZoom = screenToWorld(io.MousePos);
+		cameraX += mouseWorldBeforeZoom.x - mouseWorldAfterZoom.x;
+		cameraY += mouseWorldBeforeZoom.y - mouseWorldAfterZoom.y;
+	}
 
-            const AE::Scene::Document runtimeDocument = sceneDocument.ToRuntimeDocument();
-            if (runtimeRegistry)
-            {
-                runtimeSceneRenderer.RenderWorld(
-                    *runtimeRegistry,
-                    runtimeDocument,
-                    rendererConfig,
-                    SDL_Rect{0, 0, previewWidth, previewHeight});
-            }
-            else
-            {
-                runtimeSceneRenderer.RenderScene(
-                    runtimeDocument,
-                    rendererConfig,
-                    SDL_Rect{0, 0, previewWidth, previewHeight});
-            }
-            if (playing && runtimeRenderCallback)
-            {
-                RuntimeRenderContextSDL renderContext{
-                    window,
-                    renderer,
-                    SDL_Rect{0, 0, previewWidth, previewHeight},
-                    activeProject,
-                    &runtimeDocument
-                };
-                runtimeRenderCallback(renderContext);
-            }
-            runtimeSceneRendered = true;
-        }
+	if (canvasHovered && ImGui::IsMouseClicked(2))
+	{
+		panning = true;
+		panStartMouseScreen = EditorVec2{io.MousePos.x, io.MousePos.y};
+		panStartCamera = EditorVec2{cameraX, cameraY};
+		activeGizmoAxis = GizmoAxis::None;
+		activeGizmoObjectId = 0;
+	}
 
-        SDL_SetRenderTarget(renderer, previousTarget);
-        SDL_RenderSetViewport(renderer, &previousViewport);
-    }
+	if (panning)
+	{
+		if (!ImGui::IsMouseDown(2))
+		{
+			panning = false;
+		}
+		else
+		{
+			cameraX = panStartCamera.x - (io.MousePos.x - panStartMouseScreen.x) / zoom;
+			cameraY = panStartCamera.y - (io.MousePos.y - panStartMouseScreen.y) / zoom;
+			canvasClickConsumed = true;
+		}
+	}
 
-    drawList->PushClipRect(canvasPos, canvasEnd, true);
-    if (runtimeSceneRendered)
-    {
-        drawList->AddImage(
-            ToImTextureId(runtimePreviewTexture),
-            canvasPos,
-            canvasEnd);
-    }
-    else
-    {
-        drawList->AddRectFilled(canvasPos, canvasEnd, IM_COL32(16, 18, 20, 255));
-    }
+	const int previewWidth = std::max(1, static_cast<int>(std::round(canvasSize.x)));
+	const int previewHeight = std::max(1, static_cast<int>(std::round(canvasSize.y)));
+	bool runtimeSceneRendered = false;
+	if (renderer && activeProject && EnsureRuntimePreviewTexture(renderer, previewWidth, previewHeight))
+	{
+		SDL_Texture* previousTarget = SDL_GetRenderTarget(renderer);
+		SDL_Rect previousViewport{};
+		SDL_RenderGetViewport(renderer, &previousViewport);
 
-    if (!runtimeSceneRendered && showGrid)
-    {
-        const float gridStep = 32.0f * zoom;
-        const float originX = canvasCenter.x - cameraX * zoom;
-        const float originY = canvasCenter.y - cameraY * zoom;
-        const ImU32 gridColor = IM_COL32(58, 65, 72, 120);
+		if (SDL_SetRenderTarget(renderer, runtimePreviewTexture) == 0)
+		{
+			SDL_RenderSetViewport(renderer, nullptr);
+			RuntimeSceneRendererConfig rendererConfig;
+			rendererConfig.projectRoot = activeProject->projectRoot;
+			rendererConfig.engineRoot = activeProject->engineRoot;
+			rendererConfig.contentRoot = activeProject->ResolveProjectPath(activeProject->contentRoot);
+			rendererConfig.assetRoots = assetRegistry.GetRoots();
+			rendererConfig.cameraPolicy = playing ? RuntimeCameraPolicy::SceneCamera : RuntimeCameraPolicy::Explicit;
+			rendererConfig.cameraX = playing ? 0.0f : cameraX;
+			rendererConfig.cameraY = playing ? 0.0f : cameraY;
+			rendererConfig.zoom = playing ? 1.0f : zoom;
+			rendererConfig.showGrid = showGrid;
 
-        for (float x = std::fmod(originX - canvasPos.x, gridStep); x < canvasSize.x; x += gridStep)
-        {
-            const float lineX = canvasPos.x + x;
-            drawList->AddLine(ImVec2(lineX, canvasPos.y), ImVec2(lineX, canvasEnd.y), gridColor);
-        }
-        for (float y = std::fmod(originY - canvasPos.y, gridStep); y < canvasSize.y; y += gridStep)
-        {
-            const float lineY = canvasPos.y + y;
-            drawList->AddLine(ImVec2(canvasPos.x, lineY), ImVec2(canvasEnd.x, lineY), gridColor);
-        }
-    }
+			const AE::Scene::Document runtimeDocument = sceneDocument.ToRuntimeDocument();
+			if (runtimeRegistry)
+			{
+				runtimeSceneRenderer.RenderWorld(
+					*runtimeRegistry,
+					runtimeDocument,
+					rendererConfig,
+					SDL_Rect{0, 0, previewWidth, previewHeight});
+			}
+			else
+			{
+				runtimeSceneRenderer.RenderScene(
+					runtimeDocument,
+					rendererConfig,
+					SDL_Rect{0, 0, previewWidth, previewHeight});
+			}
+			if (playing && runtimeRenderCallback)
+			{
+				RuntimeRenderContextSDL renderContext{
+					window,
+					renderer,
+					SDL_Rect{0, 0, previewWidth, previewHeight},
+					activeProject,
+					&runtimeDocument};
+				runtimeRenderCallback(renderContext);
+			}
+			runtimeSceneRendered = true;
+		}
 
-    if (!runtimeSceneRendered)
-    {
-        const ImVec2 origin = worldToScreen(EditorVec2{0.0f, 0.0f});
-        drawList->AddLine(ImVec2(canvasPos.x, origin.y), ImVec2(canvasEnd.x, origin.y), IM_COL32(132, 74, 74, 170), 2.0f);
-        drawList->AddLine(ImVec2(origin.x, canvasPos.y), ImVec2(origin.x, canvasEnd.y), IM_COL32(75, 126, 86, 170), 2.0f);
-    }
+		SDL_SetRenderTarget(renderer, previousTarget);
+		SDL_RenderSetViewport(renderer, &previousViewport);
+	}
 
-    const bool drawSceneObjects = editEnabled || !runtimeSceneRendered;
-    if (drawSceneObjects)
-    {
-        for (const SceneObject& object : sceneDocument.GetObjects())
-        {
-            if (!object.visible || object.kind == SceneObjectKind::Grid)
-            {
-                continue;
-            }
+	drawList->PushClipRect(canvasPos, canvasEnd, true);
+	if (runtimeSceneRendered)
+	{
+		drawList->AddImage(
+			ToImTextureId(runtimePreviewTexture),
+			canvasPos,
+			canvasEnd);
+	}
+	else
+	{
+		drawList->AddRectFilled(canvasPos, canvasEnd, IM_COL32(16, 18, 20, 255));
+	}
 
-            const ObjectBounds screenBounds = boundsToScreen(GetObjectBounds(object));
-            const bool selected = editEnabled && selection.IsSceneObjectSelected(object.id);
-            const ImU32 color = IsShapeObject(object) ?
-                ShapeOutlineColor(object, selected, playing) :
-                (selected ? IM_COL32(255, 211, 91, 255) :
-                    (playing ? IM_COL32(102, 206, 138, 220) : IM_COL32(92, 153, 214, 220)));
-            const float thickness = selected ? 3.0f : 2.0f;
+	if (!runtimeSceneRendered && showGrid)
+	{
+		const float gridStep = 32.0f * zoom;
+		const float originX = canvasCenter.x - cameraX * zoom;
+		const float originY = canvasCenter.y - cameraY * zoom;
+		const ImU32 gridColor = IM_COL32(58, 65, 72, 120);
 
-            const AssetRecord* asset = object.assetId.empty() ? nullptr : assetRegistry.FindAssetById(object.assetId);
-            TexturePreview* preview = asset ? textureCache.GetTexture(*asset) : nullptr;
+		for (float x = std::fmod(originX - canvasPos.x, gridStep); x < canvasSize.x; x += gridStep)
+		{
+			const float lineX = canvasPos.x + x;
+			drawList->AddLine(ImVec2(lineX, canvasPos.y), ImVec2(lineX, canvasEnd.y), gridColor);
+		}
+		for (float y = std::fmod(originY - canvasPos.y, gridStep); y < canvasSize.y; y += gridStep)
+		{
+			const float lineY = canvasPos.y + y;
+			drawList->AddLine(ImVec2(canvasPos.x, lineY), ImVec2(canvasEnd.x, lineY), gridColor);
+		}
+	}
 
-            if (runtimeSceneRendered)
-            {
-                if (selected)
-                {
-                    if (object.kind == SceneObjectKind::Circle)
-                    {
-                        drawList->AddCircle(
-                            ImVec2(screenBounds.x + screenBounds.w * 0.5f, screenBounds.y + screenBounds.h * 0.5f),
-                            std::max(4.0f, std::min(screenBounds.w, screenBounds.h) * 0.5f),
-                            color,
-                            32,
-                            thickness);
-                    }
-                    else
-                    {
-                        drawList->AddRect(
-                            ImVec2(screenBounds.x, screenBounds.y),
-                            ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
-                            color,
-                            2.0f,
-                            0,
-                            thickness);
-                    }
-                }
-            }
-            else if (preview && preview->texture)
-            {
-                drawList->AddImage(
-                    ToImTextureId(preview->texture),
-                    ImVec2(screenBounds.x, screenBounds.y),
-                    ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h));
-                drawList->AddRect(
-                    ImVec2(screenBounds.x, screenBounds.y),
-                    ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
-                    color,
-                    2.0f,
-                    0,
-                    thickness);
-            }
-            else if (object.kind == SceneObjectKind::Camera)
-            {
-                drawList->AddCircle(
-                    ImVec2(screenBounds.x + screenBounds.w * 0.5f, screenBounds.y + screenBounds.h * 0.5f),
-                    std::max(8.0f, 20.0f * zoom),
-                    color,
-                    24,
-                    thickness);
-            }
-            else if (object.kind == SceneObjectKind::Circle)
-            {
-                const ImVec2 center(
-                    screenBounds.x + screenBounds.w * 0.5f,
-                    screenBounds.y + screenBounds.h * 0.5f);
-                const float radius = std::max(4.0f, std::min(screenBounds.w, screenBounds.h) * 0.5f);
-                drawList->AddCircleFilled(center, radius, ShapeFillColor(object, playing), 32);
-                drawList->AddCircle(center, radius, color, 32, thickness);
-            }
-            else if (object.kind == SceneObjectKind::Box)
-            {
-                drawList->AddRectFilled(
-                    ImVec2(screenBounds.x, screenBounds.y),
-                    ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
-                    ShapeFillColor(object, playing),
-                    2.0f);
-                drawList->AddRect(
-                    ImVec2(screenBounds.x, screenBounds.y),
-                    ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
-                    color,
-                    2.0f,
-                    0,
-                    thickness);
-            }
-            else
-            {
-                drawList->AddRect(
-                    ImVec2(screenBounds.x, screenBounds.y),
-                    ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
-                    color,
-                    2.0f,
-                    0,
-                    thickness);
-            }
+	if (!runtimeSceneRendered)
+	{
+		const ImVec2 origin = worldToScreen(EditorVec2{0.0f, 0.0f});
+		drawList->AddLine(ImVec2(canvasPos.x, origin.y), ImVec2(canvasEnd.x, origin.y), IM_COL32(132, 74, 74, 170), 2.0f);
+		drawList->AddLine(ImVec2(origin.x, canvasPos.y), ImVec2(origin.x, canvasEnd.y), IM_COL32(75, 126, 86, 170), 2.0f);
+	}
 
-            if (editEnabled)
-            {
-                drawList->AddText(
-                    ImVec2(screenBounds.x, screenBounds.y - 18.0f),
-                    IM_COL32(210, 216, 222, 230),
-                    object.name.c_str());
-            }
-        }
-    }
+	const bool drawSceneObjects = editEnabled || !runtimeSceneRendered;
+	if (drawSceneObjects)
+	{
+		for (const SceneObject& object : sceneDocument.GetObjects())
+		{
+			if (!object.visible || object.kind == SceneObjectKind::Grid)
+			{
+				continue;
+			}
 
-    const EditorSelection& currentSelection = selection.GetSelection();
-    SceneObject* selectedObject = nullptr;
-    if (currentSelection.type == EditorSelectionType::SceneObject)
-    {
-        selectedObject = sceneDocument.FindObject(currentSelection.objectId);
-    }
+			const ObjectBounds screenBounds = boundsToScreen(GetObjectBounds(object));
+			const bool selected = editEnabled && selection.IsSceneObjectSelected(object.id);
+			const ImU32 color = IsShapeObject(object) ? ShapeOutlineColor(object, selected, playing) : (selected ? IM_COL32(255, 211, 91, 255) : (playing ? IM_COL32(102, 206, 138, 220) : IM_COL32(92, 153, 214, 220)));
+			const float thickness = selected ? 3.0f : 2.0f;
 
-    if (!editEnabled || activeTool != EditorTool::Move || !selectedObject || !selectedObject->visible || selectedObject->locked)
-    {
-        activeGizmoAxis = GizmoAxis::None;
-        activeGizmoObjectId = 0;
-    }
-    else
-    {
-        const float axisLength = 82.0f;
-        const float axisHitWidth = 9.0f;
-        const ImVec2 mouse = ImGui::GetIO().MousePos;
-        const ImVec2 center = worldToScreen(selectedObject->transform.position);
+			const AssetRecord* asset = object.assetId.empty() ? nullptr : assetRegistry.FindAssetById(object.assetId);
+			TexturePreview* preview = asset ? textureCache.GetTexture(*asset) : nullptr;
 
-        auto hitGizmo = [&]() {
-            if (std::fabs(mouse.x - center.x) <= 10.0f && std::fabs(mouse.y - center.y) <= 10.0f)
-            {
-                return GizmoAxis::XY;
-            }
-            if (mouse.x >= center.x + 8.0f && mouse.x <= center.x + axisLength + 16.0f &&
-                std::fabs(mouse.y - center.y) <= axisHitWidth)
-            {
-                return GizmoAxis::X;
-            }
-            if (mouse.y >= center.y + 8.0f && mouse.y <= center.y + axisLength + 16.0f &&
-                std::fabs(mouse.x - center.x) <= axisHitWidth)
-            {
-                return GizmoAxis::Y;
-            }
-            return GizmoAxis::None;
-        };
+			if (runtimeSceneRendered)
+			{
+				if (selected)
+				{
+					if (object.kind == SceneObjectKind::Circle)
+					{
+						drawList->AddCircle(
+							ImVec2(screenBounds.x + screenBounds.w * 0.5f, screenBounds.y + screenBounds.h * 0.5f),
+							std::max(4.0f, std::min(screenBounds.w, screenBounds.h) * 0.5f),
+							color,
+							32,
+							thickness);
+					}
+					else
+					{
+						drawList->AddRect(
+							ImVec2(screenBounds.x, screenBounds.y),
+							ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
+							color,
+							2.0f,
+							0,
+							thickness);
+					}
+				}
+			}
+			else if (preview && preview->texture)
+			{
+				drawList->AddImage(
+					ToImTextureId(preview->texture),
+					ImVec2(screenBounds.x, screenBounds.y),
+					ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h));
+				drawList->AddRect(
+					ImVec2(screenBounds.x, screenBounds.y),
+					ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
+					color,
+					2.0f,
+					0,
+					thickness);
+			}
+			else if (object.kind == SceneObjectKind::Camera)
+			{
+				drawList->AddCircle(
+					ImVec2(screenBounds.x + screenBounds.w * 0.5f, screenBounds.y + screenBounds.h * 0.5f),
+					std::max(8.0f, 20.0f * zoom),
+					color,
+					24,
+					thickness);
+			}
+			else if (object.kind == SceneObjectKind::Circle)
+			{
+				const ImVec2 center(
+					screenBounds.x + screenBounds.w * 0.5f,
+					screenBounds.y + screenBounds.h * 0.5f);
+				const float radius = std::max(4.0f, std::min(screenBounds.w, screenBounds.h) * 0.5f);
+				drawList->AddCircleFilled(center, radius, ShapeFillColor(object, playing), 32);
+				drawList->AddCircle(center, radius, color, 32, thickness);
+			}
+			else if (object.kind == SceneObjectKind::Box)
+			{
+				drawList->AddRectFilled(
+					ImVec2(screenBounds.x, screenBounds.y),
+					ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
+					ShapeFillColor(object, playing),
+					2.0f);
+				drawList->AddRect(
+					ImVec2(screenBounds.x, screenBounds.y),
+					ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
+					color,
+					2.0f,
+					0,
+					thickness);
+			}
+			else
+			{
+				drawList->AddRect(
+					ImVec2(screenBounds.x, screenBounds.y),
+					ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
+					color,
+					2.0f,
+					0,
+					thickness);
+			}
 
-        if (activeGizmoAxis == GizmoAxis::None && canvasHovered && ImGui::IsMouseClicked(0))
-        {
-            const GizmoAxis hitAxis = hitGizmo();
-            if (hitAxis != GizmoAxis::None)
-            {
-                activeGizmoAxis = hitAxis;
-                activeGizmoObjectId = selectedObject->id;
-                dragStartMouseWorld = screenToWorld(mouse);
-                dragStartObjectPosition = selectedObject->transform.position;
-                canvasClickConsumed = true;
-            }
-        }
+			if (editEnabled)
+			{
+				drawList->AddText(
+					ImVec2(screenBounds.x, screenBounds.y - 18.0f),
+					IM_COL32(210, 216, 222, 230),
+					object.name.c_str());
+			}
+		}
+	}
 
-        if (activeGizmoAxis != GizmoAxis::None)
-        {
-            if (!ImGui::IsMouseDown(0))
-            {
-                activeGizmoAxis = GizmoAxis::None;
-                activeGizmoObjectId = 0;
-            }
-            else if (activeGizmoObjectId == selectedObject->id)
-            {
-                const EditorVec2 mouseWorld = screenToWorld(mouse);
-                const EditorVec2 delta{
-                    mouseWorld.x - dragStartMouseWorld.x,
-                    mouseWorld.y - dragStartMouseWorld.y
-                };
-                EditorVec2 position = dragStartObjectPosition;
+	const EditorSelection& currentSelection = selection.GetSelection();
+	SceneObject* selectedObject = nullptr;
+	if (currentSelection.type == EditorSelectionType::SceneObject)
+	{
+		selectedObject = sceneDocument.FindObject(currentSelection.objectId);
+	}
 
-                if (activeGizmoAxis == GizmoAxis::X || activeGizmoAxis == GizmoAxis::XY)
-                {
-                    position.x += delta.x;
-                }
-                if (activeGizmoAxis == GizmoAxis::Y || activeGizmoAxis == GizmoAxis::XY)
-                {
-                    position.y += delta.y;
-                }
+	if (!editEnabled || activeTool != EditorTool::Move || !selectedObject || !selectedObject->visible || selectedObject->locked)
+	{
+		activeGizmoAxis = GizmoAxis::None;
+		activeGizmoObjectId = 0;
+	}
+	else
+	{
+		const float axisLength = 82.0f;
+		const float axisHitWidth = 9.0f;
+		const ImVec2 mouse = ImGui::GetIO().MousePos;
+		const ImVec2 center = worldToScreen(selectedObject->transform.position);
 
-                selectedObject->transform.position = position;
-                sceneDocument.SetDirty(true);
-                canvasClickConsumed = true;
-            }
-            else
-            {
-                activeGizmoAxis = GizmoAxis::None;
-                activeGizmoObjectId = 0;
-            }
-        }
+		auto hitGizmo = [&]()
+		{
+			if (std::fabs(mouse.x - center.x) <= 10.0f && std::fabs(mouse.y - center.y) <= 10.0f)
+			{
+				return GizmoAxis::XY;
+			}
+			if (mouse.x >= center.x + 8.0f && mouse.x <= center.x + axisLength + 16.0f &&
+				std::fabs(mouse.y - center.y) <= axisHitWidth)
+			{
+				return GizmoAxis::X;
+			}
+			if (mouse.y >= center.y + 8.0f && mouse.y <= center.y + axisLength + 16.0f &&
+				std::fabs(mouse.x - center.x) <= axisHitWidth)
+			{
+				return GizmoAxis::Y;
+			}
+			return GizmoAxis::None;
+		};
 
-        const ImVec2 updatedCenter = worldToScreen(selectedObject->transform.position);
-        const ImVec2 xEnd(updatedCenter.x + axisLength, updatedCenter.y);
-        const ImVec2 yEnd(updatedCenter.x, updatedCenter.y + axisLength);
-        const bool xActive = activeGizmoAxis == GizmoAxis::X || activeGizmoAxis == GizmoAxis::XY;
-        const bool yActive = activeGizmoAxis == GizmoAxis::Y || activeGizmoAxis == GizmoAxis::XY;
-        const ImU32 xColor = xActive ? IM_COL32(255, 102, 102, 255) : IM_COL32(222, 72, 72, 255);
-        const ImU32 yColor = yActive ? IM_COL32(102, 235, 142, 255) : IM_COL32(72, 190, 104, 255);
-        const ImU32 centerColor = activeGizmoAxis == GizmoAxis::XY ? IM_COL32(255, 226, 96, 255) : IM_COL32(236, 196, 76, 255);
+		if (activeGizmoAxis == GizmoAxis::None && canvasHovered && ImGui::IsMouseClicked(0))
+		{
+			const GizmoAxis hitAxis = hitGizmo();
+			if (hitAxis != GizmoAxis::None)
+			{
+				activeGizmoAxis = hitAxis;
+				activeGizmoObjectId = selectedObject->id;
+				dragStartMouseWorld = screenToWorld(mouse);
+				dragStartObjectPosition = selectedObject->transform.position;
+				canvasClickConsumed = true;
+			}
+		}
 
-        drawList->AddLine(updatedCenter, xEnd, IM_COL32(24, 24, 24, 180), 6.0f);
-        drawList->AddLine(updatedCenter, yEnd, IM_COL32(24, 24, 24, 180), 6.0f);
-        drawList->AddLine(updatedCenter, xEnd, xColor, 3.0f);
-        drawList->AddLine(updatedCenter, yEnd, yColor, 3.0f);
-        drawList->AddTriangleFilled(
-            ImVec2(xEnd.x + 12.0f, xEnd.y),
-            ImVec2(xEnd.x, xEnd.y - 7.0f),
-            ImVec2(xEnd.x, xEnd.y + 7.0f),
-            xColor);
-        drawList->AddTriangleFilled(
-            ImVec2(yEnd.x, yEnd.y + 12.0f),
-            ImVec2(yEnd.x - 7.0f, yEnd.y),
-            ImVec2(yEnd.x + 7.0f, yEnd.y),
-            yColor);
-        drawList->AddRectFilled(
-            ImVec2(updatedCenter.x - 7.0f, updatedCenter.y - 7.0f),
-            ImVec2(updatedCenter.x + 7.0f, updatedCenter.y + 7.0f),
-            centerColor,
-            2.0f);
-        drawList->AddRect(
-            ImVec2(updatedCenter.x - 7.0f, updatedCenter.y - 7.0f),
-            ImVec2(updatedCenter.x + 7.0f, updatedCenter.y + 7.0f),
-            IM_COL32(20, 20, 20, 220),
-            2.0f,
-            0,
-            1.0f);
-        drawList->AddText(ImVec2(xEnd.x + 15.0f, xEnd.y - 9.0f), xColor, "X");
-        drawList->AddText(ImVec2(yEnd.x - 4.0f, yEnd.y + 14.0f), yColor, "Y");
-    }
+		if (activeGizmoAxis != GizmoAxis::None)
+		{
+			if (!ImGui::IsMouseDown(0))
+			{
+				activeGizmoAxis = GizmoAxis::None;
+				activeGizmoObjectId = 0;
+			}
+			else if (activeGizmoObjectId == selectedObject->id)
+			{
+				const EditorVec2 mouseWorld = screenToWorld(mouse);
+				const EditorVec2 delta{
+					mouseWorld.x - dragStartMouseWorld.x,
+					mouseWorld.y - dragStartMouseWorld.y};
+				EditorVec2 position = dragStartObjectPosition;
 
-    if (paused)
-    {
-        drawList->AddText(ImVec2(canvasPos.x + 12.0f, canvasPos.y + 12.0f), IM_COL32(255, 216, 120, 255), "Paused");
-    }
-    else if (playing)
-    {
-        drawList->AddText(ImVec2(canvasPos.x + 12.0f, canvasPos.y + 12.0f), IM_COL32(132, 230, 156, 255), "Playing");
-    }
+				if (activeGizmoAxis == GizmoAxis::X || activeGizmoAxis == GizmoAxis::XY)
+				{
+					position.x += delta.x;
+				}
+				if (activeGizmoAxis == GizmoAxis::Y || activeGizmoAxis == GizmoAxis::XY)
+				{
+					position.y += delta.y;
+				}
 
-    drawList->PopClipRect();
+				selectedObject->transform.position = position;
+				sceneDocument.SetDirty(true);
+				canvasClickConsumed = true;
+			}
+			else
+			{
+				activeGizmoAxis = GizmoAxis::None;
+				activeGizmoObjectId = 0;
+			}
+		}
 
-    if (editEnabled && ImGui::BeginDragDropTarget())
-    {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AMBER_ASSET"))
-        {
-            if (payload->IsDelivery() && payload->Data && payload->DataSize > 0)
-            {
-                std::string assetId(static_cast<const char*>(payload->Data), static_cast<std::size_t>(payload->DataSize));
-                if (!assetId.empty() && assetId.back() == '\0')
-                {
-                    assetId.pop_back();
-                }
+		const ImVec2 updatedCenter = worldToScreen(selectedObject->transform.position);
+		const ImVec2 xEnd(updatedCenter.x + axisLength, updatedCenter.y);
+		const ImVec2 yEnd(updatedCenter.x, updatedCenter.y + axisLength);
+		const bool xActive = activeGizmoAxis == GizmoAxis::X || activeGizmoAxis == GizmoAxis::XY;
+		const bool yActive = activeGizmoAxis == GizmoAxis::Y || activeGizmoAxis == GizmoAxis::XY;
+		const ImU32 xColor = xActive ? IM_COL32(255, 102, 102, 255) : IM_COL32(222, 72, 72, 255);
+		const ImU32 yColor = yActive ? IM_COL32(102, 235, 142, 255) : IM_COL32(72, 190, 104, 255);
+		const ImU32 centerColor = activeGizmoAxis == GizmoAxis::XY ? IM_COL32(255, 226, 96, 255) : IM_COL32(236, 196, 76, 255);
 
-                const ImVec2 mouse = ImGui::GetIO().MousePos;
-                dropRequest = AssetDropRequest{
-                    assetId,
-                    EditorVec2{
-                        cameraX + (mouse.x - canvasCenter.x) / zoom,
-                        cameraY + (mouse.y - canvasCenter.y) / zoom
-                    }
-                };
-            }
-        }
-        ImGui::EndDragDropTarget();
-    }
+		drawList->AddLine(updatedCenter, xEnd, IM_COL32(24, 24, 24, 180), 6.0f);
+		drawList->AddLine(updatedCenter, yEnd, IM_COL32(24, 24, 24, 180), 6.0f);
+		drawList->AddLine(updatedCenter, xEnd, xColor, 3.0f);
+		drawList->AddLine(updatedCenter, yEnd, yColor, 3.0f);
+		drawList->AddTriangleFilled(
+			ImVec2(xEnd.x + 12.0f, xEnd.y),
+			ImVec2(xEnd.x, xEnd.y - 7.0f),
+			ImVec2(xEnd.x, xEnd.y + 7.0f),
+			xColor);
+		drawList->AddTriangleFilled(
+			ImVec2(yEnd.x, yEnd.y + 12.0f),
+			ImVec2(yEnd.x - 7.0f, yEnd.y),
+			ImVec2(yEnd.x + 7.0f, yEnd.y),
+			yColor);
+		drawList->AddRectFilled(
+			ImVec2(updatedCenter.x - 7.0f, updatedCenter.y - 7.0f),
+			ImVec2(updatedCenter.x + 7.0f, updatedCenter.y + 7.0f),
+			centerColor,
+			2.0f);
+		drawList->AddRect(
+			ImVec2(updatedCenter.x - 7.0f, updatedCenter.y - 7.0f),
+			ImVec2(updatedCenter.x + 7.0f, updatedCenter.y + 7.0f),
+			IM_COL32(20, 20, 20, 220),
+			2.0f,
+			0,
+			1.0f);
+		drawList->AddText(ImVec2(xEnd.x + 15.0f, xEnd.y - 9.0f), xColor, "X");
+		drawList->AddText(ImVec2(yEnd.x - 4.0f, yEnd.y + 14.0f), yColor, "Y");
+	}
 
-    if (editEnabled && !canvasClickConsumed && canvasHovered && ImGui::IsMouseClicked(0))
-    {
-        const ImVec2 mouse = ImGui::GetIO().MousePos;
-        std::uint32_t selectedObjectId = 0;
-        const std::vector<SceneObject>& objects = sceneDocument.GetObjects();
-        for (auto it = objects.rbegin(); it != objects.rend(); ++it)
-        {
-            if (!it->visible || it->kind == SceneObjectKind::Grid)
-            {
-                continue;
-            }
+	if (paused)
+	{
+		drawList->AddText(ImVec2(canvasPos.x + 12.0f, canvasPos.y + 12.0f), IM_COL32(255, 216, 120, 255), "Paused");
+	}
+	else if (playing)
+	{
+		drawList->AddText(ImVec2(canvasPos.x + 12.0f, canvasPos.y + 12.0f), IM_COL32(132, 230, 156, 255), "Playing");
+	}
 
-            const ObjectBounds screenBounds = boundsToScreen(GetObjectBounds(*it));
-            if (Contains(mouse.x, mouse.y, screenBounds))
-            {
-                selectedObjectId = it->id;
-                break;
-            }
-        }
+	drawList->PopClipRect();
 
-        if (selectedObjectId != 0)
-        {
-            selection.SelectSceneObject(selectedObjectId);
-        }
-        else
-        {
-            selection.Clear();
-        }
-    }
+	if (editEnabled && ImGui::BeginDragDropTarget())
+	{
+		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AMBER_ASSET"))
+		{
+			if (payload->IsDelivery() && payload->Data && payload->DataSize > 0)
+			{
+				std::string assetId(static_cast<const char*>(payload->Data), static_cast<SizeT>(payload->DataSize));
+				if (!assetId.empty() && assetId.back() == '\0')
+				{
+					assetId.pop_back();
+				}
 
-    return dropRequest;
+				const ImVec2 mouse = ImGui::GetIO().MousePos;
+				dropRequest = AssetDropRequest{
+					assetId,
+					EditorVec2{
+						cameraX + (mouse.x - canvasCenter.x) / zoom,
+						cameraY + (mouse.y - canvasCenter.y) / zoom}};
+			}
+		}
+		ImGui::EndDragDropTarget();
+	}
+
+	if (editEnabled && !canvasClickConsumed && canvasHovered && ImGui::IsMouseClicked(0))
+	{
+		const ImVec2 mouse = ImGui::GetIO().MousePos;
+		uint32 selectedObjectId = 0;
+		const std::vector<SceneObject>& objects = sceneDocument.GetObjects();
+		for (auto it = objects.rbegin(); it != objects.rend(); ++it)
+		{
+			if (!it->visible || it->kind == SceneObjectKind::Grid)
+			{
+				continue;
+			}
+
+			const ObjectBounds screenBounds = boundsToScreen(GetObjectBounds(*it));
+			if (Contains(mouse.x, mouse.y, screenBounds))
+			{
+				selectedObjectId = it->id;
+				break;
+			}
+		}
+
+		if (selectedObjectId != 0)
+		{
+			selection.SelectSceneObject(selectedObjectId);
+		}
+		else
+		{
+			selection.Clear();
+		}
+	}
+
+	return dropRequest;
 }
 
 float EditorViewport::GetZoom() const
 {
-    return zoom;
+	return zoom;
 }
 
 void EditorViewport::SetZoom(float value)
 {
-    zoom = std::max(0.25f, std::min(2.0f, value));
+	zoom = std::max(0.25f, std::min(2.0f, value));
 }
 
 void EditorViewport::FocusOrigin()
 {
-    cameraX = 0.0f;
-    cameraY = 0.0f;
+	cameraX = 0.0f;
+	cameraY = 0.0f;
 }
 
 EditorVec2 EditorViewport::GetViewCenter() const
 {
-    return EditorVec2{cameraX, cameraY};
+	return EditorVec2{cameraX, cameraY};
 }
 
 void EditorViewport::ReleaseRenderResources()
 {
-    DestroyRuntimePreviewTexture();
-    runtimeSceneRenderer.ClearTextureCache();
-    runtimeSceneRenderer.SetRenderer(nullptr);
+	DestroyRuntimePreviewTexture();
+	runtimeSceneRenderer.ClearTextureCache();
+	runtimeSceneRenderer.SetRenderer(nullptr);
 }
 
 EditorViewport::ObjectBounds EditorViewport::GetObjectBounds(const SceneObject& object) const
 {
-    if (object.kind == SceneObjectKind::Camera)
-    {
-        return ObjectBounds{
-            object.transform.position.x - 44.0f,
-            object.transform.position.y - 30.0f,
-            88.0f,
-            60.0f
-        };
-    }
+	if (object.kind == SceneObjectKind::Camera)
+	{
+		return ObjectBounds{
+			object.transform.position.x - 44.0f,
+			object.transform.position.y - 30.0f,
+			88.0f,
+			60.0f};
+	}
 
-    if (object.kind == SceneObjectKind::RuntimeWorld)
-    {
-        return ObjectBounds{
-            object.transform.position.x - 112.0f,
-            object.transform.position.y - 72.0f,
-            224.0f,
-            144.0f
-        };
-    }
+	if (object.kind == SceneObjectKind::RuntimeWorld)
+	{
+		return ObjectBounds{
+			object.transform.position.x - 112.0f,
+			object.transform.position.y - 72.0f,
+			224.0f,
+			144.0f};
+	}
 
-    if (object.kind == SceneObjectKind::AssetInstance ||
-        object.kind == SceneObjectKind::Box ||
-        object.kind == SceneObjectKind::Circle)
-    {
-        const float width = object.size.x * object.transform.scale.x;
-        const float height = object.size.y * object.transform.scale.y;
-        return ObjectBounds{
-            object.transform.position.x - width * 0.5f,
-            object.transform.position.y - height * 0.5f,
-            width,
-            height
-        };
-    }
+	if (object.kind == SceneObjectKind::AssetInstance ||
+		object.kind == SceneObjectKind::Box ||
+		object.kind == SceneObjectKind::Circle)
+	{
+		const float width = object.size.x * object.transform.scale.x;
+		const float height = object.size.y * object.transform.scale.y;
+		return ObjectBounds{
+			object.transform.position.x - width * 0.5f,
+			object.transform.position.y - height * 0.5f,
+			width,
+			height};
+	}
 
-    return ObjectBounds{
-        object.transform.position.x - 32.0f,
-        object.transform.position.y - 32.0f,
-        64.0f,
-        64.0f
-    };
+	return ObjectBounds{
+		object.transform.position.x - 32.0f,
+		object.transform.position.y - 32.0f,
+		64.0f,
+		64.0f};
 }
 
 EditorViewport::~EditorViewport()
 {
-    ReleaseRenderResources();
+	ReleaseRenderResources();
 }
 
 bool EditorViewport::EnsureRuntimePreviewTexture(SDL_Renderer* renderer, int width, int height)
 {
-    if (!renderer || width <= 0 || height <= 0)
-    {
-        return false;
-    }
+	if (!renderer || width <= 0 || height <= 0)
+	{
+		return false;
+	}
 
-    runtimeSceneRenderer.SetRenderer(renderer);
+	runtimeSceneRenderer.SetRenderer(renderer);
 
-    if (runtimePreviewTexture && runtimePreviewWidth == width && runtimePreviewHeight == height)
-    {
-        return true;
-    }
+	if (runtimePreviewTexture && runtimePreviewWidth == width && runtimePreviewHeight == height)
+	{
+		return true;
+	}
 
-    DestroyRuntimePreviewTexture();
-    runtimePreviewTexture = SDL_CreateTexture(
-        renderer,
-        SDL_PIXELFORMAT_RGBA8888,
-        SDL_TEXTUREACCESS_TARGET,
-        width,
-        height);
-    if (!runtimePreviewTexture)
-    {
-        return false;
-    }
+	DestroyRuntimePreviewTexture();
+	runtimePreviewTexture = SDL_CreateTexture(
+		renderer,
+		SDL_PIXELFORMAT_RGBA8888,
+		SDL_TEXTUREACCESS_TARGET,
+		width,
+		height);
+	if (!runtimePreviewTexture)
+	{
+		return false;
+	}
 
-    SDL_SetTextureBlendMode(runtimePreviewTexture, SDL_BLENDMODE_BLEND);
-    runtimePreviewWidth = width;
-    runtimePreviewHeight = height;
-    return true;
+	SDL_SetTextureBlendMode(runtimePreviewTexture, SDL_BLENDMODE_BLEND);
+	runtimePreviewWidth = width;
+	runtimePreviewHeight = height;
+	return true;
 }
 
 void EditorViewport::DestroyRuntimePreviewTexture()
 {
-    if (runtimePreviewTexture)
-    {
-        SDL_DestroyTexture(runtimePreviewTexture);
-        runtimePreviewTexture = nullptr;
-    }
-    runtimePreviewWidth = 0;
-    runtimePreviewHeight = 0;
+	if (runtimePreviewTexture)
+	{
+		SDL_DestroyTexture(runtimePreviewTexture);
+		runtimePreviewTexture = nullptr;
+	}
+	runtimePreviewWidth = 0;
+	runtimePreviewHeight = 0;
 }
 
-}
+} // namespace AE::Editor
