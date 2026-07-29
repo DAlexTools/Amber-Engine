@@ -17,14 +17,19 @@
 #include "Core/BuildConfig.h"
 #include "Core/Math/Vector2D.h"
 #include "Game/GameModuleInterface.h"
-#include "Physics/Objects/Body.h"
+#include "Body.h"
+
+namespace AE
+{
+struct RuntimeRenderContextSDL;
+}
 
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
 #include "Scene/Object.h"
 #endif
 
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
-#include "Editor/Diagnostics/SampleDiagnosticsOverlay.h"
+#include "SampleDiagnosticsOverlay.h"
 #endif
 
 class PlatformerGameModule : public AE::IGameModule
@@ -58,8 +63,8 @@ private:
 
     struct Player
     {
-        AE::Physics::FVector2D position;
-        AE::Physics::FVector2D velocity;
+        AE::Math::FVector2D position;
+        AE::Math::FVector2D velocity;
         float width = 28.0f;
         float height = 42.0f;
         bool grounded = false;
@@ -77,9 +82,9 @@ private:
     struct Enemy
     {
         std::string name;
-        AE::Physics::FVector2D spawnPosition;
-        AE::Physics::FVector2D position;
-        AE::Physics::FVector2D velocity;
+        AE::Math::FVector2D spawnPosition;
+        AE::Math::FVector2D position;
+        AE::Math::FVector2D velocity;
         float width = 30.0f;
         float height = 26.0f;
         float speed = 70.0f;
@@ -106,8 +111,8 @@ private:
 
     struct Projectile
     {
-        AE::Physics::FVector2D position;
-        AE::Physics::FVector2D velocity;
+        AE::Math::FVector2D position;
+        AE::Math::FVector2D velocity;
         float width = 16.0f;
         float height = 6.0f;
         float timeToLive = 1.2f;
@@ -135,8 +140,8 @@ private:
     struct KinematicBody
     {
         AE::Physics::Body* body = nullptr;
-        AE::Physics::FVector2D basePosition;
-        AE::Physics::FVector2D axis;
+        AE::Math::FVector2D basePosition;
+        AE::Math::FVector2D axis;
         float amplitude = 0.0f;
         float speed = 0.0f;
         float phase = 0.0f;
@@ -201,18 +206,26 @@ private:
     SDL_Texture* frameTexture = nullptr;
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
     bool imageSystemInitialized = false;
+    bool ownsImageSystem = false;
 #endif
     bool running = false;
 #if SMOKE_TEST
     bool smokeMode = false;
 #endif
+    bool runtimePlayerMode = false;
+    bool ownsSdl = false;
+    bool ownsWindow = false;
+    bool ownsRenderer = false;
     bool fullscreen = false;
     bool paused = false;
     bool jumpKeyWasDown = false;
     bool shootKeyWasDown = false;
+    bool pauseKeyWasDown = false;
+    bool resetKeyWasDown = false;
     bool pendingJumpPressed = false;
     bool pendingShootPressed = false;
     float cameraX = 0.0f;
+    float fixedStepAccumulator = 0.0f;
     float coyoteTimer = 0.0f;
     float jumpBufferTimer = 0.0f;
     double lastUpdateMs = 0.0;
@@ -234,7 +247,7 @@ private:
     std::vector<std::string> levelTiles;
     std::vector<SolidPlatform> solidPlatforms;
     Player player;
-    AE::Physics::FVector2D playerSpawn;
+    AE::Math::FVector2D playerSpawn;
     std::vector<Coin> coins;
     std::vector<Enemy> enemies;
     std::vector<Projectile> projectiles;
@@ -258,6 +271,7 @@ private:
     bool Initialize();
     void Shutdown();
     void ToggleFullscreen();
+    bool AttachRuntimeRenderer(const AE::RuntimeRenderContextSDL& context);
     void BuildLevel();
     void LoadScriptedEnemies();
     void LoadFallbackEnemies();
@@ -266,6 +280,8 @@ private:
     void ResetLevel();
     void ResetPlayer();
     void PollEvents(InputState& input);
+    void ReadKeyboardInput(InputState& input);
+    void StepRuntime(float deltaSeconds);
     void Step(float dt, const InputState& input);
     void TryShoot();
     void TryEnemyShoot(Enemy& enemy);
@@ -297,10 +313,13 @@ private:
     static float MoveTowardZero(float value, float amount);
 
     void Render();
+    void RenderFrameContents();
     bool CreateFrameTexture();
     void BeginFrameTexture();
     void PresentFrameTexture();
     SDL_Rect CalculateFrameViewport() const;
+    SDL_Rect CalculateFrameViewport(const SDL_Rect& outputBounds) const;
+    void CopyFrameTextureToTarget(const SDL_Rect& outputBounds);
     void RenderDiagnostics();
     void DrawBackground() const;
     void DrawLevel() const;
@@ -311,6 +330,7 @@ private:
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
     void LoadEditorSceneProps();
     void ClearEditorSceneProps();
+    void RefreshEditorSceneTextures();
     bool BuildEditorSceneEnemy(const AE::Scene::ObjectData& objectData, const RectF& bounds, Enemy& enemy) const;
     void BuildEditorScenePhysics();
     void AddScenePhysicsBody(const ScenePhysicsBodySpec& spec);
@@ -325,13 +345,13 @@ private:
     void DrawFinish() const;
     void DrawHud() const;
     void DrawRect(const RectF& rect, SDL_Color color) const;
-    void DrawWorldLine(const AE::Physics::FVector2D& from, const AE::Physics::FVector2D& to, SDL_Color color) const;
+    void DrawWorldLine(const AE::Math::FVector2D& from, const AE::Math::FVector2D& to, SDL_Color color) const;
     void DrawFilledCircle(int centerX, int centerY, int radius, SDL_Color color) const;
-    void DrawFilledPolygon(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color) const;
-    void DrawPolyline(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color, bool closed) const;
+    void DrawFilledPolygon(const std::vector<AE::Math::FVector2D>& vertices, SDL_Color color) const;
+    void DrawPolyline(const std::vector<AE::Math::FVector2D>& vertices, SDL_Color color, bool closed) const;
     void DrawScreenRect(int x, int y, int w, int h, SDL_Color color) const;
     AE::Physics::Body* AddPhysicsBox(
-        AE::Physics::FVector2D position,
+        AE::Math::FVector2D position,
         float width,
         float height,
         float mass,
@@ -340,7 +360,7 @@ private:
         float rotation = 0.0f,
         bool gameplayBody = true);
     AE::Physics::Body* AddPhysicsCircle(
-        AE::Physics::FVector2D position,
+        AE::Math::FVector2D position,
         float radius,
         float mass,
         SDL_Color fill,
@@ -350,3 +370,4 @@ private:
 };
 
 #endif
+

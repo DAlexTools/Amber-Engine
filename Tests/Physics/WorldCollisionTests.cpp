@@ -7,8 +7,8 @@
 #include <cstdint>
 
 #include "Core/Threading/ThreadPool.h"
-#include "Physics/Objects/Body.h"
-#include "Physics/Objects/Shape.h"
+#include "Body.h"
+#include "Shape.h"
 #include "Classes/World.h"
 
 namespace
@@ -95,7 +95,7 @@ TEST(WorldCollisionTests, DynamicBodyRespondsToStaticObstacle)
     AE::Physics::Body* player = CreateBoxBody(0.0f, 0.0f, 1.0f);
     player->collisionCategory = Player;
     player->collisionMask = Obstacle;
-    player->velocity = AE::Physics::FVector2D(60.0f, 0.0f);
+    player->velocity = AE::Math::FVector2D(60.0f, 0.0f);
 
     AE::Physics::Body* obstacle = CreateBoxBody(9.0f, 0.0f, 0.0f);
     obstacle->collisionCategory = Obstacle;
@@ -226,7 +226,7 @@ TEST(WorldCollisionTests, AwakeDynamicBodyWakesSleepingDynamicBody)
 
     AE::Physics::Body* sleeper = CreateBoxBody(0.0f, 0.0f, 1.0f);
     AE::Physics::Body* mover = CreateBoxBody(0.0f, 0.0f, 1.0f);
-    mover->velocity = AE::Physics::FVector2D(40.0f, 0.0f);
+    mover->velocity = AE::Math::FVector2D(40.0f, 0.0f);
     world.AddBody(sleeper);
     world.AddBody(mover);
 
@@ -244,7 +244,7 @@ TEST(WorldCollisionTests, MovingStaticBodyWakesSleepingDynamicBody)
 
     AE::Physics::Body* sleeper = CreateBoxBody(0.0f, 0.0f, 1.0f);
     AE::Physics::Body* movingPlatform = CreateBoxBody(0.0f, 0.0f, 0.0f);
-    movingPlatform->velocity = AE::Physics::FVector2D(30.0f, 0.0f);
+    movingPlatform->velocity = AE::Math::FVector2D(30.0f, 0.0f);
     world.AddBody(sleeper);
     world.AddBody(movingPlatform);
 
@@ -281,10 +281,10 @@ TEST(WorldCollisionTests, ParallelSolverMatchesSequentialForIndependentIslands)
 {
     struct SolverProbe
     {
-        AE::Physics::FVector2D firstPosition;
-        AE::Physics::FVector2D secondPosition;
-        AE::Physics::FVector2D firstVelocity;
-        AE::Physics::FVector2D secondVelocity;
+        AE::Math::FVector2D firstPosition;
+        AE::Math::FVector2D secondPosition;
+        AE::Math::FVector2D firstVelocity;
+        AE::Math::FVector2D secondVelocity;
         AE::Physics::WorldStats stats;
     };
 
@@ -328,7 +328,7 @@ TEST(WorldCollisionTests, ParallelSolverMatchesSequentialForIndependentIslands)
     EXPECT_EQ(parallel.stats.solverIslandCount, sequential.stats.solverIslandCount);
     EXPECT_EQ(parallel.stats.solverConstraintCount, sequential.stats.solverConstraintCount);
     EXPECT_NEAR(parallel.firstPosition.X, sequential.firstPosition.X, 0.0001f);
-    EXPECT_NEAR(parallel.firstPosition.Y, sequential.firstPosition.X, 0.0001f);
+    EXPECT_NEAR(parallel.firstPosition.Y, sequential.firstPosition.Y, 0.0001f);
     EXPECT_NEAR(parallel.secondPosition.X, sequential.secondPosition.X, 0.0001f);
     EXPECT_NEAR(parallel.secondPosition.Y, sequential.secondPosition.Y, 0.0001f);
     EXPECT_NEAR(parallel.firstVelocity.X, sequential.firstVelocity.X, 0.0001f);
@@ -390,3 +390,4 @@ TEST(WorldCollisionTests, ParallelNarrowPhaseMatchesSequentialContactCount)
 }
 
 #endif
+

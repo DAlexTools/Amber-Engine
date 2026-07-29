@@ -4,7 +4,7 @@
 #include "../Components/PhysicsBodyComponent.h"
 #include "../Components/TransformComponent.h"
 #include "../EntityComponentSystem/ECS.h"
-#include "Physics/Objects/Body.h"
+#include "Body.h"
 #include "PhysicsTransformConversions.h"
 
 class PhysicsSyncSystem : public System
@@ -53,7 +53,7 @@ public:
                 continue;
             }
 
-            physicsBody.body->position = AE::Physics::FVector2D(
+            physicsBody.body->position = AE::Math::FVector2D(
                 transform.position.x + physicsBody.localCenterOffset.x,
                 transform.position.y + physicsBody.localCenterOffset.y);
             physicsBody.body->rotation = EnginePhysics::DegreesToRadians(static_cast<float>(transform.rotation));
@@ -66,3 +66,4 @@ public:
 };
 
 #endif
+

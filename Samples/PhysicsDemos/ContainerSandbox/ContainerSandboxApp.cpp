@@ -6,7 +6,7 @@
 #include <sstream>
 
 #include "Logging/Logger.h"
-#include "Physics/Objects/Shape.h"
+#include "Shape.h"
 
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
 #include "imgui.h"
@@ -367,7 +367,7 @@ void ContainerSandboxApp::PollEvents(InputState& input)
 
 void ContainerSandboxApp::Step(float dt, const InputState& input)
 {
-    const AE::Physics::FVector2D previousCenter = containerCenter;
+    const AE::Math::FVector2D previousCenter = containerCenter;
     const float previousAngle = containerAngle;
 
     if (input.moveLeft != input.moveRight)
@@ -408,7 +408,7 @@ void ContainerSandboxApp::ResetSimulation(ContainerMode mode)
 {
     containerMode = mode;
     containerAngle = 0.0f;
-    containerCenter = AE::Physics::FVector2D(
+    containerCenter = AE::Math::FVector2D(
         static_cast<float>(WindowWidth) * 0.5f,
         static_cast<float>(WindowHeight) * 0.54f);
     paused = false;
@@ -447,7 +447,7 @@ void ContainerSandboxApp::BuildWalls()
     for (const WallSpec& spec : wallSpecs)
     {
         AE::Physics::BoxShape shape(spec.width, spec.height);
-        AE::Physics::FVector2D position = ContainerToWorld(spec.localPosition);
+        AE::Math::FVector2D position = ContainerToWorld(spec.localPosition);
         AE::Physics::Body* body = new AE::Physics::Body(shape, position.X, position.Y, 0.0f);
         body->friction = 0.02f;
         body->restitution = 0.08f;
@@ -467,7 +467,7 @@ void ContainerSandboxApp::SpawnParticles()
 
     for (int index = 0; index < particleCount; ++index)
     {
-        const AE::Physics::FVector2D position = ContainerToWorld(ParticleSpawnLocalPosition(static_cast<std::size_t>(index)));
+        const AE::Math::FVector2D position = ContainerToWorld(ParticleSpawnLocalPosition(static_cast<std::size_t>(index)));
         AE::Physics::CircleShape shape(ParticleRadius);
         AE::Physics::Body* body = new AE::Physics::Body(shape, position.X, position.Y, 1.0f);
         body->friction = 0.02f;
@@ -486,7 +486,7 @@ void ContainerSandboxApp::UpdateContainerBodies()
         const WallSpec& spec = wallSpecs[index];
         body->position = ContainerToWorld(spec.localPosition);
         body->rotation = containerAngle + spec.localAngle;
-        body->velocity = AE::Physics::FVector2D::Zero;
+        body->velocity = AE::Math::FVector2D::Zero;
         body->angularVelocity = 0.0f;
         body->shape->UpdateVertices(body->rotation, body->position);
     }
@@ -531,7 +531,7 @@ void ContainerSandboxApp::RespawnParticle(std::size_t index)
 
     AE::Physics::Body* body = particleBodies[index];
     body->position = ContainerToWorld(ParticleSpawnLocalPosition(index));
-    body->velocity = AE::Physics::FVector2D(((static_cast<int>(index) % 5) - 2) * 18.0f, -40.0f);
+    body->velocity = AE::Math::FVector2D(((static_cast<int>(index) % 5) - 2) * 18.0f, -40.0f);
     body->rotation = 0.0f;
     body->angularVelocity = 0.0f;
     body->shape->UpdateVertices(body->rotation, body->position);
@@ -544,29 +544,29 @@ std::vector<ContainerSandboxApp::WallSpec> ContainerSandboxApp::CreateWallSpecs(
         case ContainerMode::Tray:
             return 
             {
-                WallSpec{AE::Physics::FVector2D(0.0f, 122.0f), 620.0f, 28.0f, 0.0f},
-                WallSpec{AE::Physics::FVector2D(-310.0f, 44.0f), 28.0f, 174.0f, 0.0f},
-                WallSpec{AE::Physics::FVector2D(310.0f, 44.0f), 28.0f, 174.0f, 0.0f}
+                WallSpec{AE::Math::FVector2D(0.0f, 122.0f), 620.0f, 28.0f, 0.0f},
+                WallSpec{AE::Math::FVector2D(-310.0f, 44.0f), 28.0f, 174.0f, 0.0f},
+                WallSpec{AE::Math::FVector2D(310.0f, 44.0f), 28.0f, 174.0f, 0.0f}
             };
         case ContainerMode::Funnel:
             return 
             {
-                WallSpec{AE::Physics::FVector2D(0.0f, 152.0f), 132.0f, 28.0f, 0.0f},
-                WallSpec{AE::Physics::FVector2D(-146.0f, 26.0f), 28.0f, 336.0f, -0.48f},
-                WallSpec{AE::Physics::FVector2D(146.0f, 26.0f), 28.0f, 336.0f, 0.48f}
+                WallSpec{AE::Math::FVector2D(0.0f, 152.0f), 132.0f, 28.0f, 0.0f},
+                WallSpec{AE::Math::FVector2D(-146.0f, 26.0f), 28.0f, 336.0f, -0.48f},
+                WallSpec{AE::Math::FVector2D(146.0f, 26.0f), 28.0f, 336.0f, 0.48f}
             };
         case ContainerMode::Cup:
         default:
             return 
             {
-                WallSpec{AE::Physics::FVector2D(0.0f, 142.0f), 452.0f, 30.0f, 0.0f},
-                WallSpec{AE::Physics::FVector2D(-226.0f, 0.0f), 30.0f, 304.0f, 0.0f},
-                WallSpec{AE::Physics::FVector2D(226.0f, 0.0f), 30.0f, 304.0f, 0.0f}
+                WallSpec{AE::Math::FVector2D(0.0f, 142.0f), 452.0f, 30.0f, 0.0f},
+                WallSpec{AE::Math::FVector2D(-226.0f, 0.0f), 30.0f, 304.0f, 0.0f},
+                WallSpec{AE::Math::FVector2D(226.0f, 0.0f), 30.0f, 304.0f, 0.0f}
             };
     }
 }
 
-AE::Physics::FVector2D ContainerSandboxApp::ParticleSpawnLocalPosition(std::size_t index) const
+AE::Math::FVector2D ContainerSandboxApp::ParticleSpawnLocalPosition(std::size_t index) const
 {
     const int columns = containerMode == ContainerMode::Tray ? 12 : 9;
     const float spacing = ParticleRadius * 2.35f;
@@ -575,12 +575,12 @@ AE::Physics::FVector2D ContainerSandboxApp::ParticleSpawnLocalPosition(std::size
     const float jitterX = static_cast<float>((static_cast<int>(index) * 17) % 5 - 2) * 1.35f;
     const float jitterY = static_cast<float>((static_cast<int>(index) * 11) % 5 - 2) * 1.1f;
 
-    return AE::Physics::FVector2D(
+    return AE::Math::FVector2D(
         (static_cast<float>(column) - (static_cast<float>(columns) - 1.0f) * 0.5f) * spacing + jitterX,
         94.0f - static_cast<float>(row) * spacing + jitterY);
 }
 
-AE::Physics::FVector2D ContainerSandboxApp::ContainerToWorld(const AE::Physics::FVector2D& localPosition) const
+AE::Math::FVector2D ContainerSandboxApp::ContainerToWorld(const AE::Math::FVector2D& localPosition) const
 {
     return containerCenter + localPosition.Rotate(containerAngle);
 }
@@ -865,7 +865,7 @@ void ContainerSandboxApp::DrawFilledCircle(int centerX, int centerY, int radius,
     }
 }
 
-void ContainerSandboxApp::DrawFilledPolygon(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color) const
+void ContainerSandboxApp::DrawFilledPolygon(const std::vector<AE::Math::FVector2D>& vertices, SDL_Color color) const
 {
     if (vertices.size() < 3)
     {
@@ -874,7 +874,7 @@ void ContainerSandboxApp::DrawFilledPolygon(const std::vector<AE::Physics::FVect
 
     float minY = vertices.front().Y;
     float maxY = vertices.front().Y;
-    for (const AE::Physics::FVector2D& vertex : vertices)
+    for (const AE::Math::FVector2D& vertex : vertices)
     {
         minY = std::min(minY, vertex.Y);
         maxY = std::max(maxY, vertex.Y);
@@ -896,8 +896,8 @@ void ContainerSandboxApp::DrawFilledPolygon(const std::vector<AE::Physics::FVect
 
         for (std::size_t i = 0; i < vertices.size(); ++i)
         {
-            const AE::Physics::FVector2D& a = vertices[i];
-            const AE::Physics::FVector2D& b = vertices[(i + 1) % vertices.size()];
+            const AE::Math::FVector2D& a = vertices[i];
+            const AE::Math::FVector2D& b = vertices[(i + 1) % vertices.size()];
             if ((a.Y <= scanY && b.Y > scanY) || (b.Y <= scanY && a.Y > scanY))
             {
                 const float t = (scanY - a.Y) / (b.Y - a.Y);
@@ -915,7 +915,7 @@ void ContainerSandboxApp::DrawFilledPolygon(const std::vector<AE::Physics::FVect
     }
 }
 
-void ContainerSandboxApp::DrawPolyline(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color, bool closed) const
+void ContainerSandboxApp::DrawPolyline(const std::vector<AE::Math::FVector2D>& vertices, SDL_Color color, bool closed) const
 {
     if (vertices.size() < 2)
     {
@@ -1019,3 +1019,4 @@ float ContainerSandboxApp::ClampFloat(float value, float minValue, float maxValu
 {
     return std::max(minValue, std::min(maxValue, value));
 }
+

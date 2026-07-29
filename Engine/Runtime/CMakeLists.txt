@@ -2,11 +2,13 @@ get_filename_component(ENGINE_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/.. ABSOLUTE)
 
 set(ENGINE_RUNTIME_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(ENGINE_THIRD_PARTY_DIR ${ENGINE_ROOT_DIR}/ThirdParty)
+set(ENGINE_PHYSICS_DIR ${ENGINE_RUNTIME_DIR}/Physics)
 
 add_library(EngineRuntimeCore STATIC
-    ${ENGINE_RUNTIME_DIR}/Core/Math/MatMN.cpp
-    ${ENGINE_RUNTIME_DIR}/Core/Math/PhysicsMath.cpp
-    ${ENGINE_RUNTIME_DIR}/Core/Math/VecN.cpp
+    ${ENGINE_RUNTIME_DIR}/Assets/AssetResolver.cpp
+    ${ENGINE_RUNTIME_DIR}/Core/Math/MatrixMN.cpp
+    ${ENGINE_RUNTIME_DIR}/Core/Math/AmberMath.cpp
+    ${ENGINE_RUNTIME_DIR}/Core/Math/VectorN.cpp
     ${ENGINE_RUNTIME_DIR}/Core/Math/Vector2D.cpp
     ${ENGINE_RUNTIME_DIR}/Core/Threading/ThreadPool.cpp
     ${ENGINE_RUNTIME_DIR}/Project/ProjectDescriptor.cpp
@@ -23,10 +25,12 @@ target_link_libraries(EngineRuntimeCore PUBLIC
     Threads::Threads
 )
 amber_target_folder(EngineRuntimeCore "Engine/Runtime/Core")
+amber_add_header_tree(EngineRuntimeCore "${ENGINE_RUNTIME_DIR}/Assets")
 amber_add_header_tree(EngineRuntimeCore "${ENGINE_RUNTIME_DIR}/Core")
 amber_add_header_tree(EngineRuntimeCore "${ENGINE_RUNTIME_DIR}/Project")
 amber_add_header_tree(EngineRuntimeCore "${ENGINE_RUNTIME_DIR}/Scene")
 amber_group_sources(EngineRuntimeCore "${ENGINE_RUNTIME_DIR}")
+amber_enable_pch(EngineRuntimeCore)
 
 add_library(EngineRuntimeLogging STATIC
     ${ENGINE_RUNTIME_DIR}/Logging/LogBus.cpp
@@ -43,6 +47,7 @@ target_link_libraries(EngineRuntimeLogging PUBLIC
 amber_target_folder(EngineRuntimeLogging "Engine/Runtime/Logging")
 amber_add_header_tree(EngineRuntimeLogging "${ENGINE_RUNTIME_DIR}/Logging")
 amber_group_sources(EngineRuntimeLogging "${ENGINE_RUNTIME_DIR}")
+amber_enable_pch(EngineRuntimeLogging)
 
 add_library(EngineRuntimeECS STATIC
     ${ENGINE_RUNTIME_DIR}/EntityComponentSystem/ECS.cpp
@@ -69,8 +74,54 @@ amber_add_header_tree(EngineRuntimeECS "${ENGINE_RUNTIME_DIR}/EntityComponentSys
 amber_add_header_tree(EngineRuntimeECS "${ENGINE_RUNTIME_DIR}/Game")
 amber_add_header_tree(EngineRuntimeECS "${ENGINE_RUNTIME_DIR}/Scene")
 amber_group_sources(EngineRuntimeECS "${ENGINE_RUNTIME_DIR}")
+amber_enable_pch(EngineRuntimeECS)
 
-add_subdirectory(Physics)
+add_library(Physics STATIC
+    ${ENGINE_PHYSICS_DIR}/CollisionDetection.cpp
+    ${ENGINE_PHYSICS_DIR}/Contact.cpp
+    ${ENGINE_PHYSICS_DIR}/Constraint.cpp
+    ${ENGINE_PHYSICS_DIR}/Force.cpp
+    ${ENGINE_PHYSICS_DIR}/Mouse.cpp
+    ${ENGINE_PHYSICS_DIR}/Particle.cpp
+    ${ENGINE_PHYSICS_DIR}/Point.cpp
+    ${ENGINE_RUNTIME_DIR}/Classes/World.cpp
+    ${ENGINE_PHYSICS_DIR}/Body.cpp
+    ${ENGINE_PHYSICS_DIR}/Cloth.cpp
+    ${ENGINE_PHYSICS_DIR}/Shape.cpp
+    ${ENGINE_PHYSICS_DIR}/Stick.cpp
+    ${ENGINE_PHYSICS_DIR}/Utils.cpp
+    ${ENGINE_PHYSICS_DIR}/base64.cpp
+)
+
+target_include_directories(Physics PUBLIC
+    ${ENGINE_RUNTIME_DIR}
+    ${ENGINE_PHYSICS_DIR}
+)
+
+target_link_libraries(Physics PUBLIC
+    AmberBuildConfig
+    EngineRuntimeCore
+    EngineRuntimeLogging
+)
+target_sources(Physics PRIVATE
+    ${ENGINE_RUNTIME_DIR}/Classes/World.h
+)
+amber_target_folder(Physics "Engine/Runtime/Physics")
+amber_add_header_tree(Physics "${ENGINE_PHYSICS_DIR}")
+amber_group_sources(Physics "${ENGINE_RUNTIME_DIR}")
+amber_enable_pch(Physics)
+
+add_executable(PhysicsCollisionFilteringCheck
+    ${ENGINE_PHYSICS_DIR}/tests/PhysicsCollisionFilteringCheck.cpp
+)
+
+target_link_libraries(PhysicsCollisionFilteringCheck PRIVATE
+    Physics
+)
+target_compile_definitions(PhysicsCollisionFilteringCheck PRIVATE SMOKE_TEST=1)
+amber_target_folder(PhysicsCollisionFilteringCheck "Engine/Runtime/Physics/Tests")
+amber_group_sources(PhysicsCollisionFilteringCheck "${ENGINE_RUNTIME_DIR}")
+amber_enable_pch(PhysicsCollisionFilteringCheck)
 
 if(BUILD_SDL_MODULES AND SDL2_TARGET_FOUND)
     add_library(ImGuiSDL STATIC
@@ -113,10 +164,6 @@ set(ENGINE_PHYSICS_BRIDGE_HEADERS
 
 add_library(EnginePhysicsBridge INTERFACE)
 
-target_sources(EnginePhysicsBridge INTERFACE
-    ${ENGINE_PHYSICS_BRIDGE_HEADERS}
-)
-
 target_include_directories(EnginePhysicsBridge INTERFACE
     ${ENGINE_RUNTIME_DIR}
     ${ENGINE_THIRD_PARTY_DIR}
@@ -148,6 +195,38 @@ target_link_libraries(EnginePhysicsBridgeCheck PUBLIC
 )
 amber_target_folder(EnginePhysicsBridgeCheck "Engine/Runtime/EnginePhysicsBridge")
 amber_group_sources(EnginePhysicsBridgeCheck "${ENGINE_RUNTIME_DIR}")
+amber_enable_pch(EnginePhysicsBridgeCheck)
+
+if(BUILD_SDL_MODULES AND SDL2_TARGET_FOUND AND SDL2_IMAGE_TARGET_FOUND)
+    add_library(EngineRuntimePlayer STATIC
+        ${ENGINE_RUNTIME_DIR}/Game/RuntimePlayer.cpp
+        ${ENGINE_RUNTIME_DIR}/Game/RuntimeTextureCacheSDL.cpp
+        ${ENGINE_RUNTIME_DIR}/Game/RuntimeViewerSDL.cpp
+    )
+
+    target_include_directories(EngineRuntimePlayer PUBLIC
+        ${ENGINE_RUNTIME_DIR}
+    )
+
+    target_compile_definitions(EngineRuntimePlayer PUBLIC SDL_MAIN_HANDLED)
+
+    target_link_libraries(EngineRuntimePlayer PUBLIC
+        AmberBuildConfig
+        EngineRuntimeCore
+        EngineRuntimeECS
+        EngineRuntimeLogging
+        ${SDL2_LINK_TARGETS}
+        ${SDL2_IMAGE_TARGET}
+    )
+    amber_target_folder(EngineRuntimePlayer "Engine/Runtime/Game")
+    amber_add_header_tree(EngineRuntimePlayer "${ENGINE_RUNTIME_DIR}/Game")
+    amber_group_sources(EngineRuntimePlayer "${ENGINE_RUNTIME_DIR}")
+    amber_enable_pch(EngineRuntimePlayer)
+elseif(BUILD_SDL_MODULES)
+    message(WARNING
+        "EngineRuntimePlayer target is disabled because SDL2 or SDL2_image was not found."
+    )
+endif()
 
 if(BUILD_SDL_MODULES)
     if(SDL2_TARGET_FOUND
@@ -197,6 +276,7 @@ if(BUILD_SDL_MODULES)
         amber_add_header_tree(Engine "${ENGINE_RUNTIME_DIR}/Systems")
         amber_add_header_tree(Engine "${ENGINE_RUNTIME_DIR}/Utilities")
         amber_group_sources(Engine "${ENGINE_RUNTIME_DIR}")
+        amber_enable_pch(Engine)
     else()
         message(WARNING
             "Engine target is disabled because SDL2/SDL2_image/SDL2_mixer/"

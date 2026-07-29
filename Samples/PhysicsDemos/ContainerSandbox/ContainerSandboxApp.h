@@ -8,12 +8,12 @@
 #include <vector>
 
 #include "Core/BuildConfig.h"
-#include "Physics/Objects/Body.h"
+#include "Body.h"
 #include "Core/Math/Vector2D.h"
 #include "Classes/World.h"
 
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
-#include "Editor/Diagnostics/SampleDiagnosticsOverlay.h"
+#include "SampleDiagnosticsOverlay.h"
 #endif
 
 class ContainerSandboxApp
@@ -46,7 +46,7 @@ private:
 
     struct WallSpec
     {
-        AE::Physics::FVector2D localPosition;
+        AE::Math::FVector2D localPosition;
         float width = 0.0f;
         float height = 0.0f;
         float localAngle = 0.0f;
@@ -78,7 +78,7 @@ private:
     std::vector<AE::Physics::Body*> wallBodies;
     std::vector<AE::Physics::Body*> particleBodies;
 
-    AE::Physics::FVector2D containerCenter;
+    AE::Math::FVector2D containerCenter;
     float containerAngle = 0.0f;
     int particleCount = 72;
     ContainerMode containerMode = ContainerMode::Cup;
@@ -103,8 +103,8 @@ private:
     void RespawnParticle(std::size_t index);
 
     std::vector<WallSpec> CreateWallSpecs(ContainerMode mode) const;
-    AE::Physics::FVector2D ParticleSpawnLocalPosition(std::size_t index) const;
-    AE::Physics::FVector2D ContainerToWorld(const AE::Physics::FVector2D& localPosition) const;
+    AE::Math::FVector2D ParticleSpawnLocalPosition(std::size_t index) const;
+    AE::Math::FVector2D ContainerToWorld(const AE::Math::FVector2D& localPosition) const;
     float AverageParticleX() const;
     int CountActiveContacts() const;
 
@@ -119,8 +119,8 @@ private:
     void DrawParticles() const;
     void DrawHud() const;
     void DrawFilledCircle(int centerX, int centerY, int radius, SDL_Color color) const;
-    void DrawFilledPolygon(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color) const;
-    void DrawPolyline(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color, bool closed) const;
+    void DrawFilledPolygon(const std::vector<AE::Math::FVector2D>& vertices, SDL_Color color) const;
+    void DrawPolyline(const std::vector<AE::Math::FVector2D>& vertices, SDL_Color color, bool closed) const;
     void DrawScreenRect(int x, int y, int w, int h, SDL_Color color) const;
     void UpdateWindowTitle();
 
@@ -131,3 +131,4 @@ private:
 };
 
 #endif
+

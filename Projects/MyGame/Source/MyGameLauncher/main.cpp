@@ -1,12 +1,12 @@
 #include "MyGameModule.h"
 
-#include <iostream>
+#include "Game/RuntimePlayer.h"
 
-int main(int, char**)
+int main(int argc, char** argv)
 {
     MyGame::MyGameModule module;
-    module.Startup();
-    std::cout << module.GetName() << " launcher started." << std::endl;
-    module.Shutdown();
-    return 0;
+    AE::RuntimePlayerOptions options;
+    options.projectFilePath = "MyGame.amberproject";
+    options.windowTitle = "MyGame";
+    return AE::RuntimePlayer::RunFromArguments(module, argc, argv, options);
 }

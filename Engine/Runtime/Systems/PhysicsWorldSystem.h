@@ -7,8 +7,8 @@
 #include "../EntityComponentSystem/ECS.h"
 #include "Physics/Constraint.h"
 #include "Classes/World.h"
-#include "Physics/Objects/Body.h"
-#include "Physics/Objects/Shape.h"
+#include "Body.h"
+#include "Shape.h"
 
 class PhysicsWorldSystem : public System
 {

@@ -4,8 +4,8 @@
 
 #include <cassert>
 
-#include "Physics/Objects/Body.h"
-#include "Physics/Objects/Shape.h"
+#include "Body.h"
+#include "Shape.h"
 #include "Classes/World.h"
 
 namespace
@@ -71,7 +71,7 @@ namespace
         AE::Physics::Body* player = CreateBoxBody(0.0f, 0.0f, 1.0f);
         player->collisionCategory = Player;
         player->collisionMask = Obstacle;
-        player->velocity = AE::Physics::FVector2D(60.0f, 0.0f);
+        player->velocity = AE::Math::FVector2D(60.0f, 0.0f);
 
         AE::Physics::Body* obstacle = CreateBoxBody(9.0f, 0.0f, 0.0f);
         obstacle->collisionCategory = Obstacle;
@@ -96,3 +96,4 @@ int main()
 }
 
 #endif
+

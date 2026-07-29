@@ -179,6 +179,7 @@
       "execution": {
         "noTestsAction": "error"
       }
+      
     }
   ]
 }

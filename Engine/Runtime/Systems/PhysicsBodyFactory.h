@@ -87,7 +87,7 @@ public:
 
         body->rotation = EnginePhysics::DegreesToRadians(static_cast<float>(transform.rotation));
         body->angularVelocity = EnginePhysics::DegreesToRadians(definition.angularVelocity);
-        body->velocity = AE::Physics::FVector2D(definition.velocity.x, definition.velocity.y);
+        body->velocity = AE::Math::FVector2D(definition.velocity.x, definition.velocity.y);
         body->collisionCategory = definition.collisionCategory;
         body->collisionMask = definition.collisionMask;
         body->isSensor = definition.isSensor;
@@ -102,3 +102,4 @@ public:
 };
 
 #endif
+

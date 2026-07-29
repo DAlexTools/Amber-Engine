@@ -1,7 +1,7 @@
 #ifndef WORLD_H
 #define WORLD_H
 
-#include "Physics/Objects/Body.h"
+#include "Body.h"
 #include "Physics/Constraint.h"
 #include "Physics/Contact.h"
 #include <cstddef>

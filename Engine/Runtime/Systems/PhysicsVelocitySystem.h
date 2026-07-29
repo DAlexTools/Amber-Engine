@@ -4,7 +4,7 @@
 #include "../Components/PhysicsBodyComponent.h"
 #include "../Components/RigidBodyComponent.h"
 #include "../EntityComponentSystem/ECS.h"
-#include "Physics/Objects/Body.h"
+#include "Body.h"
 #include "Core/Math/Vector2D.h"
 
 class PhysicsVelocitySystem : public System
@@ -30,11 +30,11 @@ public:
 
             if (physicsBody.body->IsStatic())
             {
-                physicsBody.body->velocity = AE::Physics::FVector2D::Zero;
+                physicsBody.body->velocity = AE::Math::FVector2D::Zero;
                 continue;
             }
 
-            physicsBody.body->velocity = AE::Physics::FVector2D(
+            physicsBody.body->velocity = AE::Math::FVector2D(
                 rigidBody.velocity.x,
                 rigidBody.velocity.y);
         }
@@ -42,3 +42,4 @@ public:
 };
 
 #endif
+

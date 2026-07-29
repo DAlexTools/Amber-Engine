@@ -1,0 +1,68 @@
+#ifndef AMBER_EDITOR_SHELL_EDITOR_PLAY_SESSION_H
+#define AMBER_EDITOR_SHELL_EDITOR_PLAY_SESSION_H
+
+#include "GameModuleResolver.h"
+#include "SceneDocument.h"
+#include "EntityComponentSystem/ECS.h"
+#include "Game/GameModuleInterface.h"
+#include "Scene/Object.h"
+
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace AE::Editor
+{
+
+struct PlayInPIERequest
+{
+    std::string projectName;
+    std::filesystem::path projectRoot;
+    std::filesystem::path scenePath;
+    std::string gameModuleTarget;
+    std::string playTarget;
+};
+
+class EditorPlaySession
+{
+public:
+    ~EditorPlaySession();
+
+    void Update();
+    void Render(void* nativeRenderContext = nullptr);
+    bool PlayInPIE(const PlayInPIERequest& request, const SceneDocument& editScene);
+    void Stop();
+    void SetPaused(bool isPaused);
+
+    bool IsPlaying() const;
+    bool IsPaused() const;
+    SceneDocument* GetRuntimeSceneDocument();
+    const SceneDocument* GetRuntimeSceneDocument() const;
+    std::size_t GetRuntimeObjectCount() const;
+    unsigned long GetFrameCount() const;
+    unsigned long GetRenderCount() const;
+    const char* GetRuntimeModuleName() const;
+    bool IsRuntimeModuleDynamic() const;
+    const std::string& GetRequestedGameModuleTarget() const;
+
+private:
+    void DestroyRuntimeWorld();
+
+    PlayInPIERequest activeRequest;
+    SceneDocument runtimeSceneDocument;
+    AE::Scene::Document runtimeDocument;
+    GameModuleResolver gameModuleResolver;
+    std::unique_ptr<LoadedGameModule> activeGameModule;
+    std::unique_ptr<Registry> runtimeRegistry;
+    std::vector<std::unique_ptr<AE::Scene::Object>> runtimeObjects;
+    unsigned long frameCount = 0;
+    unsigned long renderCount = 0;
+    bool gameModuleStarted = false;
+    bool playing = false;
+    bool paused = false;
+};
+
+}
+
+#endif

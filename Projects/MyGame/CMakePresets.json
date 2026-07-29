@@ -11,7 +11,9 @@
       "cacheVariables": {
         "AMBER_ENGINE_ROOT": "C:/Users/admin/Documents/GitProjects/SDL_GameProgramming-master/AmberEngine",
         "BUILD_SDL_MODULES": "ON",
-        "BUILD_UNIT_TESTS": "OFF"
+        "BUILD_UNIT_TESTS": "OFF",
+        "VCPKG_MANIFEST_DIR": "C:/Users/admin/Documents/GitProjects/SDL_GameProgramming-master/AmberEngine",
+        "VCPKG_MANIFEST_MODE": "ON"
       }
     }
   ],
@@ -20,7 +22,8 @@
       "name": "editor",
       "configurePreset": "editor",
       "targets": [
-        "MyGameLauncher"
+        "MyGameLauncher",
+        "MyGameModulePlugin"
       ]
     }
   ]

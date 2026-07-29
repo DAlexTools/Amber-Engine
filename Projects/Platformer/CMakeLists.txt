@@ -16,7 +16,7 @@ set(PLATFORMER_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Source/Platformer)
 set(PLATFORMER_LAUNCHER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Source/PlatformerLauncher)
 
 if(NOT TARGET AmberBuildConfig)
-    set(BUILD_SDL_MODULES OFF CACHE BOOL "" FORCE)
+    set(BUILD_SDL_MODULES ON CACHE BOOL "" FORCE)
     set(BUILD_UNIT_TESTS OFF CACHE BOOL "" FORCE)
     set(AMBER_BUILD_PROJECTS OFF CACHE BOOL "" FORCE)
     add_subdirectory("${AMBER_ENGINE_ROOT}" "${CMAKE_BINARY_DIR}/AmberEngine")
@@ -92,6 +92,7 @@ if(SDL2_TARGET_FOUND)
     amber_target_folder(PlatformerGameModule "Projects/Platformer")
     amber_add_header_tree(PlatformerGameModule "${PLATFORMER_SOURCE_DIR}")
     amber_group_sources(PlatformerGameModule "${CMAKE_CURRENT_SOURCE_DIR}")
+    amber_enable_pch(PlatformerGameModule)
 
     add_library(PlatformerGameModulePlugin SHARED
         ${PLATFORMER_SOURCE_DIR}/PlatformerGameModulePlugin.cpp
@@ -100,15 +101,21 @@ if(SDL2_TARGET_FOUND)
     target_link_libraries(PlatformerGameModulePlugin PRIVATE PlatformerGameModule)
     amber_target_folder(PlatformerGameModulePlugin "Projects/Platformer")
     amber_group_sources(PlatformerGameModulePlugin "${CMAKE_CURRENT_SOURCE_DIR}")
+    amber_enable_pch(PlatformerGameModulePlugin)
 
     add_executable(PlatformerApp
         ${PLATFORMER_LAUNCHER_DIR}/main.cpp
     )
 
+    if(NOT TARGET EngineRuntimePlayer)
+        message(FATAL_ERROR "EngineRuntimePlayer target is required for PlatformerApp. Configure with SDL2 and SDL2_image.")
+    endif()
+
     target_compile_definitions(PlatformerApp PRIVATE SDL_MAIN_HANDLED)
-    target_link_libraries(PlatformerApp PRIVATE PlatformerGameModule)
+    target_link_libraries(PlatformerApp PRIVATE PlatformerGameModule EngineRuntimePlayer)
     amber_target_folder(PlatformerApp "Projects/Platformer")
     amber_group_sources(PlatformerApp "${CMAKE_CURRENT_SOURCE_DIR}")
+    amber_enable_pch(PlatformerApp)
 
     if(TARGET AmberEditor)
         add_dependencies(AmberEditor PlatformerApp PlatformerGameModulePlugin)

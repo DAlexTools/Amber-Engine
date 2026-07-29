@@ -1,5 +1,5 @@
 #include "Application.h"
-#include "Physics/Objects/Body.h"
+#include "Body.h"
 #include "Physics/Constants.h"
 #include "Physics/Force.h"
 #include "Physics/CollisionDetection.h"

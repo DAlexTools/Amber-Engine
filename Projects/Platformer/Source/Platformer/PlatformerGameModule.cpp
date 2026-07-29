@@ -19,8 +19,9 @@
 #endif
 
 #include "Logging/Logger.h"
+#include "Game/RuntimeViewerSDL.h"
 #include "Physics/Constraint.h"
-#include "Physics/Objects/Shape.h"
+#include "Shape.h"
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
 #include "PlatformerSceneObjects.h"
 #include "Scene/ObjectFactory.h"
@@ -269,30 +270,78 @@ void PlatformerGameModule::RegisterSceneObjects(AE::Scene::ObjectFactory& object
 
 bool PlatformerGameModule::StartPlay(const AE::GameModuleStartContext& context, std::string*)
 {
+    runtimePlayerMode = true;
+    running = true;
+    paused = false;
+    fullscreen = false;
+    fixedStepAccumulator = 0.0f;
+    fixedStepsThisFrame = 0;
+    jumpKeyWasDown = false;
+    shootKeyWasDown = false;
+    pauseKeyWasDown = false;
+    resetKeyWasDown = false;
+    pendingJumpPressed = false;
+    pendingShootPressed = false;
+    lastUpdateMs = 0.0;
+    lastRenderMs = 0.0;
+
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    projectContentRoot = context.projectRoot / "Content";
     if (!context.scenePath.empty())
     {
         editorScenePathOverride = context.scenePath;
     }
+    LoadEditorSceneProps();
 #else
     (void)context;
 #endif
+    ResetLevel();
     AE::Logger::Log("PlatformerGameModule StartPlay", "Platformer");
     return true;
 }
 
 void PlatformerGameModule::Tick(const AE::GameModuleTickContext& context)
 {
-    (void)context;
+    StepRuntime(context.deltaSeconds);
 }
 
 void PlatformerGameModule::Render(const AE::GameModuleRenderContext& context)
 {
-    (void)context;
+    const auto* runtimeContext = static_cast<const AE::RuntimeRenderContextSDL*>(context.nativeRenderContext);
+    if (!runtimeContext || !AttachRuntimeRenderer(*runtimeContext))
+    {
+        return;
+    }
+
+    SDL_Texture* previousTarget = SDL_GetRenderTarget(renderer);
+    SDL_Rect previousViewport{};
+    SDL_RenderGetViewport(renderer, &previousViewport);
+    int previousLogicalWidth = 0;
+    int previousLogicalHeight = 0;
+    SDL_RenderGetLogicalSize(renderer, &previousLogicalWidth, &previousLogicalHeight);
+    float previousScaleX = 1.0f;
+    float previousScaleY = 1.0f;
+    SDL_RenderGetScale(renderer, &previousScaleX, &previousScaleY);
+    SDL_BlendMode previousBlendMode = SDL_BLENDMODE_NONE;
+    SDL_GetRenderDrawBlendMode(renderer, &previousBlendMode);
+
+    RenderFrameContents();
+
+    SDL_SetRenderTarget(renderer, previousTarget);
+    SDL_RenderSetLogicalSize(renderer, previousLogicalWidth, previousLogicalHeight);
+    SDL_RenderSetViewport(renderer, &previousViewport);
+    SDL_RenderSetScale(renderer, previousScaleX, previousScaleY);
+    CopyFrameTextureToTarget(runtimeContext->viewport);
+    SDL_SetRenderDrawBlendMode(renderer, previousBlendMode);
 }
 
 void PlatformerGameModule::StopPlay()
 {
+    if (runtimePlayerMode)
+    {
+        Shutdown();
+        runtimePlayerMode = false;
+    }
     AE::Logger::Log("PlatformerGameModule StopPlay", "Platformer");
 }
 
@@ -388,7 +437,7 @@ bool PlatformerGameModule::RunSmokeTest()
 
     if (!coins.empty())
     {
-        player.position.Y = coins.front().bounds.x;
+        player.position.X = coins.front().bounds.x;
         player.position.Y = coins.front().bounds.y;
         UpdateCoins();
     }
@@ -488,8 +537,8 @@ bool PlatformerGameModule::RunSmokeTest()
         }
 #endif
         const float projectileY = target->position.Y + target->height * 0.5f - 3.0f;
-        player.position = AE::Physics::FVector2D(target->position.X - 190.0f, projectileY - player.height * 0.42f);
-        player.velocity = AE::Physics::FVector2D::Zero;
+        player.position = AE::Math::FVector2D(target->position.X - 190.0f, projectileY - player.height * 0.42f);
+        player.velocity = AE::Math::FVector2D::Zero;
         player.facing = 1;
 
         for (int shot = 0; shot < 5 && target->alive; ++shot)
@@ -520,9 +569,9 @@ bool PlatformerGameModule::RunSmokeTest()
     bool physicsBodyReacts = false;
     if (testBody)
     {
-        const AE::Physics::FVector2D startPosition = testBody->position;
-        player.position = AE::Physics::FVector2D(testBody->position.X - 115.0f, testBody->position.Y - player.height * 0.45f);
-        player.velocity = AE::Physics::FVector2D::Zero;
+        const AE::Math::FVector2D startPosition = testBody->position;
+        player.position = AE::Math::FVector2D(testBody->position.X - 115.0f, testBody->position.Y - player.height * 0.45f);
+        player.velocity = AE::Math::FVector2D::Zero;
         player.facing = 1;
 
         InputState shootInput;
@@ -543,10 +592,10 @@ bool PlatformerGameModule::RunSmokeTest()
     if (!kinematicBodies.empty() && kinematicBodies.front().body)
     {
         const RectF platformBounds = BodyBounds(*kinematicBodies.front().body);
-        player.position = AE::Physics::FVector2D(
+        player.position = AE::Math::FVector2D(
             platformBounds.x + platformBounds.w * 0.5f - player.width * 0.5f,
             platformBounds.y - player.height + 5.0f);
-        player.velocity = AE::Physics::FVector2D(0.0f, 120.0f);
+        player.velocity = AE::Math::FVector2D(0.0f, 120.0f);
         player.grounded = false;
         Step(FixedTimeStep, InputState{});
         movingPlatformLandingWorks = player.grounded &&
@@ -567,8 +616,8 @@ bool PlatformerGameModule::RunSmokeTest()
     if (shootingEnemy)
     {
         shootingEnemy->shootTimer = 0.0f;
-        player.position = AE::Physics::FVector2D(shootingEnemy->position.X + 180.0f, shootingEnemy->position.Y);
-        player.velocity = AE::Physics::FVector2D::Zero;
+        player.position = AE::Math::FVector2D(shootingEnemy->position.X + 180.0f, shootingEnemy->position.Y);
+        player.velocity = AE::Math::FVector2D::Zero;
         Step(FixedTimeStep, InputState{});
 
         int enemyProjectileCount = 0;
@@ -660,7 +709,7 @@ bool PlatformerGameModule::RunSmokeTest()
                     ++editorRuntimeObjectCount;
                 }
             }
-            editorSceneFileLoads = editorScenePropCount >= 3;
+            editorSceneFileLoads = !editorScene.objects.empty();
             editorSceneGameplayObjectsWork = editorSceneSpawnCount >= 1 &&
                 editorSceneGoalCount >= 1 &&
                 editorSceneCoinCount >= 1 &&
@@ -733,6 +782,7 @@ bool PlatformerGameModule::Initialize()
         std::cerr << "SDL_Init failed: " << SDL_GetError() << std::endl;
         return false;
     }
+    ownsSdl = true;
 
     window = SDL_CreateWindow(
         "Platformer Sample",
@@ -747,6 +797,7 @@ bool PlatformerGameModule::Initialize()
         Shutdown();
         return false;
     }
+    ownsWindow = true;
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
     if (!renderer)
@@ -759,11 +810,13 @@ bool PlatformerGameModule::Initialize()
         Shutdown();
         return false;
     }
+    ownsRenderer = true;
 
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
     if ((IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG) & IMG_INIT_PNG) != 0)
     {
         imageSystemInitialized = true;
+        ownsImageSystem = true;
     }
     else
     {
@@ -804,24 +857,32 @@ void PlatformerGameModule::Shutdown()
         SDL_DestroyTexture(frameTexture);
         frameTexture = nullptr;
     }
-    if (renderer)
+    if (renderer && ownsRenderer)
     {
         SDL_DestroyRenderer(renderer);
-        renderer = nullptr;
     }
-    if (window)
+    renderer = nullptr;
+    ownsRenderer = false;
+    if (window && ownsWindow)
     {
         SDL_DestroyWindow(window);
-        window = nullptr;
     }
+    window = nullptr;
+    ownsWindow = false;
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
-    if (imageSystemInitialized)
+    if (imageSystemInitialized && ownsImageSystem)
     {
         IMG_Quit();
-        imageSystemInitialized = false;
     }
+    imageSystemInitialized = false;
+    ownsImageSystem = false;
 #endif
-    SDL_Quit();
+    if (ownsSdl)
+    {
+        SDL_Quit();
+    }
+    ownsSdl = false;
+    fixedStepAccumulator = 0.0f;
 }
 
 void PlatformerGameModule::ToggleFullscreen()
@@ -838,6 +899,52 @@ void PlatformerGameModule::ToggleFullscreen()
         SDL_SetWindowSize(window, WindowWidth, WindowHeight);
         SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
     }
+}
+
+bool PlatformerGameModule::AttachRuntimeRenderer(const AE::RuntimeRenderContextSDL& context)
+{
+    if (!context.renderer)
+    {
+        return false;
+    }
+
+    if (renderer != context.renderer)
+    {
+        if (frameTexture)
+        {
+            SDL_DestroyTexture(frameTexture);
+            frameTexture = nullptr;
+        }
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+        for (EditorSceneProp& prop : editorSceneProps)
+        {
+            prop.texture = nullptr;
+        }
+        for (auto& texture : editorSceneTextures)
+        {
+            if (texture.second)
+            {
+                SDL_DestroyTexture(texture.second);
+            }
+        }
+        editorSceneTextures.clear();
+#endif
+    }
+
+    window = context.window;
+    renderer = context.renderer;
+    ownsWindow = false;
+    ownsRenderer = false;
+    ownsSdl = false;
+
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+    const int imageFlags = IMG_Init(0);
+    imageSystemInitialized = (imageFlags & IMG_INIT_PNG) != 0;
+    ownsImageSystem = false;
+    RefreshEditorSceneTextures();
+#endif
+
+    return frameTexture || CreateFrameTexture();
 }
 
 void PlatformerGameModule::BuildLevel()
@@ -891,7 +998,7 @@ void PlatformerGameModule::BuildLevel()
     fillTiles(87, 13, 1, 2, '#');
     fillTiles(88, 12, 1, 3, '#');
 
-    playerSpawn = AE::Physics::FVector2D(64.0f, 15.0f * TileSize - 42.0f);
+    playerSpawn = AE::Math::FVector2D(64.0f, 15.0f * TileSize - 42.0f);
     finish = RectF{
         91.0f * TileSize,
         15.0f * TileSize - 96.0f,
@@ -964,7 +1071,7 @@ void PlatformerGameModule::LoadScriptedEnemies()
             sol::table enemyTable = enemyObject.as<sol::table>();
             Enemy enemy;
             enemy.name = enemyTable["name"].get_or(std::string("scripted_enemy"));
-            enemy.spawnPosition = AE::Physics::FVector2D(
+            enemy.spawnPosition = AE::Math::FVector2D(
                 ReadFloat(enemyTable, "x", 19.0f * TileSize),
                 ReadFloat(enemyTable, "y", 15.0f * TileSize - enemy.height));
             enemy.position = enemy.spawnPosition;
@@ -986,7 +1093,7 @@ void PlatformerGameModule::LoadScriptedEnemies()
             enemy.shootRange = ReadFloat(enemyTable, "shoot_range", enemy.shootRange);
             enemy.projectileSpeed = ReadFloat(enemyTable, "projectile_speed", enemy.projectileSpeed);
             enemy.shootTimer = ReadFloat(enemyTable, "shoot_delay", 0.2f + static_cast<float>(enemies.size() % 3) * 0.25f);
-            enemy.velocity = AE::Physics::FVector2D(enemy.speed * enemy.direction, 0.0f);
+            enemy.velocity = AE::Math::FVector2D(enemy.speed * enemy.direction, 0.0f);
 
             sol::object updateObject = enemyTable.get<sol::object>("on_update");
             if (updateObject.valid() && updateObject.is<sol::function>())
@@ -1019,9 +1126,9 @@ void PlatformerGameModule::LoadFallbackEnemies()
     enemies = {
         Enemy{
             "fallback_patrol",
-            AE::Physics::FVector2D(19.0f * TileSize, 15.0f * TileSize - 26.0f),
+            AE::Math::FVector2D(19.0f * TileSize, 15.0f * TileSize - 26.0f),
             {},
-            AE::Physics::FVector2D(70.0f, 0.0f),
+            AE::Math::FVector2D(70.0f, 0.0f),
             30.0f,
             26.0f,
             70.0f,
@@ -1041,9 +1148,9 @@ void PlatformerGameModule::LoadFallbackEnemies()
         },
         Enemy{
             "fallback_hopper",
-            AE::Physics::FVector2D(45.0f * TileSize, 15.0f * TileSize - 28.0f),
+            AE::Math::FVector2D(45.0f * TileSize, 15.0f * TileSize - 28.0f),
             {},
-            AE::Physics::FVector2D(-58.0f, 0.0f),
+            AE::Math::FVector2D(-58.0f, 0.0f),
             30.0f,
             28.0f,
             58.0f,
@@ -1063,9 +1170,9 @@ void PlatformerGameModule::LoadFallbackEnemies()
         },
         Enemy{
             "fallback_sentry",
-            AE::Physics::FVector2D(66.0f * TileSize, 13.0f * TileSize - 28.0f),
+            AE::Math::FVector2D(66.0f * TileSize, 13.0f * TileSize - 28.0f),
             {},
-            AE::Physics::FVector2D(54.0f, 0.0f),
+            AE::Math::FVector2D(54.0f, 0.0f),
             32.0f,
             28.0f,
             54.0f,
@@ -1117,7 +1224,7 @@ void PlatformerGameModule::BuildPhysicsScene()
     {
         const float width = static_cast<float>(platform.width * TileSize);
         const float height = static_cast<float>(platform.height * TileSize);
-        const AE::Physics::FVector2D center(
+        const AE::Math::FVector2D center(
             static_cast<float>(platform.tileX * TileSize) + width * 0.5f,
             static_cast<float>(platform.tileY * TileSize) + height * 0.5f);
         AE::Physics::Body* body = AddPhysicsBox(center, width, height, 0.0f, SDL_Color{72, 124, 55, 80}, SDL_Color{55, 82, 46, 120}, 0.0f, false);
@@ -1128,7 +1235,7 @@ void PlatformerGameModule::BuildPhysicsScene()
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
     for (const RectF& platform : editorSolidPlatforms)
     {
-        const AE::Physics::FVector2D center(platform.x + platform.w * 0.5f, platform.y + platform.h * 0.5f);
+        const AE::Math::FVector2D center(platform.x + platform.w * 0.5f, platform.y + platform.h * 0.5f);
         AE::Physics::Body* body = AddPhysicsBox(center, platform.w, platform.h, 0.0f, SDL_Color{72, 124, 55, 95}, SDL_Color{55, 82, 46, 150}, 0.0f, false);
         body->collisionCategory = PhysicsCategoryTerrain;
         body->collisionMask = PhysicsCategoryDynamic | PhysicsCategorySensor;
@@ -1153,7 +1260,7 @@ void PlatformerGameModule::BuildDefaultPhysicsPlayground()
             const float x = 560.0f + static_cast<float>(column) * 34.0f + static_cast<float>(row) * 17.0f;
             const float y = 450.0f - static_cast<float>(row) * 31.0f;
             AE::Physics::Body* crate = AddPhysicsBox(
-                AE::Physics::FVector2D(x, y),
+                AE::Math::FVector2D(x, y),
                 30.0f,
                 30.0f,
                 1.1f,
@@ -1169,7 +1276,7 @@ void PlatformerGameModule::BuildDefaultPhysicsPlayground()
     for (int index = 0; index < 7; ++index)
     {
         AE::Physics::Body* ball = AddPhysicsCircle(
-            AE::Physics::FVector2D(1110.0f + static_cast<float>(index % 4) * 28.0f, 250.0f - static_cast<float>(index / 4) * 32.0f),
+            AE::Math::FVector2D(1110.0f + static_cast<float>(index % 4) * 28.0f, 250.0f - static_cast<float>(index / 4) * 32.0f),
             13.0f,
             0.85f,
             index % 2 == 0 ? PhysicsBall : SDL_Color{230, 178, 72, 255},
@@ -1179,15 +1286,15 @@ void PlatformerGameModule::BuildDefaultPhysicsPlayground()
         ball->restitution = 0.32f;
     }
 
-    AE::Physics::Body* bridgeLeftAnchor = AddPhysicsBox(AE::Physics::FVector2D(1440.0f, 270.0f), 46.0f, 24.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
-    AE::Physics::Body* bridgeRightAnchor = AddPhysicsBox(AE::Physics::FVector2D(1810.0f, 270.0f), 46.0f, 24.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
+    AE::Physics::Body* bridgeLeftAnchor = AddPhysicsBox(AE::Math::FVector2D(1440.0f, 270.0f), 46.0f, 24.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
+    AE::Physics::Body* bridgeRightAnchor = AddPhysicsBox(AE::Math::FVector2D(1810.0f, 270.0f), 46.0f, 24.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
     std::vector<AE::Physics::Body*> bridgeLinks;
     constexpr int BridgeSegments = 10;
     for (int index = 0; index < BridgeSegments; ++index)
     {
         const float t = static_cast<float>(index) / static_cast<float>(BridgeSegments - 1);
         AE::Physics::Body* link = AddPhysicsBox(
-            AE::Physics::FVector2D(1480.0f + t * 290.0f, 304.0f + std::sin(t * 3.14159f) * 12.0f),
+            AE::Math::FVector2D(1480.0f + t * 290.0f, 304.0f + std::sin(t * 3.14159f) * 12.0f),
             32.0f,
             14.0f,
             0.8f,
@@ -1209,12 +1316,12 @@ void PlatformerGameModule::BuildDefaultPhysicsPlayground()
         AddPhysicsJoint(bridgeLinks.back(), bridgeRightAnchor);
     }
 
-    AE::Physics::Body* chainAnchor = AddPhysicsBox(AE::Physics::FVector2D(2220.0f, 150.0f), 48.0f, 22.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
+    AE::Physics::Body* chainAnchor = AddPhysicsBox(AE::Math::FVector2D(2220.0f, 150.0f), 48.0f, 22.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
     AE::Physics::Body* previous = chainAnchor;
     for (int index = 0; index < 7; ++index)
     {
         AE::Physics::Body* link = AddPhysicsBox(
-            AE::Physics::FVector2D(2220.0f, 188.0f + static_cast<float>(index) * 28.0f),
+            AE::Math::FVector2D(2220.0f, 188.0f + static_cast<float>(index) * 28.0f),
             16.0f,
             24.0f,
             0.65f,
@@ -1225,11 +1332,11 @@ void PlatformerGameModule::BuildDefaultPhysicsPlayground()
         AddPhysicsJoint(previous, link);
         previous = link;
     }
-    AE::Physics::Body* load = AddPhysicsCircle(AE::Physics::FVector2D(2220.0f, 405.0f), 22.0f, 3.5f, SDL_Color{205, 74, 75, 255}, PhysicsMetalEdge, true);
+    AE::Physics::Body* load = AddPhysicsCircle(AE::Math::FVector2D(2220.0f, 405.0f), 22.0f, 3.5f, SDL_Color{205, 74, 75, 255}, PhysicsMetalEdge, true);
     AddPhysicsJoint(previous, load);
 
     AE::Physics::Body* movingPlatform = AddPhysicsBox(
-        AE::Physics::FVector2D(2420.0f, 360.0f),
+        AE::Math::FVector2D(2420.0f, 360.0f),
         154.0f,
         20.0f,
         0.0f,
@@ -1240,14 +1347,14 @@ void PlatformerGameModule::BuildDefaultPhysicsPlayground()
     kinematicBodies.push_back(KinematicBody{
         movingPlatform,
         movingPlatform->position,
-        AE::Physics::FVector2D(1.0f, 0.0f),
+        AE::Math::FVector2D(1.0f, 0.0f),
         92.0f,
         1.15f,
         0.0f
     });
 
     AE::Physics::Body* elevatorPlatform = AddPhysicsBox(
-        AE::Physics::FVector2D(1730.0f, 390.0f),
+        AE::Math::FVector2D(1730.0f, 390.0f),
         132.0f,
         18.0f,
         0.0f,
@@ -1258,7 +1365,7 @@ void PlatformerGameModule::BuildDefaultPhysicsPlayground()
     kinematicBodies.push_back(KinematicBody{
         elevatorPlatform,
         elevatorPlatform->position,
-        AE::Physics::FVector2D(0.0f, 1.0f),
+        AE::Math::FVector2D(0.0f, 1.0f),
         72.0f,
         1.05f,
         1.4f
@@ -1290,7 +1397,7 @@ void PlatformerGameModule::AddScenePhysicsBody(const ScenePhysicsBodySpec& spec)
 {
     const float width = std::max(8.0f, spec.bounds.w);
     const float height = std::max(8.0f, spec.bounds.h);
-    const AE::Physics::FVector2D center(spec.bounds.x + width * 0.5f, spec.bounds.y + height * 0.5f);
+    const AE::Math::FVector2D center(spec.bounds.x + width * 0.5f, spec.bounds.y + height * 0.5f);
 
     if (spec.type == ScenePhysicsBodySpec::Type::Circle)
     {
@@ -1320,7 +1427,7 @@ void PlatformerGameModule::AddScenePhysicsBody(const ScenePhysicsBodySpec& spec)
         kinematicBodies.push_back(KinematicBody{
             platform,
             platform->position,
-            spec.verticalMotion ? AE::Physics::FVector2D(0.0f, 1.0f) : AE::Physics::FVector2D(1.0f, 0.0f),
+            spec.verticalMotion ? AE::Math::FVector2D(0.0f, 1.0f) : AE::Math::FVector2D(1.0f, 0.0f),
             spec.verticalMotion ? 72.0f : 92.0f,
             spec.verticalMotion ? 1.05f : 1.15f,
             spec.verticalMotion ? 1.4f : 0.0f
@@ -1352,8 +1459,8 @@ void PlatformerGameModule::AddScenePhysicsBridge(const ScenePhysicsRigSpec& spec
     const float linkEndX = rightX - 40.0f;
     const float linkY = spec.bounds.y + height * 0.62f;
 
-    AE::Physics::Body* leftAnchor = AddPhysicsBox(AE::Physics::FVector2D(leftX, anchorY), 46.0f, 24.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
-    AE::Physics::Body* rightAnchor = AddPhysicsBox(AE::Physics::FVector2D(rightX, anchorY), 46.0f, 24.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
+    AE::Physics::Body* leftAnchor = AddPhysicsBox(AE::Math::FVector2D(leftX, anchorY), 46.0f, 24.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
+    AE::Physics::Body* rightAnchor = AddPhysicsBox(AE::Math::FVector2D(rightX, anchorY), 46.0f, 24.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
 
     std::vector<AE::Physics::Body*> links;
     constexpr int BridgeSegments = 10;
@@ -1361,7 +1468,7 @@ void PlatformerGameModule::AddScenePhysicsBridge(const ScenePhysicsRigSpec& spec
     {
         const float t = static_cast<float>(index) / static_cast<float>(BridgeSegments - 1);
         AE::Physics::Body* link = AddPhysicsBox(
-            AE::Physics::FVector2D(linkStartX + t * (linkEndX - linkStartX), linkY + std::sin(t * 3.14159f) * 12.0f),
+            AE::Math::FVector2D(linkStartX + t * (linkEndX - linkStartX), linkY + std::sin(t * 3.14159f) * 12.0f),
             32.0f,
             14.0f,
             0.8f,
@@ -1392,14 +1499,14 @@ void PlatformerGameModule::AddScenePhysicsChain(const ScenePhysicsRigSpec& spec)
     const float topY = spec.bounds.y;
     const float bottomY = spec.bounds.y + height;
 
-    AE::Physics::Body* anchor = AddPhysicsBox(AE::Physics::FVector2D(centerX, topY), 48.0f, 22.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
+    AE::Physics::Body* anchor = AddPhysicsBox(AE::Math::FVector2D(centerX, topY), 48.0f, 22.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
     AE::Physics::Body* previous = anchor;
     constexpr int ChainLinks = 7;
     const float spacing = std::max(22.0f, (height - 70.0f) / static_cast<float>(ChainLinks + 1));
     for (int index = 0; index < ChainLinks; ++index)
     {
         AE::Physics::Body* link = AddPhysicsBox(
-            AE::Physics::FVector2D(centerX, topY + 38.0f + static_cast<float>(index) * spacing),
+            AE::Math::FVector2D(centerX, topY + 38.0f + static_cast<float>(index) * spacing),
             16.0f,
             24.0f,
             0.65f,
@@ -1410,7 +1517,7 @@ void PlatformerGameModule::AddScenePhysicsChain(const ScenePhysicsRigSpec& spec)
         AddPhysicsJoint(previous, link);
         previous = link;
     }
-    AE::Physics::Body* load = AddPhysicsCircle(AE::Physics::FVector2D(centerX, bottomY), 22.0f, 3.5f, SDL_Color{205, 74, 75, 255}, PhysicsMetalEdge, true);
+    AE::Physics::Body* load = AddPhysicsCircle(AE::Math::FVector2D(centerX, bottomY), 22.0f, 3.5f, SDL_Color{205, 74, 75, 255}, PhysicsMetalEdge, true);
     AddPhysicsJoint(previous, load);
 }
 #endif
@@ -1424,7 +1531,7 @@ void PlatformerGameModule::ResetLevel()
     for (Enemy& enemy : enemies)
     {
         enemy.position = enemy.spawnPosition;
-        enemy.velocity = AE::Physics::FVector2D(enemy.speed * enemy.direction, 0.0f);
+        enemy.velocity = AE::Math::FVector2D(enemy.speed * enemy.direction, 0.0f);
         enemy.health = enemy.maxHealth;
         enemy.alive = true;
         enemy.timeAlive = 0.0f;
@@ -1442,7 +1549,7 @@ void PlatformerGameModule::ResetLevel()
 void PlatformerGameModule::ResetPlayer()
 {
     player.position = playerSpawn;
-    player.velocity = AE::Physics::FVector2D::Zero;
+    player.velocity = AE::Math::FVector2D::Zero;
     player.grounded = false;
     player.won = false;
     player.facing = 1;
@@ -1502,17 +1609,19 @@ void PlatformerGameModule::PollEvents(InputState& input)
                 case SDLK_ESCAPE:
                     running = false;
                     break;
-                case SDLK_p:
-                    paused = !paused;
-                    break;
-                case SDLK_r:
-                    ResetLevel();
-                    break;
                 default:
                     break;
             }
         }
     }
+
+    ReadKeyboardInput(input);
+}
+
+void PlatformerGameModule::ReadKeyboardInput(InputState& input)
+{
+    input.jumpPressed = false;
+    input.shootPressed = false;
 
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
     if (diagnostics.WantsKeyboard())
@@ -1520,6 +1629,8 @@ void PlatformerGameModule::PollEvents(InputState& input)
         input = InputState{};
         jumpKeyWasDown = false;
         shootKeyWasDown = false;
+        pauseKeyWasDown = false;
+        resetKeyWasDown = false;
         pendingJumpPressed = false;
         pendingShootPressed = false;
         return;
@@ -1533,9 +1644,19 @@ void PlatformerGameModule::PollEvents(InputState& input)
     const bool shootDown = keys[SDL_SCANCODE_J] != 0 ||
         keys[SDL_SCANCODE_LCTRL] != 0 ||
         keys[SDL_SCANCODE_RCTRL] != 0;
+    const bool pauseDown = keys[SDL_SCANCODE_P] != 0;
+    const bool resetDown = keys[SDL_SCANCODE_R] != 0;
 
     input.moveLeft = keys[SDL_SCANCODE_A] != 0 || keys[SDL_SCANCODE_LEFT] != 0;
     input.moveRight = keys[SDL_SCANCODE_D] != 0 || keys[SDL_SCANCODE_RIGHT] != 0;
+    if (pauseDown && !pauseKeyWasDown)
+    {
+        paused = !paused;
+    }
+    if (resetDown && !resetKeyWasDown)
+    {
+        ResetLevel();
+    }
     if (jumpDown && !jumpKeyWasDown)
     {
         pendingJumpPressed = true;
@@ -1551,6 +1672,36 @@ void PlatformerGameModule::PollEvents(InputState& input)
 
     jumpKeyWasDown = jumpDown;
     shootKeyWasDown = shootDown;
+    pauseKeyWasDown = pauseDown;
+    resetKeyWasDown = resetDown;
+}
+
+void PlatformerGameModule::StepRuntime(float deltaSeconds)
+{
+    const Uint64 updateStart = SDL_GetPerformanceCounter();
+    InputState input;
+    ReadKeyboardInput(input);
+
+    fixedStepAccumulator += ClampFloat(deltaSeconds, 0.0f, 0.05f);
+    InputState stepInput = input;
+    bool stepped = false;
+    fixedStepsThisFrame = 0;
+    while (!paused && fixedStepAccumulator >= FixedTimeStep)
+    {
+        Step(FixedTimeStep, stepInput);
+        stepInput.jumpPressed = false;
+        stepInput.shootPressed = false;
+        fixedStepAccumulator -= FixedTimeStep;
+        stepped = true;
+        ++fixedStepsThisFrame;
+    }
+    if (stepped)
+    {
+        pendingJumpPressed = false;
+        pendingShootPressed = false;
+    }
+
+    lastUpdateMs = ElapsedMs(updateStart, SDL_GetPerformanceCounter());
 }
 
 void PlatformerGameModule::Step(float dt, const InputState& input)
@@ -1585,10 +1736,10 @@ void PlatformerGameModule::TryShoot()
 
     const float direction = player.facing >= 0 ? 1.0f : -1.0f;
     Projectile projectile;
-    projectile.position = AE::Physics::FVector2D(
+    projectile.position = AE::Math::FVector2D(
         player.position.X + player.width * 0.5f + direction * 18.0f,
         player.position.Y + player.height * 0.42f);
-    projectile.velocity = AE::Physics::FVector2D(ProjectileSpeed * direction, 0.0f);
+    projectile.velocity = AE::Math::FVector2D(ProjectileSpeed * direction, 0.0f);
     projectile.damage = 1;
     projectile.fromPlayer = true;
     projectiles.push_back(projectile);
@@ -1624,10 +1775,10 @@ void PlatformerGameModule::TryEnemyShoot(Enemy& enemy)
     projectile.timeToLive = 2.0f;
     projectile.damage = 1;
     projectile.fromPlayer = false;
-    projectile.position = AE::Physics::FVector2D(
+    projectile.position = AE::Math::FVector2D(
         enemyCenterX + directionX * 20.0f - projectile.width * 0.5f,
         enemyCenterY + directionY * 14.0f - projectile.height * 0.5f);
-    projectile.velocity = AE::Physics::FVector2D(directionX * enemy.projectileSpeed, directionY * enemy.projectileSpeed);
+    projectile.velocity = AE::Math::FVector2D(directionX * enemy.projectileSpeed, directionY * enemy.projectileSpeed);
     projectiles.push_back(projectile);
     enemy.shootTimer = enemy.shootCooldown;
 }
@@ -1689,7 +1840,7 @@ void PlatformerGameModule::UpdatePlayer(float dt, const InputState& input)
 
     player.velocity.Y = ClampFloat(player.velocity.Y + Gravity * dt, -1000.0f, MaxFallSpeed);
 
-    player.position.Y += player.velocity.X * dt;
+    player.position.X += player.velocity.X * dt;
     ResolveTileCollisions(true);
 
     player.position.Y += player.velocity.Y * dt;
@@ -1907,7 +2058,7 @@ void PlatformerGameModule::ApplyProjectilePhysicsHit(Projectile& projectile)
         }
 
         const float direction = projectile.velocity.X >= 0.0f ? 1.0f : -1.0f;
-        body->ApplyImpulseLinear(AE::Physics::FVector2D(180.0f * direction, -36.0f));
+        body->ApplyImpulseLinear(AE::Math::FVector2D(180.0f * direction, -36.0f));
         body->angularVelocity += 2.5f * direction;
         physicsWorld->WakeBody(*body);
         projectile.active = false;
@@ -1950,7 +2101,7 @@ void PlatformerGameModule::UpdateKinematicPhysicsBodies(float dt)
         }
 
         const float offset = std::sin(physicsSceneTime * kinematic.speed + kinematic.phase) * kinematic.amplitude;
-        const AE::Physics::FVector2D previousPosition = kinematic.body->position;
+        const AE::Math::FVector2D previousPosition = kinematic.body->position;
         kinematic.body->position = kinematic.basePosition + kinematic.axis * offset;
         kinematic.body->velocity = (kinematic.body->position - previousPosition) * (1.0f / std::max(0.0001f, dt));
         kinematic.body->shape->UpdateVertices(kinematic.body->rotation, kinematic.body->position);
@@ -2004,7 +2155,7 @@ void PlatformerGameModule::ResolvePlayerPhysicsContacts(float dt)
             player.airJumpsRemaining = MaxAirJumps;
             if (!body->IsStatic())
             {
-                body->ApplyImpulseLinear(AE::Physics::FVector2D(player.velocity.X * 0.08f, 0.0f));
+                body->ApplyImpulseLinear(AE::Math::FVector2D(player.velocity.X * 0.08f, 0.0f));
             }
         }
         else
@@ -2019,7 +2170,7 @@ void PlatformerGameModule::ResolvePlayerPhysicsContacts(float dt)
             player.velocity.X = MoveTowardZero(player.velocity.X, 180.0f);
             if (!body->IsStatic())
             {
-                body->ApplyImpulseLinear(AE::Physics::FVector2D(pushDirection * 95.0f, -18.0f));
+                body->ApplyImpulseLinear(AE::Math::FVector2D(pushDirection * 95.0f, -18.0f));
                 body->angularVelocity += pushDirection * 1.8f;
             }
         }
@@ -2066,7 +2217,7 @@ void PlatformerGameModule::UpdateGoal()
     if (Intersects(PlayerRect(), finish))
     {
         player.won = true;
-        player.velocity = AE::Physics::FVector2D::Zero;
+        player.velocity = AE::Math::FVector2D::Zero;
     }
 }
 
@@ -2224,7 +2375,7 @@ PlatformerGameModule::RectF PlatformerGameModule::BodyBounds(const AE::Physics::
     float minY = std::numeric_limits<float>::max();
     float maxX = std::numeric_limits<float>::lowest();
     float maxY = std::numeric_limits<float>::lowest();
-    for (const AE::Physics::FVector2D& vertex : polygon->worldVertices)
+    for (const AE::Math::FVector2D& vertex : polygon->worldVertices)
     {
         minX = std::min(minX, vertex.X);
         minY = std::min(minY, vertex.Y);
@@ -2298,7 +2449,7 @@ float PlatformerGameModule::MoveTowardZero(float value, float amount)
 }
 
 AE::Physics::Body* PlatformerGameModule::AddPhysicsBox(
-    AE::Physics::FVector2D position,
+    AE::Math::FVector2D position,
     float width,
     float height,
     float mass,
@@ -2322,7 +2473,7 @@ AE::Physics::Body* PlatformerGameModule::AddPhysicsBox(
 }
 
 AE::Physics::Body* PlatformerGameModule::AddPhysicsCircle(
-    AE::Physics::FVector2D position,
+    AE::Math::FVector2D position,
     float radius,
     float mass,
     SDL_Color fill,
@@ -2358,6 +2509,17 @@ void PlatformerGameModule::Render()
         return;
     }
 
+    RenderFrameContents();
+    PresentFrameTexture();
+}
+
+void PlatformerGameModule::RenderFrameContents()
+{
+    if (!renderer || !frameTexture)
+    {
+        return;
+    }
+
     const Uint64 renderStart = SDL_GetPerformanceCounter();
 
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
@@ -2380,7 +2542,6 @@ void PlatformerGameModule::Render()
     RenderDiagnostics();
 
     lastRenderMs = ElapsedMs(renderStart, SDL_GetPerformanceCounter());
-    PresentFrameTexture();
 }
 
 bool PlatformerGameModule::CreateFrameTexture()
@@ -2433,12 +2594,37 @@ SDL_Rect PlatformerGameModule::CalculateFrameViewport() const
     int outputHeight = WindowHeight;
     SDL_GetRendererOutputSize(renderer, &outputWidth, &outputHeight);
 
+    return CalculateFrameViewport(SDL_Rect{0, 0, outputWidth, outputHeight});
+}
+
+SDL_Rect PlatformerGameModule::CalculateFrameViewport(const SDL_Rect& outputBounds) const
+{
     const float scale = std::min(
-        static_cast<float>(outputWidth) / static_cast<float>(WindowWidth),
-        static_cast<float>(outputHeight) / static_cast<float>(WindowHeight));
+        static_cast<float>(outputBounds.w) / static_cast<float>(WindowWidth),
+        static_cast<float>(outputBounds.h) / static_cast<float>(WindowHeight));
     const int width = static_cast<int>(std::round(static_cast<float>(WindowWidth) * scale));
     const int height = static_cast<int>(std::round(static_cast<float>(WindowHeight) * scale));
-    return SDL_Rect{(outputWidth - width) / 2, (outputHeight - height) / 2, width, height};
+    return SDL_Rect{
+        outputBounds.x + (outputBounds.w - width) / 2,
+        outputBounds.y + (outputBounds.h - height) / 2,
+        width,
+        height
+    };
+}
+
+void PlatformerGameModule::CopyFrameTextureToTarget(const SDL_Rect& outputBounds)
+{
+    if (!renderer || !frameTexture || outputBounds.w <= 0 || outputBounds.h <= 0)
+    {
+        return;
+    }
+
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderFillRect(renderer, &outputBounds);
+
+    const SDL_Rect destination = CalculateFrameViewport(outputBounds);
+    SDL_RenderCopy(renderer, frameTexture, nullptr, &destination);
 }
 
 void PlatformerGameModule::RenderDiagnostics()
@@ -2675,9 +2861,9 @@ void PlatformerGameModule::DrawPhysics() const
         else
         {
             const AE::Physics::PolygonShape* polygon = static_cast<const AE::Physics::PolygonShape*>(visual.body->shape);
-            std::vector<AE::Physics::FVector2D> screenVertices;
+            std::vector<AE::Math::FVector2D> screenVertices;
             screenVertices.reserve(polygon->worldVertices.size());
-            for (const AE::Physics::FVector2D& vertex : polygon->worldVertices)
+            for (const AE::Math::FVector2D& vertex : polygon->worldVertices)
             {
                 screenVertices.emplace_back(vertex.X - cameraX, vertex.Y);
             }
@@ -2716,7 +2902,7 @@ bool PlatformerGameModule::BuildEditorSceneEnemy(const AE::Scene::ObjectData& ob
     enemy.name = objectData.name.empty() ? std::string("scene_enemy") : objectData.name;
     enemy.width = std::max(18.0f, bounds.w);
     enemy.height = std::max(18.0f, bounds.h);
-    enemy.spawnPosition = AE::Physics::FVector2D(bounds.x, bounds.y);
+    enemy.spawnPosition = AE::Math::FVector2D(bounds.x, bounds.y);
     enemy.position = enemy.spawnPosition;
 
     const bool hopper = ContainsText(enemy.name, "hopper");
@@ -2724,7 +2910,7 @@ bool PlatformerGameModule::BuildEditorSceneEnemy(const AE::Scene::ObjectData& ob
     const bool shooter = sentry || ContainsText(enemy.name, "shooter") || ContainsText(enemy.name, "turret");
     enemy.speed = sentry ? 54.0f : (hopper ? 58.0f : 70.0f);
     enemy.direction = ContainsText(enemy.name, "left") ? -1.0f : 1.0f;
-    enemy.velocity = AE::Physics::FVector2D(enemy.speed * enemy.direction, 0.0f);
+    enemy.velocity = AE::Math::FVector2D(enemy.speed * enemy.direction, 0.0f);
 
     const float patrolWidth = sentry ? 260.0f : 192.0f;
     enemy.leftBound = bounds.x - patrolWidth * 0.45f;
@@ -2814,7 +3000,7 @@ void PlatformerGameModule::LoadEditorSceneProps()
         const RectF bounds = EditorSceneObjectBounds(objectData);
         if (objectData.className == "PlayerSpawnObject")
         {
-            playerSpawn = AE::Physics::FVector2D(bounds.x , bounds.y);
+            playerSpawn = AE::Math::FVector2D(bounds.x , bounds.y);
             ++gameplayObjectCount;
             continue;
         }
@@ -2979,6 +3165,22 @@ void PlatformerGameModule::ClearEditorSceneProps()
     editorSceneTextures.clear();
 }
 
+void PlatformerGameModule::RefreshEditorSceneTextures()
+{
+    if (!imageSystemInitialized || !renderer)
+    {
+        return;
+    }
+
+    for (EditorSceneProp& prop : editorSceneProps)
+    {
+        if (!prop.texture)
+        {
+            prop.texture = GetEditorSceneTexture(prop.assetId, ResolveEditorSceneAssetPath(prop.assetId));
+        }
+    }
+}
+
 std::filesystem::path PlatformerGameModule::ResolveEditorSceneAssetPath(const std::string& assetId) const
 {
     const std::string projectPrefix = "Project/";
@@ -3009,6 +3211,11 @@ SDL_Texture* PlatformerGameModule::GetEditorSceneTexture(const std::string& asse
     }
 
     SDL_Texture* texture = nullptr;
+    if (!imageSystemInitialized || !renderer || path.empty())
+    {
+        return nullptr;
+    }
+
     if (imageSystemInitialized && renderer && !path.empty())
     {
         SDL_Surface* surface = IMG_Load(path.string().c_str());
@@ -3023,7 +3230,10 @@ SDL_Texture* PlatformerGameModule::GetEditorSceneTexture(const std::string& asse
         }
     }
 
-    editorSceneTextures[assetId] = texture;
+    if (texture)
+    {
+        editorSceneTextures[assetId] = texture;
+    }
     return texture;
 }
 
@@ -3113,7 +3323,7 @@ void PlatformerGameModule::DrawRect(const RectF& rect, SDL_Color color) const
         color);
 }
 
-void PlatformerGameModule::DrawWorldLine(const AE::Physics::FVector2D& from, const AE::Physics::FVector2D& to, SDL_Color color) const
+void PlatformerGameModule::DrawWorldLine(const AE::Math::FVector2D& from, const AE::Math::FVector2D& to, SDL_Color color) const
 {
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
@@ -3136,7 +3346,7 @@ void PlatformerGameModule::DrawFilledCircle(int centerX, int centerY, int radius
     }
 }
 
-void PlatformerGameModule::DrawFilledPolygon(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color) const
+void PlatformerGameModule::DrawFilledPolygon(const std::vector<AE::Math::FVector2D>& vertices, SDL_Color color) const
 {
     if (vertices.size() < 3)
     {
@@ -3145,7 +3355,7 @@ void PlatformerGameModule::DrawFilledPolygon(const std::vector<AE::Physics::FVec
 
     float minY = vertices.front().Y;
     float maxY = vertices.front().Y;
-    for (const AE::Physics::FVector2D& vertex : vertices)
+    for (const AE::Math::FVector2D& vertex : vertices)
     {
         minY = std::min(minY, vertex.Y);
         maxY = std::max(maxY, vertex.Y);
@@ -3166,8 +3376,8 @@ void PlatformerGameModule::DrawFilledPolygon(const std::vector<AE::Physics::FVec
 
         for (std::size_t i = 0; i < vertices.size(); ++i)
         {
-            const AE::Physics::FVector2D& a = vertices[i];
-            const AE::Physics::FVector2D& b = vertices[(i + 1) % vertices.size()];
+            const AE::Math::FVector2D& a = vertices[i];
+            const AE::Math::FVector2D& b = vertices[(i + 1) % vertices.size()];
             if ((a.Y <= scanY && b.Y > scanY) || (b.Y <= scanY && a.Y > scanY))
             {
                 const float t = (scanY - a.Y) / (b.Y - a.Y);
@@ -3185,7 +3395,7 @@ void PlatformerGameModule::DrawFilledPolygon(const std::vector<AE::Physics::FVec
     }
 }
 
-void PlatformerGameModule::DrawPolyline(const std::vector<AE::Physics::FVector2D>& vertices, SDL_Color color, bool closed) const
+void PlatformerGameModule::DrawPolyline(const std::vector<AE::Math::FVector2D>& vertices, SDL_Color color, bool closed) const
 {
     if (vertices.size() < 2)
     {
@@ -3221,3 +3431,4 @@ void PlatformerGameModule::DrawScreenRect(int x, int y, int w, int h, SDL_Color 
     SDL_Rect rect{x, y, w, h};
     SDL_RenderFillRect(renderer, &rect);
 }
+

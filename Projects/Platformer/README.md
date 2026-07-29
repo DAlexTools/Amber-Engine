@@ -75,6 +75,7 @@ cmake --build --preset editor
 Smoke tests:
 
 ```powershell
-.\Builds\Editor\Projects\Platformer\Debug\PlatformerApp.exe .\Projects\Platformer\Platformer.amberproject --smoke-test
-.\Projects\Platformer\Builds\Editor\Debug\PlatformerApp.exe .\Projects\Platformer\Platformer.amberproject --smoke-test
+.\Builds\Editor\Projects\Platformer\Debug\PlatformerApp.exe --project .\Projects\Platformer\Platformer.amberproject --smoke-test --frames 2
+.\Projects\Platformer\Builds\Editor\Debug\PlatformerApp.exe --project .\Projects\Platformer\Platformer.amberproject --smoke-test --frames 2
+.\Projects\Platformer\Builds\Editor\Debug\PlatformerApp.exe --gameplay-smoke-test
 ```

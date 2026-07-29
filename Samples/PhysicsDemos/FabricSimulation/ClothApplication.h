@@ -5,7 +5,7 @@
 #include "../Renderer/SDL/Graphics.h"
 #include "../Common/LegacyDiagnosticsOverlay.h"
 #include <vector>
-#include "Physics/Objects/Cloth.h"
+#include "Cloth.h"
 #include "Physics/Mouse.h"
 
 class Application

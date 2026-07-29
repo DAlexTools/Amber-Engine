@@ -29,6 +29,7 @@ if(SDL2_TARGET_FOUND)
         amber_target_folder(Platformer2App "Samples/GamesDemos/Platformer2")
         amber_add_header_tree(Platformer2App "${PLATFORMER2_DIR}")
         amber_group_sources(Platformer2App "${CMAKE_CURRENT_SOURCE_DIR}")
+        amber_enable_pch(Platformer2App)
     else()
         message(WARNING
             "Platformer2App target is disabled because SDL2_image was not found."
@@ -58,6 +59,7 @@ if(SDL2_TARGET_FOUND)
     amber_target_folder(ContainerSandboxApp "Samples/PhysicsDemos/ContainerSandbox")
     amber_add_header_tree(ContainerSandboxApp "${CONTAINER_SANDBOX_DIR}")
     amber_group_sources(ContainerSandboxApp "${CMAKE_CURRENT_SOURCE_DIR}")
+    amber_enable_pch(ContainerSandboxApp)
 
     if(TARGET ImGuiSDL)
         add_executable(PhysicsLabApp
@@ -84,6 +86,7 @@ if(SDL2_TARGET_FOUND)
         amber_target_folder(PhysicsLabApp "Samples/PhysicsDemos/PhysicsLab")
         amber_add_header_tree(PhysicsLabApp "${PHYSICS_LAB_DIR}")
         amber_group_sources(PhysicsLabApp "${CMAKE_CURRENT_SOURCE_DIR}")
+        amber_enable_pch(PhysicsLabApp)
     else()
         message(WARNING
             "PhysicsLabApp target is disabled because ImGuiSDL target is not available."
@@ -116,6 +119,7 @@ if(SDL2_TARGET_FOUND AND SDL2_GFX_TARGET_FOUND)
     amber_add_header_tree(RendererSDL "${PHYSICS_DEMOS_DIR}/Common")
     amber_add_header_tree(RendererSDL "${PHYSICS_DEMOS_DIR}/Renderer/SDL")
     amber_group_sources(RendererSDL "${PHYSICS_DEMOS_DIR}")
+    amber_enable_pch(RendererSDL)
 
     if(SDL2_IMAGE_TARGET_FOUND)
         function(add_physics_sample target_name sample_folder)
@@ -133,6 +137,7 @@ if(SDL2_TARGET_FOUND AND SDL2_GFX_TARGET_FOUND)
             amber_target_folder(${target_name} "Samples/PhysicsDemos/${sample_folder}")
             amber_add_header_tree(${target_name} "${PHYSICS_DEMOS_DIR}/${sample_folder}")
             amber_group_sources(${target_name} "${PHYSICS_DEMOS_DIR}")
+            amber_enable_pch(${target_name})
         endfunction()
 
         add_physics_sample(AngryApp AngryApp
@@ -183,6 +188,7 @@ if(TARGET Engine)
     amber_target_folder(GameEngineApp "Samples/GamesDemos/Game")
     amber_add_header_tree(GameEngineApp "${GAMES_DEMOS_DIR}/Game")
     amber_group_sources(GameEngineApp "${CMAKE_CURRENT_SOURCE_DIR}")
+    amber_enable_pch(GameEngineApp)
 else()
     message(WARNING
         "GameEngineApp target is disabled because Engine target is not available."

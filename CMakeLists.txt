@@ -9,15 +9,20 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "_CMake")
 
+set(AMBER_ENGINE_SOLUTION_FOLDER "AmberEngine" CACHE STRING "Top-level Visual Studio solution folder for engine-owned targets")
+
 option(BUILD_SDL_MODULES "Build SDL renderer, samples and game engine targets" ON)
 option(BUILD_UNIT_TESTS "Build GoogleTest unit test targets" OFF)
 option(AMBER_BUILD_PROJECTS "Build in-repo game projects under Projects/" ON)
 option(AMBER_WITH_EDITOR "Build Amber editor modules and tools" ON)
+option(AMBER_ENABLE_PCH "Enable Amber precompiled header for engine-owned targets" ON)
 set(AMBER_WITH_EDITOR_ONLY_DATA_DEFAULT ${AMBER_WITH_EDITOR})
 option(AMBER_WITH_EDITOR_ONLY_DATA "Keep editor-only runtime metadata in compiled types" ${AMBER_WITH_EDITOR_ONLY_DATA_DEFAULT})
 
+set(AMBER_PCH_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/Engine/Runtime/Core/AmberPCH.h")
+
 add_library(AmberBuildConfig INTERFACE)
-set_target_properties(AmberBuildConfig PROPERTIES FOLDER "Engine/Build")
+set_target_properties(AmberBuildConfig PROPERTIES FOLDER "${AMBER_ENGINE_SOLUTION_FOLDER}/Build")
 target_compile_definitions(AmberBuildConfig INTERFACE
     AMBER_WITH_EDITOR=$<BOOL:${AMBER_WITH_EDITOR}>
     AMBER_WITH_EDITOR_ONLY_DATA=$<BOOL:${AMBER_WITH_EDITOR_ONLY_DATA}>
@@ -27,7 +32,11 @@ target_compile_definitions(AmberBuildConfig INTERFACE
 
 function(amber_target_folder target folder)
     if(TARGET ${target})
-        set_target_properties(${target} PROPERTIES FOLDER "${folder}")
+        set(effective_folder "${folder}")
+        if(effective_folder STREQUAL "Engine" OR effective_folder MATCHES "^Engine/")
+            string(REGEX REPLACE "^Engine" "${AMBER_ENGINE_SOLUTION_FOLDER}" effective_folder "${effective_folder}")
+        endif()
+        set_target_properties(${target} PROPERTIES FOLDER "${effective_folder}")
     endif()
 endfunction()
 
@@ -80,6 +89,44 @@ function(amber_group_sources target root)
         list(REMOVE_DUPLICATES group_files)
         source_group(TREE "${root}" FILES ${group_files})
     endif()
+endfunction()
+
+function(amber_group_generated_visual_studio_files target)
+    if(NOT TARGET ${target})
+        return()
+    endif()
+
+    if(NOT CMAKE_GENERATOR MATCHES "Visual Studio")
+        return()
+    endif()
+
+    set(pch_directory "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${target}.dir")
+    set(generated_files
+        "${pch_directory}/cmake_pch.cxx"
+    )
+
+    foreach(config IN LISTS CMAKE_CONFIGURATION_TYPES)
+        list(APPEND generated_files
+            "${pch_directory}/${config}/cmake_pch.hxx"
+        )
+    endforeach()
+
+    source_group("" FILES ${generated_files})
+endfunction()
+
+function(amber_enable_pch target)
+    if(NOT AMBER_ENABLE_PCH)
+        return()
+    endif()
+
+    if(NOT TARGET ${target})
+        return()
+    endif()
+
+    target_precompile_headers(${target} PRIVATE
+        "$<$<COMPILE_LANGUAGE:CXX>:${AMBER_PCH_HEADER}>"
+    )
+    amber_group_generated_visual_studio_files(${target})
 endfunction()
 
 function(resolve_optional_target output)

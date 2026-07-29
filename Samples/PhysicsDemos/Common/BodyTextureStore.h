@@ -8,7 +8,7 @@
 
 #include "../Renderer/SDL/Graphics.h"
 #include "SamplePaths.h"
-#include "Physics/Objects/Body.h"
+#include "Body.h"
 
 class BodyTextureStore
 {

@@ -7,37 +7,38 @@
 #include <type_traits>
 
 
-namespace Math
+namespace AE::Math
 {
 
-static constexpr float Pi = 3.1415926535f;
+static constexpr float Pi = 3.14159265358979323846264f;
 static constexpr float TwoPi = Pi * 2.0f;
 static constexpr float PiOver2 = Pi / 2.0f;
 static constexpr float Infinity = std::numeric_limits<float>::infinity();
-static constexpr float NegInfinity = -std::numeric_limits<float>::infinity();
+static constexpr float NegativeInfinity = -std::numeric_limits<float>::infinity();
+static constexpr float Epsilon = 1e-6f;
 
 /**
  * 
  */
-inline float ToRadians(float degrees)
+inline float ToRadians(float Degrees)
 {
-    return degrees * ( Pi / 180.0f );
+    return Degrees * ( Pi / 180.0f );
 }
 
 /**
  * 
  */
-inline float ToDegrees(float radians)
+inline float ToDegrees(float Radians)
 { 
-    return radians * ( 180.0f / Pi );
+    return Radians * ( 180.0f / Pi );
 }
 
 /**
  * 
  */
-inline bool NearZero(float val, float epsilon = 0.001f)
+inline bool NearZero(float InValue, float Epsilon = 0.001f)
 {
-    if (std::fabs(val) <= epsilon)
+    if (std::fabs(InV) <= Epsilon)
     {
         return true;
     }
@@ -50,103 +51,103 @@ inline bool NearZero(float val, float epsilon = 0.001f)
 /**
  * 
  */
-inline float Abs(float value)
+inline float Abs(float InValue)
 {
-    return std::fabs(value);
+    return std::fabs(InValue);
 }
 
 /**
  * 
  */
-inline float Cos(float angle)
+inline float Cos(float Angle)
 {
-    return std::cos(angle);
+    return std::cos(Angle);
 }
 
 /**
  * 
  */
-inline float Sin(float angle)
+inline float Sin(float Angle)
 {
-    return std::sin(angle);
+    return std::sin(Angle);
 }
 
 /**
  * 
  */
-inline float Tan(float angle)
+inline float Tan(float Angle)
 {
-    return std::tan(angle);
+    return std::tan(Angle);
 }
 
 /**
  * 
  */
-inline float Acos(float value)
+inline float Acos(float InValue)
 {
-    return std::acos(value);
+    return std::acos(InValue);
 }
 
 /**
  * 
  */
-inline float Atan2(float y, float x)
+inline float Atan2(float Y, float X)
 {
-    return std::atan2(y, x);
+    return std::atan2(Y, X);
 }
 
 /**
  * 
  */
-inline float Cot(float angle)
+inline float Cot(float Angle)
 {
-    return 1.0f / Tan(angle);
+    return 1.0f / Tan(Angle);
 }
 
-inline float Lerp(float a, float b, float f)
+inline float Lerp(float A, float B, float F)
 {
-    return a + f * (b - a);
-}
-
-/**
- * 
- */
-inline float Sqrt(float value)
-{
-    return std::sqrt(value);
+    return A + F * (B - A);
 }
 
 /**
  * 
  */
-inline float Fmod(float numer, float denom)
+inline float Sqrt(float InValue)
 {
-    return std::fmod(numer, denom);
+    return std::sqrt(InValue);
 }
 
 /**
  * 
  */
-template <typename T>
-constexpr const T& Max(const T& a, const T& b)
+inline float Fmod(float Numer, float Denom)
 {
-    return (a < b ? b : a);
+    return std::fmod(Numer, Denom);
 }
-
 
 /**
  * 
  */
 template <typename T>
-constexpr const T& Min(const T& a, const T& b)
+constexpr const T& Max(const T& A, const T& B)
 {
-    return (a < b ? a : b);
+    return (A < B ? B : A);
+}
+
+
+/**
+ * 
+ */
+template <typename T>
+constexpr const T& Min(const T& A, const T& B)
+{
+    return (A < B ? A : B);
 }
 
 template <typename T>
-constexpr const T& Clamp(const T& val, const T& lower, const T& upper)
+constexpr const T& Clamp(const T& InValue, const T& Lower, const T& Upper)
 {
-    return Min(upper, Max(lower, val));
+    return Min(Upper, Max(Lower, InValue));
 }
 
 
@@ -154,18 +155,32 @@ constexpr const T& Clamp(const T& val, const T& lower, const T& upper)
  * Check if inV is a power of
  */
 template <typename T>
-constexpr bool IsPowerOfTwo(T inV)
+constexpr bool IsPowerOfTwo(T InValue)
 {
-    return (inV & (inV - 1)) == 0;
+    return (InValue& (InValue - 1)) == 0;
 }
 
 /**
  * Get the sign of a value 
  */
 template <typename T> 
-constexpr T Sign(T inV)
+constexpr T Sign(T InValue)
 {
-    return inV < 0 ? T(-1) : T(1);
+    return InValue < 0 ? T(-1) : T(1);
+}
+
+template<typename T>
+constexpr T SmallNumber()
+{
+    return T(1e-8);
+}
+
+template<typename T>
+constexpr T KindaSmallNumber()
+{
+    return T(1e-4);
+}
+
 }
 
 /**

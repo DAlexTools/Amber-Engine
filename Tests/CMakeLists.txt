@@ -8,6 +8,7 @@ add_executable(PhysicsUnitTests
 )
 amber_target_folder(PhysicsUnitTests "Tests/Physics")
 amber_group_sources(PhysicsUnitTests "${CMAKE_CURRENT_SOURCE_DIR}")
+amber_enable_pch(PhysicsUnitTests)
 
 target_link_libraries(PhysicsUnitTests PRIVATE
     AmberBuildConfig
@@ -25,13 +26,16 @@ gtest_discover_tests(PhysicsUnitTests
 )
 
 add_executable(EngineUnitTests
+    ${CMAKE_CURRENT_SOURCE_DIR}/Engine/AssetResolverTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Engine/LogBusTests.cpp
 )
 amber_target_folder(EngineUnitTests "Tests/Engine")
 amber_group_sources(EngineUnitTests "${CMAKE_CURRENT_SOURCE_DIR}")
+amber_enable_pch(EngineUnitTests)
 
 target_link_libraries(EngineUnitTests PRIVATE
     AmberBuildConfig
+    EngineRuntimeCore
     EngineRuntimeLogging
     Physics
     GTest::gtest

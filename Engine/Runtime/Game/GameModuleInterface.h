@@ -42,6 +42,7 @@ struct GameModuleRenderContext
 {
     Registry& registry;
     unsigned long frameIndex = 0;
+    // Runtime-specific render context; valid only for the current Render call.
     void* nativeRenderContext = nullptr;
 };
 
