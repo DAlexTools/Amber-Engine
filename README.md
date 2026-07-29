@@ -1,5 +1,5 @@
 # AmberEngine
-
+![AmberEngineImage](Docs/AmberEngineImage.jpg)
 AmberEngine is a work-in-progress 2D C++ engine built around SDL2, ImGui, a custom 2D physics runtime and a growing set of samples. The project is currently focused on engine/module boundaries, Unreal-style runtime organization, physics experiments, diagnostics, editor preparation and clean Visual Studio/CMake workflows.
 
 ## Features
