@@ -1,7 +1,7 @@
 #include "Scene/SceneAsset.h"
 
-#include "Core/Platform/PlatformTypes.h"
-
+#include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -12,7 +12,8 @@ namespace AE::Scene
 namespace
 {
 constexpr const char* SceneMagic = "AmberScene";
-constexpr int SceneVersion = 1;
+constexpr int SceneVersion = 2;
+constexpr int MinSceneVersion = 1;
 
 void SetError(std::string* error, const std::string& message)
 {
@@ -32,6 +33,13 @@ bool ReadBoolToken(std::istream& stream, bool& value)
 
 	value = raw != 0;
 	return true;
+}
+
+std::string ToLower(std::string Value)
+{
+	std::transform(Value.begin(), Value.end(), Value.begin(), [](unsigned char Character)
+				   { return static_cast<char>(std::tolower(Character)); });
+	return Value;
 }
 } // namespace
 
@@ -97,6 +105,164 @@ bool TryParseObjectKind(const std::string& value, ObjectKind& kind)
 	return false;
 }
 
+const char* ComponentPropertyTypeName(ComponentPropertyType type)
+{
+	switch (type)
+	{
+	case ComponentPropertyType::Bool:
+		return "Bool";
+	case ComponentPropertyType::Int:
+		return "Int";
+	case ComponentPropertyType::Float:
+		return "Float";
+	default:
+		return "String";
+	}
+}
+
+bool TryParseComponentPropertyType(const std::string& value, ComponentPropertyType& type)
+{
+	if (value == "Bool" || value == "Boolean")
+	{
+		type = ComponentPropertyType::Bool;
+		return true;
+	}
+	if (value == "Int" || value == "Integer")
+	{
+		type = ComponentPropertyType::Int;
+		return true;
+	}
+	if (value == "Float")
+	{
+		type = ComponentPropertyType::Float;
+		return true;
+	}
+	if (value == "String")
+	{
+		type = ComponentPropertyType::String;
+		return true;
+	}
+
+	return false;
+}
+
+ComponentData* FindComponent(ObjectData& Object, const std::string& ComponentName)
+{
+	for (ComponentData& Component : Object.components)
+	{
+		if (Component.name == ComponentName)
+		{
+			return &Component;
+		}
+	}
+
+	return nullptr;
+}
+
+const ComponentData* FindComponent(const ObjectData& Object, const std::string& ComponentName)
+{
+	for (const ComponentData& Component : Object.components)
+	{
+		if (Component.name == ComponentName)
+		{
+			return &Component;
+		}
+	}
+
+	return nullptr;
+}
+
+ComponentPropertyData* FindComponentProperty(ObjectData& Object, const std::string& ComponentName, const std::string& PropertyName)
+{
+	ComponentData* Component = FindComponent(Object, ComponentName);
+	if (!Component)
+	{
+		return nullptr;
+	}
+
+	for (ComponentPropertyData& Property : Component->properties)
+	{
+		if (Property.name == PropertyName)
+		{
+			return &Property;
+		}
+	}
+
+	return nullptr;
+}
+
+const ComponentPropertyData* FindComponentProperty(const ObjectData& Object, const std::string& ComponentName, const std::string& PropertyName)
+{
+	const ComponentData* Component = FindComponent(Object, ComponentName);
+	if (!Component)
+	{
+		return nullptr;
+	}
+
+	for (const ComponentPropertyData& Property : Component->properties)
+	{
+		if (Property.name == PropertyName)
+		{
+			return &Property;
+		}
+	}
+
+	return nullptr;
+}
+
+bool GetComponentPropertyBool(const ObjectData& Object, const std::string& ComponentName, const std::string& PropertyName, bool DefaultValue)
+{
+	const ComponentPropertyData* Property = FindComponentProperty(Object, ComponentName, PropertyName);
+	if (!Property)
+	{
+		return DefaultValue;
+	}
+
+	const std::string Value = ToLower(Property->value);
+	if (Value == "1" || Value == "true" || Value == "yes")
+	{
+		return true;
+	}
+	if (Value == "0" || Value == "false" || Value == "no")
+	{
+		return false;
+	}
+
+	return DefaultValue;
+}
+
+int32 GetComponentPropertyInt(const ObjectData& Object, const std::string& ComponentName, const std::string& PropertyName, int32 DefaultValue)
+{
+	const ComponentPropertyData* Property = FindComponentProperty(Object, ComponentName, PropertyName);
+	if (!Property)
+	{
+		return DefaultValue;
+	}
+
+	std::istringstream Stream(Property->value);
+	int32 Value = DefaultValue;
+	return (Stream >> Value) ? Value : DefaultValue;
+}
+
+float GetComponentPropertyFloat(const ObjectData& Object, const std::string& ComponentName, const std::string& PropertyName, float DefaultValue)
+{
+	const ComponentPropertyData* Property = FindComponentProperty(Object, ComponentName, PropertyName);
+	if (!Property)
+	{
+		return DefaultValue;
+	}
+
+	std::istringstream Stream(Property->value);
+	float Value = DefaultValue;
+	return (Stream >> Value) ? Value : DefaultValue;
+}
+
+std::string GetComponentPropertyString(const ObjectData& Object, const std::string& ComponentName, const std::string& PropertyName, std::string DefaultValue)
+{
+	const ComponentPropertyData* Property = FindComponentProperty(Object, ComponentName, PropertyName);
+	return Property ? Property->value : std::move(DefaultValue);
+}
+
 bool SaveScene(const Document& document, const std::filesystem::path& path, std::string* error)
 {
 	std::error_code filesystemError;
@@ -139,6 +305,29 @@ bool SaveScene(const Document& document, const std::filesystem::path& path, std:
 			<< object.size.y << ' '
 			<< (object.visible ? 1 : 0) << ' '
 			<< (object.locked ? 1 : 0) << '\n';
+
+		for (const ComponentData& Component : object.components)
+		{
+			if (Component.name.empty())
+			{
+				continue;
+			}
+
+			for (const ComponentPropertyData& Property : Component.properties)
+			{
+				if (Property.name.empty())
+				{
+					continue;
+				}
+
+				file
+					<< "component "
+					<< std::quoted(Component.name) << ' '
+					<< std::quoted(Property.name) << ' '
+					<< ComponentPropertyTypeName(Property.type) << ' '
+					<< std::quoted(Property.value) << '\n';
+			}
+		}
 	}
 
 	if (!file)
@@ -162,7 +351,7 @@ bool LoadScene(const std::filesystem::path& path, Document& document, std::strin
 	std::string magic;
 	int version = 0;
 	file >> magic >> version;
-	if (magic != SceneMagic || version != SceneVersion)
+	if (magic != SceneMagic || version < MinSceneVersion || version > SceneVersion)
 	{
 		SetError(error, "Unsupported scene file header: " + path.string());
 		return false;
@@ -172,6 +361,7 @@ bool LoadScene(const std::filesystem::path& path, Document& document, std::strin
 	std::getline(file, line);
 
 	Document loaded;
+	ObjectData* CurrentObject = nullptr;
 	SizeT lineNumber = 1;
 	while (std::getline(file, line))
 	{
@@ -236,6 +426,36 @@ bool LoadScene(const std::filesystem::path& path, Document& document, std::strin
 			}
 
 			loaded.objects.push_back(std::move(object));
+			CurrentObject = &loaded.objects.back();
+		}
+		else if (command == "component")
+		{
+			if (!CurrentObject)
+			{
+				SetError(error, "Scene component without object at line " + std::to_string(lineNumber));
+				return false;
+			}
+
+			std::string ComponentName;
+			std::string PropertyName;
+			std::string TypeName;
+			std::string Value;
+			ComponentPropertyType Type = ComponentPropertyType::String;
+			if (!(stream >> std::quoted(ComponentName) >> std::quoted(PropertyName) >> TypeName >> std::quoted(Value)) ||
+				!TryParseComponentPropertyType(TypeName, Type))
+			{
+				SetError(error, "Invalid scene component property at line " + std::to_string(lineNumber));
+				return false;
+			}
+
+			ComponentData* Component = FindComponent(*CurrentObject, ComponentName);
+			if (!Component)
+			{
+				CurrentObject->components.push_back(ComponentData{ComponentName, {}});
+				Component = &CurrentObject->components.back();
+			}
+
+			Component->properties.push_back(ComponentPropertyData{PropertyName, Type, Value});
 		}
 		else
 		{
