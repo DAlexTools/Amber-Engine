@@ -522,9 +522,9 @@ void World::DetectContactsParallel(
 	const std::vector<std::pair<SizeT, SizeT>>& narrowPhasePairs,
 	std::vector<Contact>& contactsOut)
 {
-	AE::Threading::ThreadPool& threadPool = AE::Threading::ThreadPool::Get();
-	const SizeT workerCount = threadPool.WorkerCount();
-	const SizeT jobCount = std::min(workerCount, narrowPhasePairs.size());
+	AE::Threading::FThreadPool& ThreadPool = AE::Threading::FThreadPool::Get();
+	const SizeT WorkerCount = ThreadPool.WorkerCount();
+	const SizeT jobCount = std::min(WorkerCount, narrowPhasePairs.size());
 	if (jobCount < 2u)
 	{
 		DetectContactsSequential(narrowPhasePairs, contactsOut);
@@ -536,7 +536,7 @@ void World::DetectContactsParallel(
 
 	std::vector<std::vector<Contact>> jobContacts(jobCount);
 
-	threadPool.ParallelFor(jobCount, 1u, [&](SizeT beginJob, SizeT endJob)
+	ThreadPool.ParallelFor(jobCount, 1u, [&](SizeT beginJob, SizeT endJob)
 						   {
         std::vector<Contact> scratchContacts;
         scratchContacts.reserve(2u);
@@ -736,8 +736,8 @@ void World::SolveConstraints(
 		return;
 	}
 
-	AE::Threading::ThreadPool& threadPool = AE::Threading::ThreadPool::Get();
-	const SizeT jobCount = std::min(threadPool.WorkerCount(), islands.size());
+	AE::Threading::FThreadPool& ThreadPool = AE::Threading::FThreadPool::Get();
+	const SizeT jobCount = std::min(ThreadPool.WorkerCount(), islands.size());
 	if (jobCount < 2u)
 	{
 		SolveConstraintsSequential(dt, penetrations);
@@ -782,7 +782,7 @@ void World::SolveConstraintsSequential(float dt, std::vector<PenetrationConstrai
 
 void World::SolveConstraintsParallel(float dt, std::vector<SolverIsland>& islands)
 {
-	AE::Threading::ThreadPool::Get().ParallelFor(
+	AE::Threading::FThreadPool::Get().ParallelFor(
 		islands.size(),
 		1u,
 		[&](SizeT beginIsland, SizeT endIsland)

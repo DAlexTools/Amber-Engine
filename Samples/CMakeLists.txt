@@ -19,6 +19,7 @@ if(SDL2_TARGET_FOUND)
 
         target_link_libraries(Platformer2App PRIVATE
             AmberBuildConfig
+            EngineRuntimeCore
             ${SDL2_LINK_TARGETS}
             ${SDL2_IMAGE_TARGET}
         )

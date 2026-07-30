@@ -316,9 +316,9 @@ TEST(WorldCollisionTests, ParallelSolverMatchesSequentialForIndependentIslands)
 			world.GetLastStats()};
 	};
 
-	AE::Threading::ThreadPool& threadPool = AE::Threading::ThreadPool::Get();
-	const SizeT originalWorkerCount = threadPool.WorkerCount();
-	threadPool.SetWorkerCount(4u);
+	AE::Threading::FThreadPool& ThreadPool = AE::Threading::FThreadPool::Get();
+	const SizeT OriginalWorkerCount = ThreadPool.WorkerCount();
+	ThreadPool.SetWorkerCount(4u);
 
 	const SolverProbe sequential = runProbe(false);
 	const SolverProbe parallel = runProbe(true);
@@ -334,20 +334,20 @@ TEST(WorldCollisionTests, ParallelSolverMatchesSequentialForIndependentIslands)
 	EXPECT_NEAR(parallel.secondVelocity.X, sequential.secondVelocity.X, 0.0001f);
 	EXPECT_NEAR(parallel.secondVelocity.Y, sequential.secondVelocity.Y, 0.0001f);
 
-	if (threadPool.WorkerCount() > 1u)
+	if (ThreadPool.WorkerCount() > 1u)
 	{
 		EXPECT_TRUE(parallel.stats.parallelSolverUsed);
 		EXPECT_GT(parallel.stats.parallelSolverJobs, 1u);
 	}
 
-	threadPool.SetWorkerCount(originalWorkerCount);
+	ThreadPool.SetWorkerCount(OriginalWorkerCount);
 }
 
 TEST(WorldCollisionTests, ParallelNarrowPhaseMatchesSequentialContactCount)
 {
-	AE::Threading::ThreadPool& threadPool = AE::Threading::ThreadPool::Get();
-	const SizeT originalWorkerCount = threadPool.WorkerCount();
-	threadPool.SetWorkerCount(8u);
+	AE::Threading::FThreadPool& ThreadPool = AE::Threading::FThreadPool::Get();
+	const SizeT OriginalWorkerCount = ThreadPool.WorkerCount();
+	ThreadPool.SetWorkerCount(8u);
 
 	AE::Physics::World sequentialWorld(0.0f);
 	sequentialWorld.SetBroadPhaseEnabled(false);
@@ -378,13 +378,13 @@ TEST(WorldCollisionTests, ParallelNarrowPhaseMatchesSequentialContactCount)
 	EXPECT_EQ(parallelWorld.GetContacts().size(), sequentialWorld.GetContacts().size());
 	EXPECT_EQ(parallelStats.contactCount, sequentialStats.contactCount);
 
-	if (threadPool.WorkerCount() > 1u)
+	if (ThreadPool.WorkerCount() > 1u)
 	{
 		EXPECT_TRUE(parallelStats.parallelNarrowPhaseUsed);
 		EXPECT_GT(parallelStats.parallelNarrowPhaseJobs, 1u);
 	}
 
-	threadPool.SetWorkerCount(originalWorkerCount);
+	ThreadPool.SetWorkerCount(OriginalWorkerCount);
 }
 
 #endif
