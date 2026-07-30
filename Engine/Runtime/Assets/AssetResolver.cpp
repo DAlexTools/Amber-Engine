@@ -1,188 +1,176 @@
 #include "Assets/AssetResolver.h"
-
 #include <system_error>
 
 namespace AE
 {
 namespace
 {
-    bool StartsWith(const std::string& value, const std::string& prefix)
+    bool StartsWith(const std::string& Value, const std::string& Prefix)
     {
-        return value.size() >= prefix.size() &&
-            value.compare(0, prefix.size(), prefix) == 0;
+        return Value.size() >= Prefix.size() && Value.compare(0, Prefix.size(), Prefix) == 0;
     }
 
-    bool FileExists(const std::filesystem::path& path)
+    bool FileExists(const std::filesystem::path& Path)
     {
-        std::error_code error;
-        return std::filesystem::exists(path, error) && std::filesystem::is_regular_file(path, error);
+        std::error_code Error;
+        return std::filesystem::exists(Path, Error) && std::filesystem::is_regular_file(Path, Error);
     }
 
-    bool DirectoryExists(const std::filesystem::path& path)
+    bool DirectoryExists(const std::filesystem::path& Path)
     {
-        std::error_code error;
-        return std::filesystem::exists(path, error) && std::filesystem::is_directory(path, error);
+        std::error_code Error;
+        return std::filesystem::exists(Path, Error) && std::filesystem::is_directory(Path, Error);
     }
 
-    std::filesystem::path WeakCanonicalIfPossible(const std::filesystem::path& path)
+    std::filesystem::path WeakCanonicalIfPossible(const std::filesystem::path& Path)
     {
-        std::error_code error;
-        const std::filesystem::path canonical = std::filesystem::weakly_canonical(path, error);
-        return canonical.empty() ? path : canonical;
+        std::error_code Error;
+        const std::filesystem::path Canonical = std::filesystem::weakly_canonical(Path, Error);
+        return Canonical.empty() ? Path : Canonical;
     }
 
-    void AddRootCandidate(
-        std::vector<std::filesystem::path>& candidates,
-        const RuntimeAssetRoot& root,
-        const std::string& assetId)
+    void AddRootCandidate(std::vector<std::filesystem::path>& Candidates, const RuntimeAssetRoot& Root, const std::string& AssetId)
     {
-        if (root.name.empty() || root.path.empty())
+        if (Root.Name.empty() || Root.Path.empty())
         {
             return;
         }
 
-        const std::string prefix = root.name + "/";
-        if (StartsWith(assetId, prefix))
+        const std::string Prefix = Root.Name + "/";
+        if (StartsWith(AssetId, Prefix))
         {
-            candidates.push_back(root.path / assetId.substr(prefix.size()));
+            Candidates.push_back(Root.Path / AssetId.substr(Prefix.size()));
         }
     }
 }
 
-std::filesystem::path ResolveProjectContentRoot(
-    const std::filesystem::path& projectRoot,
-    const std::filesystem::path& contentRoot)
+std::filesystem::path ResolveProjectContentRoot( const std::filesystem::path& ProjectRoot, const std::filesystem::path& ContentRoot)
 {
-    if (contentRoot.empty())
+    if (ContentRoot.empty())
     {
-        return projectRoot.empty() ? std::filesystem::path{} : projectRoot / "Content";
+        return ProjectRoot.empty() ? std::filesystem::path{} : ProjectRoot / "Content";
     }
-    if (contentRoot.is_absolute())
+    if (ContentRoot.is_absolute())
     {
-        return contentRoot;
+        return ContentRoot;
     }
-    return projectRoot.empty() ? contentRoot : projectRoot / contentRoot;
+    return ProjectRoot.empty() ? ContentRoot : ProjectRoot / ContentRoot;
 }
 
-std::filesystem::path ResolveEngineContentRoot(const std::filesystem::path& engineRoot)
+std::filesystem::path ResolveEngineContentRoot(const std::filesystem::path& EngineRoot)
 {
-    if (engineRoot.empty())
+    if (EngineRoot.empty())
     {
         return {};
     }
 
-    const std::filesystem::path nested = engineRoot / "Engine" / "Content";
-    if (DirectoryExists(nested))
+    const std::filesystem::path Nested = EngineRoot / "Engine" / "Content";
+    if (DirectoryExists(Nested))
     {
-        return nested;
+        return Nested;
     }
 
-    const std::filesystem::path direct = engineRoot / "Content";
-    if (DirectoryExists(direct))
+    const std::filesystem::path Direct = EngineRoot / "Content";
+    if (DirectoryExists(Direct))
     {
-        return direct;
+        return Direct;
     }
 
-    return nested;
+    return Nested;
 }
 
-std::vector<RuntimeAssetRoot> BuildRuntimeAssetRoots(const RuntimeAssetResolverConfig& config)
+std::vector<RuntimeAssetRoot> BuildRuntimeAssetRoots(const RuntimeAssetResolverConfig& Config)
 {
-    std::vector<RuntimeAssetRoot> roots;
-
-    const std::filesystem::path projectContentRoot = ResolveProjectContentRoot(config.projectRoot, config.contentRoot);
-    if (!projectContentRoot.empty())
+    std::vector<RuntimeAssetRoot> Roots;
+    const std::filesystem::path ProjectContentRoot = ResolveProjectContentRoot(Config.ProjectRoot, Config.ContentRoot);
+    if (!ProjectContentRoot.empty())
     {
-        roots.push_back(RuntimeAssetRoot{"Project", projectContentRoot});
+        Roots.push_back(RuntimeAssetRoot{"Project", ProjectContentRoot});
     }
 
-    const std::filesystem::path engineContentRoot = ResolveEngineContentRoot(config.engineRoot);
-    if (!engineContentRoot.empty())
+    const std::filesystem::path EngineContentRoot = ResolveEngineContentRoot(Config.EngineRoot);
+    if (!EngineContentRoot.empty())
     {
-        roots.push_back(RuntimeAssetRoot{"Engine", engineContentRoot});
+        Roots.push_back(RuntimeAssetRoot{"Engine", EngineContentRoot});
     }
 
-    return roots;
+    return Roots;
 }
 
-std::string MakeRuntimeAssetId(const std::string& rootName, const std::filesystem::path& relativePath)
+std::string MakeRuntimeAssetId(const std::string& RootName, const std::filesystem::path& RelativePath)
 {
-    const std::string relative = relativePath.generic_string();
-    if (rootName.empty())
+    const std::string Relative = RelativePath.generic_string();
+    if (RootName.empty())
     {
-        return relative;
+        return Relative;
     }
-    if (relative.empty() || relative == ".")
+    if (Relative.empty() || Relative == ".")
     {
-        return rootName;
+        return RootName;
     }
-    return rootName + "/" + relative;
+    return RootName + "/" + Relative;
 }
 
-std::filesystem::path ResolveRuntimeAssetPath(
-    const std::string& assetId,
-    const RuntimeAssetResolverConfig& config)
+std::filesystem::path ResolveRuntimeAssetPath(const std::string& AssetId, const RuntimeAssetResolverConfig& Config)
 {
-    if (assetId.empty())
+    if (AssetId.empty())
     {
         return {};
     }
 
-    RuntimeAssetResolverConfig resolvedConfig = config;
-    if (resolvedConfig.roots.empty())
+    RuntimeAssetResolverConfig ResolvedConfig = Config;
+    if (ResolvedConfig.Roots.empty())
     {
-        resolvedConfig.roots = BuildRuntimeAssetRoots(config);
+        ResolvedConfig.Roots = BuildRuntimeAssetRoots(Config);
     }
 
-    const std::filesystem::path assetPath(assetId);
-    std::vector<std::filesystem::path> candidates;
-    if (assetPath.is_absolute())
+    const std::filesystem::path AssetPath(AssetId);
+    std::vector<std::filesystem::path> Candidates;
+    if (AssetPath.is_absolute())
     {
-        candidates.push_back(assetPath);
+        Candidates.push_back(AssetPath);
     }
     else
     {
-        for (const RuntimeAssetRoot& root : resolvedConfig.roots)
+        for (const RuntimeAssetRoot& Root : ResolvedConfig.Roots)
         {
-            AddRootCandidate(candidates, root, assetId);
+            AddRootCandidate(Candidates, Root, AssetId);
         }
 
-        for (const RuntimeAssetRoot& root : resolvedConfig.roots)
+        for (const RuntimeAssetRoot& Root : ResolvedConfig.Roots)
         {
-            if (!root.path.empty())
+            if (!Root.Path.empty())
             {
-                candidates.push_back(root.path / assetPath);
+                Candidates.push_back(Root.Path / AssetPath);
             }
         }
 
-        if (!resolvedConfig.projectRoot.empty())
+        if (!ResolvedConfig.ProjectRoot.empty())
         {
-            candidates.push_back(resolvedConfig.projectRoot / assetPath);
+            Candidates.push_back(ResolvedConfig.ProjectRoot / AssetPath);
         }
-        if (!resolvedConfig.engineRoot.empty())
+        if (!ResolvedConfig.EngineRoot.empty())
         {
-            candidates.push_back(resolvedConfig.engineRoot / assetPath);
+            Candidates.push_back(ResolvedConfig.EngineRoot / AssetPath);
         }
     }
 
-    for (const std::filesystem::path& candidate : candidates)
+    for (const std::filesystem::path& Candidate : Candidates)
     {
-        if (FileExists(candidate))
+        if (FileExists(Candidate))
         {
-            return WeakCanonicalIfPossible(candidate);
+            return WeakCanonicalIfPossible(Candidate);
         }
     }
 
     return {};
 }
 
-std::filesystem::path ResolveRuntimeAssetPath(
-    const std::string& assetId,
-    const std::vector<RuntimeAssetRoot>& roots)
+std::filesystem::path ResolveRuntimeAssetPath(const std::string& AssetId, const std::vector<RuntimeAssetRoot>& Roots)
 {
-    RuntimeAssetResolverConfig config;
-    config.roots = roots;
-    return ResolveRuntimeAssetPath(assetId, config);
+    RuntimeAssetResolverConfig Config;
+    Config.Roots = Roots;
+    return ResolveRuntimeAssetPath(AssetId, Config);
 }
 
 }
