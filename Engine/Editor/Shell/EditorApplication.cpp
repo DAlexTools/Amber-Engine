@@ -12,10 +12,12 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 #include <system_error>
 
 namespace AE::Editor
@@ -121,6 +123,23 @@ EditorVec2 FitSceneTextureSize(int width, int height)
 		std::max(24.0f, height * scale)};
 }
 
+bool ClampTransformScale(EditorVec2& Scale)
+{
+	constexpr float MinimumScale = 0.05f;
+	bool Changed = false;
+	if (Scale.x < MinimumScale)
+	{
+		Scale.x = MinimumScale;
+		Changed = true;
+	}
+	if (Scale.y < MinimumScale)
+	{
+		Scale.y = MinimumScale;
+		Changed = true;
+	}
+	return Changed;
+}
+
 bool ToolButton(const char* label, EditorTool& activeTool, EditorTool tool)
 {
 	const bool active = activeTool == tool;
@@ -142,6 +161,260 @@ bool ToolButton(const char* label, EditorTool& activeTool, EditorTool tool)
 		activeTool = tool;
 	}
 	return clicked;
+}
+
+std::string FormatFloatProperty(float Value);
+
+bool ContainsText(const std::string& Text, const std::string& Needle)
+{
+	if (Needle.empty())
+	{
+		return true;
+	}
+
+	std::string LowerText = Text;
+	std::string LowerNeedle = Needle;
+	std::transform(LowerText.begin(), LowerText.end(), LowerText.begin(), [](unsigned char Character)
+				   { return static_cast<char>(std::tolower(Character)); });
+	std::transform(LowerNeedle.begin(), LowerNeedle.end(), LowerNeedle.begin(), [](unsigned char Character)
+				   { return static_cast<char>(std::tolower(Character)); });
+	return LowerText.find(LowerNeedle) != std::string::npos;
+}
+
+bool ActorTypeMatchesFilter(const FActorTypeDefinition& ActorType, const std::string& Filter)
+{
+	return ContainsText(ActorType.DisplayName, Filter) ||
+		   ContainsText(ActorType.ClassName, Filter) ||
+		   ContainsText(ActorType.Category, Filter);
+}
+
+ImU32 ActorTypeFillColor(const FActorTypeDefinition& ActorType)
+{
+	return IM_COL32(ActorType.FillColor.R, ActorType.FillColor.G, ActorType.FillColor.B, ActorType.FillColor.A);
+}
+
+ImU32 ActorTypeOutlineColor(const FActorTypeDefinition& ActorType)
+{
+	return IM_COL32(ActorType.OutlineColor.R, ActorType.OutlineColor.G, ActorType.OutlineColor.B, ActorType.OutlineColor.A);
+}
+
+void DrawActorTypeSwatch(const FActorTypeDefinition& ActorType)
+{
+	const ImVec2 Position = ImGui::GetCursorScreenPos();
+	const ImVec2 Size(18.0f, 18.0f);
+	ImGui::Dummy(Size);
+
+	ImDrawList* DrawList = ImGui::GetWindowDrawList();
+	const ImU32 FillColor = ActorTypeFillColor(ActorType);
+	const ImU32 OutlineColor = ActorTypeOutlineColor(ActorType);
+	if (ActorType.Kind == SceneObjectKind::Circle)
+	{
+		const ImVec2 Center(Position.x + Size.x * 0.5f, Position.y + Size.y * 0.5f);
+		DrawList->AddCircleFilled(Center, 7.0f, FillColor, 20);
+		DrawList->AddCircle(Center, 7.0f, OutlineColor, 20, 1.0f);
+	}
+	else
+	{
+		DrawList->AddRectFilled(
+			ImVec2(Position.x + 2.0f, Position.y + 4.0f),
+			ImVec2(Position.x + Size.x - 2.0f, Position.y + Size.y - 4.0f),
+			FillColor,
+			2.0f);
+		DrawList->AddRect(
+			ImVec2(Position.x + 2.0f, Position.y + 4.0f),
+			ImVec2(Position.x + Size.x - 2.0f, Position.y + Size.y - 4.0f),
+			OutlineColor,
+			2.0f,
+			0,
+			1.0f);
+	}
+}
+
+std::string DefaultPropertyValue(
+	const SceneObject& Object,
+	const FActorComponentSchema& ComponentSchema,
+	const FActorComponentPropertySchema& PropertySchema)
+{
+	(void)Object;
+	(void)ComponentSchema;
+	return PropertySchema.DefaultValue;
+}
+
+AE::Scene::ComponentData& FindOrAddComponent(SceneObject& Object, const FActorComponentSchema& Schema)
+{
+	for (AE::Scene::ComponentData& Component : Object.components)
+	{
+		if (Component.name == Schema.Name)
+		{
+			return Component;
+		}
+	}
+
+	Object.components.push_back(AE::Scene::ComponentData{Schema.Name, {}});
+	return Object.components.back();
+}
+
+AE::Scene::ComponentPropertyData& FindOrAddProperty(
+	AE::Scene::ComponentData& Component,
+	const FActorComponentPropertySchema& Schema,
+	const std::string& DefaultValue)
+{
+	for (AE::Scene::ComponentPropertyData& Property : Component.properties)
+	{
+		if (Property.name == Schema.Name)
+		{
+			Property.type = Schema.Type;
+			if (Property.value.empty())
+			{
+				Property.value = DefaultValue;
+			}
+			return Property;
+		}
+	}
+
+	Component.properties.push_back(AE::Scene::ComponentPropertyData{Schema.Name, Schema.Type, DefaultValue});
+	return Component.properties.back();
+}
+
+void SynchronizeSceneObjectComponents(SceneObject& Object, const FActorTypeRegistry& ActorTypeRegistry)
+{
+	Object.components.erase(
+		std::remove_if(
+			Object.components.begin(),
+			Object.components.end(),
+			[&Object, &ActorTypeRegistry](const AE::Scene::ComponentData& Component)
+			{
+				return ActorTypeRegistry.IsManagedComponentName(Component.name) &&
+					   !ActorTypeRegistry.IsComponentExpectedForClass(Object.className, Component.name);
+			}),
+		Object.components.end());
+
+	const FActorTypeDefinition* ActorType = ActorTypeRegistry.FindByClassName(Object.className);
+	if (!ActorType)
+	{
+		return;
+	}
+
+	for (const FActorComponentSchema& Schema : ActorType->Components)
+	{
+		AE::Scene::ComponentData& Component = FindOrAddComponent(Object, Schema);
+		for (const FActorComponentPropertySchema& PropertySchema : Schema.Properties)
+		{
+			FindOrAddProperty(Component, PropertySchema, DefaultPropertyValue(Object, Schema, PropertySchema));
+		}
+	}
+}
+
+bool ParseBoolProperty(const std::string& Value, bool DefaultValue)
+{
+	if (Value == "1" || Value == "true" || Value == "True")
+	{
+		return true;
+	}
+	if (Value == "0" || Value == "false" || Value == "False")
+	{
+		return false;
+	}
+
+	return DefaultValue;
+}
+
+int ParseIntProperty(const std::string& Value, int DefaultValue)
+{
+	std::istringstream Stream(Value);
+	int Result = DefaultValue;
+	return (Stream >> Result) ? Result : DefaultValue;
+}
+
+float ParseFloatProperty(const std::string& Value, float DefaultValue)
+{
+	std::istringstream Stream(Value);
+	float Result = DefaultValue;
+	return (Stream >> Result) ? Result : DefaultValue;
+}
+
+std::string FormatFloatProperty(float Value)
+{
+	char Buffer[64] = {};
+	std::snprintf(Buffer, sizeof(Buffer), "%.3f", Value);
+	return Buffer;
+}
+
+bool DrawComponentProperty(AE::Scene::ComponentPropertyData& Property)
+{
+	switch (Property.type)
+	{
+	case AE::Scene::ComponentPropertyType::Bool:
+	{
+		bool Value = ParseBoolProperty(Property.value, false);
+		if (ImGui::Checkbox(Property.name.c_str(), &Value))
+		{
+			Property.value = Value ? "true" : "false";
+			return true;
+		}
+		return false;
+	}
+	case AE::Scene::ComponentPropertyType::Int:
+	{
+		int Value = ParseIntProperty(Property.value, 0);
+		if (ImGui::InputInt(Property.name.c_str(), &Value))
+		{
+			Property.value = std::to_string(Value);
+			return true;
+		}
+		return false;
+	}
+	case AE::Scene::ComponentPropertyType::Float:
+	{
+		float Value = ParseFloatProperty(Property.value, 0.0f);
+		if (ImGui::InputFloat(Property.name.c_str(), &Value))
+		{
+			Property.value = FormatFloatProperty(Value);
+			return true;
+		}
+		return false;
+	}
+	default:
+	{
+		char Buffer[256] = {};
+		std::snprintf(Buffer, sizeof(Buffer), "%s", Property.value.c_str());
+		if (ImGui::InputText(Property.name.c_str(), Buffer, sizeof(Buffer)))
+		{
+			Property.value = Buffer;
+			return true;
+		}
+		return false;
+	}
+	}
+}
+
+bool DrawSceneObjectComponents(SceneObject& Object)
+{
+	if (Object.components.empty())
+	{
+		return false;
+	}
+
+	bool Changed = false;
+	ImGui::Separator();
+	if (ImGui::CollapsingHeader("ECS Components", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		for (AE::Scene::ComponentData& Component : Object.components)
+		{
+			ImGui::PushID(Component.name.c_str());
+			if (ImGui::TreeNodeEx(Component.name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				for (AE::Scene::ComponentPropertyData& Property : Component.properties)
+				{
+					Changed |= DrawComponentProperty(Property);
+				}
+				ImGui::TreePop();
+			}
+			ImGui::PopID();
+		}
+	}
+
+	return Changed;
 }
 
 template <SizeT Size>
@@ -199,6 +472,7 @@ bool RunProjectGeneratorSmoke(const std::filesystem::path& engineRoot)
 		descriptor.name == "SmokeBlank" &&
 		descriptor.gameModuleTarget == "SmokeBlankModule" &&
 		descriptor.playTarget == "SmokeBlankLauncher" &&
+		descriptor.actorTypes == (std::filesystem::path("Config") / "ActorTypes.amberactors") &&
 		descriptor.solutionPath == (std::filesystem::path("Builds") / "Editor" / "SmokeBlank.sln") &&
 		ProjectGenerator::GetConfigureCommand(descriptor) == "cmake --preset editor" &&
 		ProjectGenerator::GetExpectedSolutionPath(descriptor) == (result.projectRoot / "Builds" / "Editor" / "SmokeBlank.sln") &&
@@ -206,6 +480,7 @@ bool RunProjectGeneratorSmoke(const std::filesystem::path& engineRoot)
 		std::filesystem::exists(result.projectRoot / "CMakePresets.json") &&
 		std::filesystem::exists(result.projectRoot / "Source" / "SmokeBlank" / "SmokeBlankModule.cpp") &&
 		std::filesystem::exists(result.projectRoot / "Source" / "SmokeBlank" / "SmokeBlankModulePlugin.cpp") &&
+		std::filesystem::exists(result.projectRoot / "Config" / "ActorTypes.amberactors") &&
 		std::filesystem::exists(result.projectRoot / "Content" / "Scenes" / "Startup.amber.scene");
 
 	std::filesystem::remove_all(parent, cleanupError);
@@ -340,6 +615,8 @@ bool EditorApplication::RunSmokeTest(const std::filesystem::path& startupProject
 
 bool EditorApplication::Initialize(bool hiddenWindow)
 {
+	RebuildActorTypeRegistry();
+
 	SDL_SetMainReady();
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
@@ -497,7 +774,10 @@ void EditorApplication::PollEvents()
 		{
 			const SDL_Keycode key = event.key.keysym.sym;
 			const bool ctrlPressed = (event.key.keysym.mod & KMOD_CTRL) != 0;
+			const bool altPressed = (event.key.keysym.mod & KMOD_ALT) != 0;
+			const bool shiftPressed = (event.key.keysym.mod & KMOD_SHIFT) != 0;
 			const bool textInputActive = imguiReady && ImGui::GetIO().WantTextInput;
+			const bool editorShortcutAvailable = !textInputActive && !playSession.IsPlaying() && !ctrlPressed && !altPressed && !shiftPressed;
 			if (key == SDLK_ESCAPE)
 			{
 				running = false;
@@ -505,6 +785,14 @@ void EditorApplication::PollEvents()
 			else if (key == SDLK_s && ctrlPressed && !textInputActive)
 			{
 				SaveCurrentScene();
+			}
+			else if (key == SDLK_d && ctrlPressed && !textInputActive)
+			{
+				const EditorSelection& Selection = selectionService.GetSelection();
+				if (Selection.type == EditorSelectionType::SceneObject)
+				{
+					DuplicateSceneObject(Selection.objectId);
+				}
 			}
 			else if (key == SDLK_F5)
 			{
@@ -521,6 +809,25 @@ void EditorApplication::PollEvents()
 			else if (key == SDLK_DELETE && !textInputActive)
 			{
 				DeleteSelectedSceneObject();
+			}
+			else if (key == SDLK_w && editorShortcutAvailable)
+			{
+				activeTool = EditorTool::Move;
+				LogBus::Add(LogLevel::Info, "Editor", "Location tool active.");
+			}
+			else if (key == SDLK_e && editorShortcutAvailable)
+			{
+				activeTool = EditorTool::Rotate;
+				LogBus::Add(LogLevel::Info, "Editor", "Rotate tool active.");
+			}
+			else if (key == SDLK_r && editorShortcutAvailable)
+			{
+				activeTool = EditorTool::Scale;
+				LogBus::Add(LogLevel::Info, "Editor", "Scale tool active.");
+			}
+			else if (key == SDLK_f && editorShortcutAvailable)
+			{
+				FocusSelectedSceneObject();
 			}
 		}
 	}
@@ -599,6 +906,10 @@ void EditorApplication::DrawLayout()
 
 	DrawSceneView(0.0f, 0.0f, 0.0f, 0.0f);
 
+	if (ShowActorPalette)
+	{
+		DrawActorPalette(0.0f, 0.0f, 0.0f, 0.0f);
+	}
 	if (showAssetBrowser)
 	{
 		DrawAssetBrowser(0.0f, 0.0f, 0.0f, 0.0f);
@@ -666,6 +977,7 @@ void EditorApplication::QueueDockLayout(EditorDockLayoutPreset preset)
 	showSceneOutliner = true;
 	showDetails = true;
 	showOutputLog = true;
+	ShowActorPalette = true;
 }
 
 void EditorApplication::RebuildDockLayout(ImGuiID dockspaceId, const ImVec2& dockspaceSize)
@@ -709,6 +1021,7 @@ void EditorApplication::RebuildDockLayout(ImGuiID dockspaceId, const ImVec2& doc
 	ImGui::DockBuilderSplitNode(rightDock, ImGuiDir_Down, detailsRatio, &detailsDock, &outlinerDock);
 
 	ImGui::DockBuilderDockWindow("Scene View", sceneDock);
+	ImGui::DockBuilderDockWindow("Actor Palette", assetDock);
 	ImGui::DockBuilderDockWindow("Asset Browser", assetDock);
 	ImGui::DockBuilderDockWindow("Output Log", outputDock);
 	ImGui::DockBuilderDockWindow("Scene Outliner", outlinerDock);
@@ -768,50 +1081,50 @@ void EditorApplication::DrawMainMenuBar()
 
 	if (ImGui::BeginMenu("Edit"))
 	{
-		const EditorSelection& selection = selectionService.GetSelection();
-		const bool canDelete =
-			selection.type == EditorSelectionType::SceneObject &&
-			sceneDocument.IsObjectRemovable(selection.objectId);
-		if (ImGui::MenuItem("Delete Selected", "Del", false, canDelete))
+		const EditorSelection& Selection = selectionService.GetSelection();
+		const bool CanModifyObject =
+			Selection.type == EditorSelectionType::SceneObject &&
+			!playSession.IsPlaying() &&
+			sceneDocument.IsObjectRemovable(Selection.objectId);
+		if (ImGui::MenuItem("Duplicate Selected", "Ctrl+D", false, CanModifyObject))
+		{
+			DuplicateSceneObject(Selection.objectId);
+		}
+		if (ImGui::MenuItem("Delete Selected", "Del", false, CanModifyObject))
 		{
 			DeleteSelectedSceneObject();
+		}
+		if (ImGui::MenuItem("Focus Selected", "F", false, Selection.type == EditorSelectionType::SceneObject && !playSession.IsPlaying()))
+		{
+			FocusSelectedSceneObject();
 		}
 		ImGui::EndMenu();
 	}
 
 	if (ImGui::BeginMenu("Add"))
 	{
-		const bool canEditScene = !playSession.IsPlaying() && activeProjectLoaded;
-		if (ImGui::MenuItem("Box", nullptr, false, canEditScene))
-		{
-			EditorTransform transform;
-			transform.position = editorViewport.GetViewCenter();
-			SceneObject& object = sceneDocument.AddBoxObject("Box", transform, EditorVec2{128.0f, 32.0f});
-			selectionService.SelectSceneObject(object.id);
-			LogBus::Add(LogLevel::Info, "Editor", "Added Box object.");
-		}
-		if (ImGui::MenuItem("Circle", nullptr, false, canEditScene))
-		{
-			EditorTransform transform;
-			transform.position = editorViewport.GetViewCenter();
-			SceneObject& object = sceneDocument.AddCircleObject("Circle", transform, EditorVec2{64.0f, 64.0f});
-			selectionService.SelectSceneObject(object.id);
-			LogBus::Add(LogLevel::Info, "Editor", "Added Circle object.");
-		}
+		const bool CanEditScene = !playSession.IsPlaying() && activeProjectLoaded;
+		DrawActorPlacementMenu(editorViewport.GetViewCenter(), CanEditScene);
 		ImGui::EndMenu();
 	}
 
 	if (ImGui::BeginMenu("Play"))
 	{
-		if (ImGui::MenuItem("Play In PIE", "F5"))
+		const bool Playing = playSession.IsPlaying();
+		const bool Paused = playSession.IsPaused();
+		if (ImGui::MenuItem("Play In PIE", "F5", false, !Playing))
 		{
 			PlayInPIE();
 		}
-		if (ImGui::MenuItem("Pause View", "F6", playSession.IsPaused(), playSession.IsPlaying()))
+		if (ImGui::MenuItem("Simulate", nullptr, false, !Playing))
 		{
-			playSession.SetPaused(!playSession.IsPaused());
+			SimulateInEditor();
 		}
-		if (ImGui::MenuItem("Stop PIE", "F7", false, playSession.IsPlaying()))
+		if (ImGui::MenuItem(Paused ? "Resume View" : "Pause View", "F6", Paused, Playing))
+		{
+			playSession.SetPaused(!Paused);
+		}
+		if (ImGui::MenuItem("Stop", "F7", false, Playing))
 		{
 			playSession.Stop();
 		}
@@ -820,6 +1133,7 @@ void EditorApplication::DrawMainMenuBar()
 
 	if (ImGui::BeginMenu("Window"))
 	{
+		ImGui::MenuItem("Actor Palette", nullptr, &ShowActorPalette);
 		ImGui::MenuItem("Asset Browser", nullptr, &showAssetBrowser);
 		ImGui::MenuItem("Scene Outliner", nullptr, &showSceneOutliner);
 		ImGui::MenuItem("Details", nullptr, &showDetails);
@@ -925,9 +1239,9 @@ void EditorApplication::DrawToolbar(float menuHeight, float toolbarHeight)
 		LogBus::Add(LogLevel::Info, "Editor", "Select tool active.");
 	}
 	ImGui::SameLine();
-	if (ToolButton("Move", activeTool, EditorTool::Move))
+	if (ToolButton("Location", activeTool, EditorTool::Move))
 	{
-		LogBus::Add(LogLevel::Info, "Editor", "Move tool active.");
+		LogBus::Add(LogLevel::Info, "Editor", "Location tool active.");
 	}
 	ImGui::SameLine();
 	if (ToolButton("Rotate", activeTool, EditorTool::Rotate))
@@ -941,28 +1255,38 @@ void EditorApplication::DrawToolbar(float menuHeight, float toolbarHeight)
 	}
 
 	ImGui::SameLine(ImGui::GetWindowWidth() * 0.44f);
-	if (ImGui::Button("Play"))
+	const bool Playing = playSession.IsPlaying();
+	const bool Paused = playSession.IsPaused();
+	const bool Simulating = playSession.IsSimulating();
+	const char* PlayButtonLabel = Playing ? (Paused ? "Resume" : "Pause") : "Play";
+	if (ImGui::Button(PlayButtonLabel))
 	{
-		PlayInPIE();
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("Pause"))
-	{
-		if (playSession.IsPlaying())
+		if (Playing)
 		{
-			playSession.SetPaused(!playSession.IsPaused());
+			playSession.SetPaused(!Paused);
+		}
+		else
+		{
+			PlayInPIE();
 		}
 	}
 	ImGui::SameLine();
+	ImGui::BeginDisabled(Playing);
+	if (ImGui::Button("Simulate"))
+	{
+		SimulateInEditor();
+	}
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	ImGui::BeginDisabled(!Playing);
 	if (ImGui::Button("Stop"))
 	{
 		playSession.Stop();
 	}
+	ImGui::EndDisabled();
 
 	ImGui::SameLine();
-	const bool playing = playSession.IsPlaying();
-	const bool paused = playSession.IsPaused();
-	const char* state = playing ? (paused ? "Paused" : "Playing") : "Editing";
+	const char* state = Playing ? (Paused ? "Paused" : (Simulating ? "Simulating" : "Playing")) : "Editing";
 	ImGui::TextDisabled("%s", state);
 
 	ImGui::End();
@@ -983,7 +1307,7 @@ void EditorApplication::DrawSceneView(float x, float y, float width, float heigh
 	}
 
 	bool playRenderSubmitted = false;
-	const std::optional<EditorViewport::AssetDropRequest> dropRequest =
+	const std::optional<EditorViewport::FDropRequest> DropRequest =
 		editorViewport.Draw(
 			*viewportSceneDocument,
 			selectionService,
@@ -993,6 +1317,7 @@ void EditorApplication::DrawSceneView(float x, float y, float width, float heigh
 			window,
 			renderer,
 			activeProjectLoaded ? &activeProject : nullptr,
+			&actorTypeRegistry,
 			playSession.IsPlaying() ? EditorViewport::ViewportMode::PlayOutput : EditorViewport::ViewportMode::EditPreview,
 			playSession.IsPaused(),
 			playSession.GetRuntimeRegistry(),
@@ -1001,37 +1326,154 @@ void EditorApplication::DrawSceneView(float x, float y, float width, float heigh
 				playSession.Render(&renderContext);
 				playRenderSubmitted = true;
 			});
-	if (dropRequest && !playSession.IsPlaying())
+	if (DropRequest && !playSession.IsPlaying())
 	{
-		const AssetRecord* asset = assetRegistry.FindAssetById(dropRequest->assetId);
-		if (asset && AssetRegistry::CanInstantiate(asset->type))
+		if (DropRequest->Type == EditorViewport::EDropPayloadType::Asset)
 		{
-			EditorTransform transform;
-			transform.position = dropRequest->worldPosition;
-			SceneObject& object = sceneDocument.AddAssetInstance(asset->absolutePath.stem().string(), asset->id, transform);
-			if (asset->type == AssetType::Texture)
+			const AssetRecord* Asset = assetRegistry.FindAssetById(DropRequest->PayloadId);
+			if (!Asset || !PlaceAssetAt(*Asset, DropRequest->WorldPosition))
 			{
-				if (TexturePreview* preview = textureCache.GetTexture(*asset))
-				{
-					object.size = FitSceneTextureSize(preview->width, preview->height);
-				}
+				LogBus::Add(LogLevel::Warning, "Editor", "Dropped asset cannot be placed in the scene.");
 			}
-			else if (asset->type == AssetType::Tilemap)
+		}
+		else if (DropRequest->Type == EditorViewport::EDropPayloadType::ActorType)
+		{
+			const FActorTypeDefinition* ActorType = actorTypeRegistry.FindByTypeId(DropRequest->PayloadId);
+			if (ActorType)
 			{
-				object.size = EditorVec2{160.0f, 120.0f};
+				AddActorAt(*ActorType, DropRequest->WorldPosition);
 			}
-			selectionService.SelectSceneObject(object.id);
-			LogBus::Add(LogLevel::Info, "Editor", "Placed asset: " + asset->id);
+			else
+			{
+				LogBus::Add(LogLevel::Warning, "Editor", "Dropped actor type is not registered: " + DropRequest->PayloadId);
+			}
+		}
+	}
+	if (const std::optional<EditorViewport::FContextMenuRequest> ContextRequest = editorViewport.ConsumeContextMenuRequest())
+	{
+		SceneContextTarget = ContextRequest->Target;
+		SceneContextObjectId = ContextRequest->ObjectId;
+		SceneContextWorldPosition = ContextRequest->WorldPosition;
+		ImGui::OpenPopup("SceneViewContextMenu");
+	}
+	if (ImGui::BeginPopup("SceneViewContextMenu"))
+	{
+		if (SceneContextTarget == EditorViewport::EContextMenuTarget::SceneObject)
+		{
+			DrawSceneObjectContextMenu(SceneContextObjectId);
 		}
 		else
 		{
-			LogBus::Add(LogLevel::Warning, "Editor", "Dropped asset cannot be placed in the scene.");
+			DrawSceneContextMenu(SceneContextWorldPosition);
 		}
+		ImGui::EndPopup();
 	}
 	if (playSession.IsPlaying() && !playRenderSubmitted)
 	{
 		playSession.Render();
 	}
+	ImGui::End();
+}
+
+void EditorApplication::DrawActorPalette(float x, float y, float width, float height)
+{
+	const bool FixedBounds = HasFixedBounds(width, height);
+	if (FixedBounds)
+	{
+		SetPanelBounds(x, y, width, height);
+	}
+	ImGui::Begin("Actor Palette", &ShowActorPalette, PanelFlags(FixedBounds));
+
+	ImGui::SetNextItemWidth(-1.0f);
+	ImGui::InputText("Search", ActorPaletteSearch.data(), ActorPaletteSearch.size());
+	ImGui::Separator();
+
+	const std::string Filter = ActorPaletteSearch.data();
+	const bool CanPlaceActor = activeProjectLoaded && !playSession.IsPlaying();
+	std::string CurrentCategory;
+	SizeT VisibleActorCount = 0u;
+
+	ImGui::BeginChild("ActorTypeList", ImVec2(0.0f, 0.0f), false, ImGuiWindowFlags_HorizontalScrollbar);
+	for (const FActorTypeDefinition& ActorType : actorTypeRegistry.GetActorTypes())
+	{
+		if (!ActorTypeMatchesFilter(ActorType, Filter))
+		{
+			continue;
+		}
+
+		if (CurrentCategory != ActorType.Category)
+		{
+			if (!CurrentCategory.empty())
+			{
+				ImGui::Separator();
+			}
+			CurrentCategory = ActorType.Category;
+			ImGui::TextDisabled("%s", CurrentCategory.empty() ? "Actors" : CurrentCategory.c_str());
+		}
+
+		++VisibleActorCount;
+		ImGui::PushID(ActorType.TypeId.c_str());
+
+		if (ImGui::SmallButton("+") && CanPlaceActor)
+		{
+			AddActorAt(ActorType, editorViewport.GetViewCenter());
+		}
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("Place at view center");
+		}
+		ImGui::SameLine();
+		DrawActorTypeSwatch(ActorType);
+		ImGui::SameLine();
+
+		if (ImGui::Selectable(ActorType.DisplayName.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick) &&
+			CanPlaceActor &&
+			ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+		{
+			AddActorAt(ActorType, editorViewport.GetViewCenter());
+		}
+		if (CanPlaceActor && ImGui::BeginDragDropSource())
+		{
+			ImGui::SetDragDropPayload(
+				"AMBER_ACTOR_TYPE",
+				ActorType.TypeId.c_str(),
+				ActorType.TypeId.size() + 1);
+			DrawActorTypeSwatch(ActorType);
+			ImGui::SameLine();
+			ImGui::Text("%s", ActorType.DisplayName.c_str());
+			ImGui::TextDisabled("%s", ActorType.ClassName.c_str());
+			ImGui::EndDragDropSource();
+		}
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("%s", ActorType.ClassName.c_str());
+		}
+		ImGui::OpenPopupOnItemClick("ActorTypeContext", ImGuiPopupFlags_MouseButtonRight);
+		if (ImGui::BeginPopup("ActorTypeContext"))
+		{
+			if (ImGui::MenuItem("Place At View Center", nullptr, false, CanPlaceActor))
+			{
+				AddActorAt(ActorType, editorViewport.GetViewCenter());
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Copy Type ID"))
+			{
+				ImGui::SetClipboardText(ActorType.TypeId.c_str());
+			}
+			if (ImGui::MenuItem("Copy Class Name"))
+			{
+				ImGui::SetClipboardText(ActorType.ClassName.c_str());
+			}
+			ImGui::EndPopup();
+		}
+		ImGui::PopID();
+	}
+
+	if (VisibleActorCount == 0u)
+	{
+		ImGui::TextDisabled("No actor types");
+	}
+	ImGui::EndChild();
 	ImGui::End();
 }
 
@@ -1076,9 +1518,11 @@ void EditorApplication::DrawAssetBrowser(float x, float y, float width, float he
 	for (const AssetEntry& entry : assetEntries)
 	{
 		const std::string name = entry.path.filename().string();
+		const std::string EntryPath = entry.path.string();
 		const std::string label = entry.directory ? "[Dir] " + name : "[" + std::string(AssetRegistry::TypeName(entry.asset ? entry.asset->type : AssetType::Unknown)) + "] " + name;
 		const std::string assetId = entry.asset ? entry.asset->id : std::string{};
 		const bool selected = !assetId.empty() && selectionService.IsAssetSelected(assetId);
+		ImGui::PushID(EntryPath.c_str());
 
 		if (entry.asset && entry.asset->type == AssetType::Texture)
 		{
@@ -1102,6 +1546,8 @@ void EditorApplication::DrawAssetBrowser(float x, float y, float width, float he
 				selectionService.SelectAsset(entry.asset->id);
 			}
 		}
+		ImGui::OpenPopupOnItemClick("AssetEntryContext", ImGuiPopupFlags_MouseButtonRight);
+		const bool ItemHovered = ImGui::IsItemHovered();
 
 		if (entry.asset && AssetRegistry::CanInstantiate(entry.asset->type) && ImGui::BeginDragDropSource())
 		{
@@ -1110,17 +1556,89 @@ void EditorApplication::DrawAssetBrowser(float x, float y, float width, float he
 			ImGui::TextDisabled("%s", AssetRegistry::TypeName(entry.asset->type));
 			ImGui::EndDragDropSource();
 		}
-		else if (entry.asset && ImGui::IsItemHovered())
+		else if (entry.asset && ItemHovered)
 		{
 			ImGui::SetTooltip("%s", AssetRegistry::TypeName(entry.asset->type));
 		}
 		if (entry.asset && !AssetRegistry::CanInstantiate(entry.asset->type))
 		{
-			if (ImGui::IsItemHovered())
+			if (ItemHovered)
 			{
 				ImGui::SetTooltip("%s assets are indexed but not placeable yet.", AssetRegistry::TypeName(entry.asset->type));
 			}
 		}
+		if (ImGui::BeginPopup("AssetEntryContext"))
+		{
+			if (entry.directory)
+			{
+				if (ImGui::MenuItem("Open"))
+				{
+					pendingDirectory = entry.path;
+					openPendingDirectory = true;
+				}
+				ImGui::Separator();
+				if (ImGui::MenuItem("Copy Path"))
+				{
+					ImGui::SetClipboardText(EntryPath.c_str());
+				}
+			}
+			else if (entry.asset)
+			{
+				if (ImGui::MenuItem("Select"))
+				{
+					selectionService.SelectAsset(entry.asset->id);
+				}
+				if (entry.asset->type == AssetType::Scene && ImGui::MenuItem("Open Scene"))
+				{
+					OpenSceneFile(entry.asset->absolutePath);
+				}
+				const bool CanPlaceAsset = AssetRegistry::CanInstantiate(entry.asset->type) && !playSession.IsPlaying();
+				if (ImGui::MenuItem("Place At View Center", nullptr, false, CanPlaceAsset))
+				{
+					PlaceAssetAtViewCenter(*entry.asset);
+				}
+				ImGui::Separator();
+				if (ImGui::MenuItem("Copy Asset ID"))
+				{
+					ImGui::SetClipboardText(entry.asset->id.c_str());
+				}
+				if (ImGui::MenuItem("Copy Path"))
+				{
+					ImGui::SetClipboardText(entry.asset->absolutePath.string().c_str());
+				}
+			}
+			ImGui::EndPopup();
+		}
+		ImGui::PopID();
+	}
+	if (ImGui::BeginPopupContextWindow("AssetBrowserBackgroundContext", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+	{
+		if (ImGui::MenuItem("Refresh"))
+		{
+			RefreshAssets();
+		}
+		const bool CanGoUp = currentAssetPath != contentRoot;
+		if (ImGui::MenuItem("Up", nullptr, false, CanGoUp))
+		{
+			pendingDirectory = currentAssetPath.parent_path();
+			openPendingDirectory = true;
+		}
+		ImGui::Separator();
+		if (ImGui::MenuItem("Project Root", nullptr, false, !projectContentRoot.empty()))
+		{
+			SwitchContentRoot(projectContentRoot);
+		}
+		if (ImGui::MenuItem("Engine Root", nullptr, false, !engineContentRoot.empty()))
+		{
+			SwitchContentRoot(engineContentRoot);
+		}
+		ImGui::Separator();
+		if (ImGui::MenuItem("Copy Current Path"))
+		{
+			const std::string Path = currentAssetPath.string();
+			ImGui::SetClipboardText(Path.c_str());
+		}
+		ImGui::EndPopup();
 	}
 	ImGui::EndChild();
 	if (openPendingDirectory)
@@ -1145,7 +1663,13 @@ void EditorApplication::DrawSceneOutliner(float x, float y, float width, float h
 		ImGui::TextDisabled("Modified");
 	}
 
-	if (ImGui::TreeNodeEx(sceneDocument.GetName().c_str(), rootFlags))
+	const bool SceneRootOpen = ImGui::TreeNodeEx(sceneDocument.GetName().c_str(), rootFlags);
+	if (ImGui::BeginPopupContextItem("SceneOutlinerSceneContext", ImGuiPopupFlags_MouseButtonRight))
+	{
+		DrawSceneContextMenu(editorViewport.GetViewCenter());
+		ImGui::EndPopup();
+	}
+	if (SceneRootOpen)
 	{
 		for (const SceneObject& object : sceneDocument.GetObjects())
 		{
@@ -1155,11 +1679,30 @@ void EditorApplication::DrawSceneOutliner(float x, float y, float width, float h
 			{
 				selectionService.SelectSceneObject(object.id);
 			}
+			if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(1))
+			{
+				selectionService.SelectSceneObject(object.id);
+				SceneContextTarget = EditorViewport::EContextMenuTarget::SceneObject;
+				SceneContextObjectId = object.id;
+				SceneContextWorldPosition = editorViewport.GetViewCenter();
+				ImGui::OpenPopup("SceneOutlinerObjectContext");
+			}
 			ImGui::SameLine();
-			ImGui::TextDisabled("%s", SceneDocument::KindName(object.kind));
+			const FActorTypeDefinition* ActorType = actorTypeRegistry.FindByClassName(object.className);
+			ImGui::TextDisabled("%s", ActorType ? ActorType->DisplayName.c_str() : SceneDocument::KindName(object.kind));
 			ImGui::PopID();
 		}
 		ImGui::TreePop();
+	}
+	if (ImGui::BeginPopup("SceneOutlinerObjectContext"))
+	{
+		DrawSceneObjectContextMenu(SceneContextObjectId);
+		ImGui::EndPopup();
+	}
+	if (ImGui::BeginPopupContextWindow("SceneOutlinerBackgroundContext", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+	{
+		DrawSceneContextMenu(editorViewport.GetViewCenter());
+		ImGui::EndPopup();
 	}
 
 	ImGui::End();
@@ -1176,7 +1719,8 @@ void EditorApplication::DrawDetailsPanel(float x, float y, float width, float he
 
 	if (playSession.IsPlaying())
 	{
-		ImGui::TextDisabled("PIE is running. Stop PIE to edit scene data.");
+		ImGui::TextDisabled("%s is running. Stop runtime to edit scene data.", playSession.GetRunModeName());
+		ImGui::Text("Mode: %s", playSession.GetRunModeName());
 		ImGui::Text("Game module: %s", playSession.GetRuntimeModuleName());
 		ImGui::Text("Module source: %s", playSession.IsRuntimeModuleDynamic() ? "Dynamic plugin" : "Editor fallback");
 		ImGui::Text("Requested target: %s", playSession.GetRequestedGameModuleTarget().c_str());
@@ -1195,8 +1739,10 @@ void EditorApplication::DrawDetailsPanel(float x, float y, float width, float he
 		SceneObject* object = sceneDocument.FindObject(selection.objectId);
 		if (object)
 		{
+			const FActorTypeDefinition* ActorType = actorTypeRegistry.FindByClassName(object->className);
 			ImGui::Text("Selection: %s", object->name.c_str());
 			ImGui::TextDisabled("Type: %s", SceneDocument::KindName(object->kind));
+			ImGui::TextDisabled("Actor: %s", ActorType ? ActorType->DisplayName.c_str() : "Custom");
 			if (!object->assetId.empty())
 			{
 				ImGui::TextDisabled("Asset: %s", object->assetId.c_str());
@@ -1221,12 +1767,41 @@ void EditorApplication::DrawDetailsPanel(float x, float y, float width, float he
 				changed = true;
 			}
 
-			char classBuffer[128] = {};
-			std::snprintf(classBuffer, sizeof(classBuffer), "%s", object->className.c_str());
-			if (ImGui::InputText("Class", classBuffer, sizeof(classBuffer)))
+			const std::string ActorTypeLabel =
+				ActorType ? ActorType->DisplayName + " (" + ActorType->ClassName + ")" : object->className;
+			if (ImGui::BeginCombo("Actor Type", ActorTypeLabel.c_str()))
 			{
-				object->className = classBuffer;
-				changed = true;
+				for (const FActorTypeDefinition& RegisteredActorType : actorTypeRegistry.GetActorTypes())
+				{
+					const bool Selected = object->className == RegisteredActorType.ClassName;
+					const std::string Label = RegisteredActorType.DisplayName + " (" + RegisteredActorType.ClassName + ")";
+					if (ImGui::Selectable(Label.c_str(), Selected))
+					{
+						object->className = RegisteredActorType.ClassName;
+						object->kind = RegisteredActorType.Kind;
+						object->size = RegisteredActorType.DefaultSize;
+						object->assetId.clear();
+						ActorType = &RegisteredActorType;
+						SynchronizeSceneObjectComponents(*object, actorTypeRegistry);
+						changed = true;
+					}
+					if (Selected)
+					{
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+				ImGui::EndCombo();
+			}
+
+			if (!ActorType)
+			{
+				char classBuffer[128] = {};
+				std::snprintf(classBuffer, sizeof(classBuffer), "%s", object->className.c_str());
+				if (ImGui::InputText("Class Override", classBuffer, sizeof(classBuffer)))
+				{
+					object->className = classBuffer;
+					changed = true;
+				}
 			}
 
 			changed |= ImGui::Checkbox("Visible", &object->visible);
@@ -1234,12 +1809,16 @@ void EditorApplication::DrawDetailsPanel(float x, float y, float width, float he
 			changed |= ImGui::InputFloat2("Position", &object->transform.position.x);
 			changed |= ImGui::InputFloat("Rotation", &object->transform.rotationDegrees);
 			changed |= ImGui::InputFloat2("Scale", &object->transform.scale.x);
+			changed |= ClampTransformScale(object->transform.scale);
 			if (object->kind == SceneObjectKind::AssetInstance ||
 				object->kind == SceneObjectKind::Box ||
 				object->kind == SceneObjectKind::Circle)
 			{
 				changed |= ImGui::InputFloat2("Size", &object->size.x);
 			}
+
+			SynchronizeSceneObjectComponents(*object, actorTypeRegistry);
+			changed |= DrawSceneObjectComponents(*object);
 
 			if (changed)
 			{
@@ -1377,6 +1956,30 @@ void EditorApplication::SwitchContentRoot(const std::filesystem::path& path)
 	RefreshAssets();
 }
 
+void EditorApplication::RebuildActorTypeRegistry()
+{
+	actorTypeRegistry.Clear();
+	RegisterDefaultActorTypes(actorTypeRegistry);
+
+	if (!activeProjectLoaded || activeProject.actorTypes.empty())
+	{
+		return;
+	}
+
+	const std::filesystem::path ActorTypesPath = activeProject.ResolveProjectPath(activeProject.actorTypes);
+	std::error_code ErrorCode;
+	if (!std::filesystem::exists(ActorTypesPath, ErrorCode))
+	{
+		return;
+	}
+
+	std::string Error;
+	if (!LoadActorTypesFromFile(ActorTypesPath, actorTypeRegistry, &Error))
+	{
+		LogBus::Add(LogLevel::Warning, "Editor", Error.empty() ? "Could not load project actor type schema." : Error);
+	}
+}
+
 bool EditorApplication::CreateProjectFromBrowser(bool generateSolutionAfterCreate)
 {
 	ProjectGenerationRequest request;
@@ -1476,6 +2079,7 @@ bool EditorApplication::OpenLegacyWorkspaceProject()
 	descriptor.gameModuleTarget = "PlatformerGameModule";
 	descriptor.playTarget = "PlatformerApp";
 	descriptor.startupScene = std::filesystem::path("Content") / "Scenes" / "PlatformerTest.amber.scene";
+	descriptor.actorTypes = std::filesystem::path("Config") / "ActorTypes.amberactors";
 	descriptor.contentRoot = "Content";
 	descriptor.buildPreset = "full-local-vcpkg";
 	descriptor.solutionPath = std::filesystem::path("Builds") / "Editor" / "AmberEngine.sln";
@@ -1496,6 +2100,7 @@ bool EditorApplication::ApplyProjectDescriptor(const ProjectDescriptor& descript
 
 	activeProject = descriptor;
 	activeProjectLoaded = true;
+	RebuildActorTypeRegistry();
 	showProjectBrowser = false;
 	projectBrowserStatus.clear();
 	projectBrowserStatusIsError = false;
@@ -1530,35 +2135,254 @@ bool EditorApplication::ApplyProjectDescriptor(const ProjectDescriptor& descript
 
 bool EditorApplication::DeleteSelectedSceneObject()
 {
-	if (playSession.IsPlaying())
-	{
-		LogBus::Add(LogLevel::Warning, "Editor", "Stop PIE before deleting scene objects.");
-		return false;
-	}
-
 	const EditorSelection& selection = selectionService.GetSelection();
 	if (selection.type != EditorSelectionType::SceneObject)
 	{
 		return false;
 	}
 
-	const SceneObject* object = sceneDocument.FindObject(selection.objectId);
-	if (!object)
+	return DeleteSceneObject(selection.objectId);
+}
+
+bool EditorApplication::DeleteSceneObject(uint32 ObjectId)
+{
+	if (playSession.IsPlaying())
+	{
+		LogBus::Add(LogLevel::Warning, "Editor", "Stop PIE before deleting scene objects.");
+		return false;
+	}
+
+	const SceneObject* Object = sceneDocument.FindObject(ObjectId);
+	if (!Object)
 	{
 		selectionService.Clear();
 		return false;
 	}
 
-	const std::string objectName = object->name;
-	if (!sceneDocument.RemoveObject(selection.objectId))
+	const std::string ObjectName = Object->name;
+	if (!sceneDocument.RemoveObject(ObjectId))
 	{
-		LogBus::Add(LogLevel::Warning, "Editor", "Selected scene object cannot be deleted: " + objectName);
+		LogBus::Add(LogLevel::Warning, "Editor", "Selected scene object cannot be deleted: " + ObjectName);
 		return false;
 	}
 
-	selectionService.Clear();
-	LogBus::Add(LogLevel::Info, "Editor", "Deleted scene object: " + objectName);
+	const EditorSelection& Selection = selectionService.GetSelection();
+	if (Selection.type == EditorSelectionType::SceneObject && Selection.objectId == ObjectId)
+	{
+		selectionService.Clear();
+	}
+	LogBus::Add(LogLevel::Info, "Editor", "Deleted scene object: " + ObjectName);
 	return true;
+}
+
+bool EditorApplication::DuplicateSceneObject(uint32 ObjectId)
+{
+	if (playSession.IsPlaying())
+	{
+		LogBus::Add(LogLevel::Warning, "Editor", "Stop PIE before duplicating scene objects.");
+		return false;
+	}
+
+	SceneObject* Duplicate = sceneDocument.DuplicateObject(ObjectId);
+	if (!Duplicate)
+	{
+		LogBus::Add(LogLevel::Warning, "Editor", "Scene object cannot be duplicated.");
+		return false;
+	}
+
+	selectionService.SelectSceneObject(Duplicate->id);
+	LogBus::Add(LogLevel::Info, "Editor", "Duplicated scene object: " + Duplicate->name);
+	return true;
+}
+
+SceneObject& EditorApplication::AddActorAt(const FActorTypeDefinition& ActorType, EditorVec2 WorldPosition)
+{
+	EditorTransform Transform;
+	Transform.position = WorldPosition;
+
+	const std::string ActorName = ActorType.DisplayName.empty() ? ActorType.ClassName : ActorType.DisplayName;
+	SceneObject* Object = nullptr;
+	if (ActorType.Kind == SceneObjectKind::Circle)
+	{
+		Object = &sceneDocument.AddCircleObject(ActorName, Transform, ActorType.DefaultSize);
+	}
+	else
+	{
+		Object = &sceneDocument.AddBoxObject(ActorName, Transform, ActorType.DefaultSize);
+	}
+
+	Object->className = ActorType.ClassName;
+	Object->kind = ActorType.Kind;
+	Object->size = ActorType.DefaultSize;
+	SynchronizeSceneObjectComponents(*Object, actorTypeRegistry);
+	selectionService.SelectSceneObject(Object->id);
+	LogBus::Add(LogLevel::Info, "Editor", "Added actor: " + ActorName + " (" + ActorType.ClassName + ")");
+	return *Object;
+}
+
+SceneObject& EditorApplication::AddBoxAt(EditorVec2 WorldPosition)
+{
+	const FActorTypeDefinition* ActorType = actorTypeRegistry.FindByTypeId("Default.Box");
+	if (ActorType)
+	{
+		return AddActorAt(*ActorType, WorldPosition);
+	}
+
+	EditorTransform Transform;
+	Transform.position = WorldPosition;
+	SceneObject& Object = sceneDocument.AddBoxObject("Box", Transform, EditorVec2{128.0f, 32.0f});
+	selectionService.SelectSceneObject(Object.id);
+	LogBus::Add(LogLevel::Info, "Editor", "Added Box object.");
+	return Object;
+}
+
+SceneObject& EditorApplication::AddCircleAt(EditorVec2 WorldPosition)
+{
+	const FActorTypeDefinition* ActorType = actorTypeRegistry.FindByTypeId("Default.Circle");
+	if (ActorType)
+	{
+		return AddActorAt(*ActorType, WorldPosition);
+	}
+
+	EditorTransform Transform;
+	Transform.position = WorldPosition;
+	SceneObject& Object = sceneDocument.AddCircleObject("Circle", Transform, EditorVec2{64.0f, 64.0f});
+	selectionService.SelectSceneObject(Object.id);
+	LogBus::Add(LogLevel::Info, "Editor", "Added Circle object.");
+	return Object;
+}
+
+bool EditorApplication::PlaceAssetAt(const AssetRecord& Asset, EditorVec2 WorldPosition)
+{
+	if (playSession.IsPlaying() || !AssetRegistry::CanInstantiate(Asset.type))
+	{
+		return false;
+	}
+
+	EditorTransform Transform;
+	Transform.position = WorldPosition;
+	SceneObject& Object = sceneDocument.AddAssetInstance(Asset.absolutePath.stem().string(), Asset.id, Transform);
+	if (Asset.type == AssetType::Texture)
+	{
+		if (TexturePreview* Preview = textureCache.GetTexture(Asset))
+		{
+			Object.size = FitSceneTextureSize(Preview->width, Preview->height);
+		}
+	}
+	else if (Asset.type == AssetType::Tilemap)
+	{
+		Object.size = EditorVec2{160.0f, 120.0f};
+	}
+
+	selectionService.SelectSceneObject(Object.id);
+	LogBus::Add(LogLevel::Info, "Editor", "Placed asset: " + Asset.id);
+	return true;
+}
+
+bool EditorApplication::PlaceAssetAtViewCenter(const AssetRecord& Asset)
+{
+	return PlaceAssetAt(Asset, editorViewport.GetViewCenter());
+}
+
+void EditorApplication::DrawActorPlacementMenu(EditorVec2 WorldPosition, bool CanEditScene)
+{
+	std::vector<std::string> Categories;
+	for (const FActorTypeDefinition& ActorType : actorTypeRegistry.GetActorTypes())
+	{
+		if (std::find(Categories.begin(), Categories.end(), ActorType.Category) == Categories.end())
+		{
+			Categories.push_back(ActorType.Category);
+		}
+	}
+
+	if (Categories.empty())
+	{
+		ImGui::TextDisabled("No actor types registered");
+		return;
+	}
+
+	for (const std::string& Category : Categories)
+	{
+		const char* CategoryLabel = Category.empty() ? "Actors" : Category.c_str();
+		if (!ImGui::BeginMenu(CategoryLabel, CanEditScene))
+		{
+			continue;
+		}
+
+		for (const FActorTypeDefinition& ActorType : actorTypeRegistry.GetActorTypes())
+		{
+			if (ActorType.Category != Category)
+			{
+				continue;
+			}
+
+			const std::string Label = ActorType.DisplayName + "##" + ActorType.TypeId;
+			if (ImGui::MenuItem(Label.c_str(), nullptr, false, CanEditScene))
+			{
+				AddActorAt(ActorType, WorldPosition);
+			}
+		}
+		ImGui::EndMenu();
+	}
+}
+
+void EditorApplication::DrawSceneContextMenu(EditorVec2 WorldPosition)
+{
+	const bool CanEditScene = !playSession.IsPlaying() && activeProjectLoaded;
+	if (ImGui::BeginMenu("Add Actor", CanEditScene))
+	{
+		DrawActorPlacementMenu(WorldPosition, CanEditScene);
+		ImGui::EndMenu();
+	}
+	ImGui::Separator();
+	if (ImGui::MenuItem("Focus Origin"))
+	{
+		editorViewport.FocusOrigin();
+	}
+	if (ImGui::MenuItem("Save Scene", "Ctrl+S", false, CanEditScene))
+	{
+		SaveCurrentScene();
+	}
+}
+
+void EditorApplication::DrawSceneObjectContextMenu(uint32 ObjectId)
+{
+	SceneObject* Object = sceneDocument.FindObject(ObjectId);
+	if (!Object)
+	{
+		ImGui::TextDisabled("Missing object");
+		return;
+	}
+
+	ImGui::TextDisabled("%s", Object->name.c_str());
+	if (ImGui::MenuItem("Select"))
+	{
+		selectionService.SelectSceneObject(ObjectId);
+	}
+
+	const bool CanEditObject = !playSession.IsPlaying() && sceneDocument.IsObjectRemovable(ObjectId);
+	if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, CanEditObject))
+	{
+		DuplicateSceneObject(ObjectId);
+		return;
+	}
+	if (ImGui::MenuItem("Delete", "Del", false, CanEditObject))
+	{
+		DeleteSceneObject(ObjectId);
+		return;
+	}
+
+	ImGui::Separator();
+	if (ImGui::MenuItem(Object->visible ? "Hide" : "Show", nullptr, false, !playSession.IsPlaying()))
+	{
+		Object->visible = !Object->visible;
+		sceneDocument.SetDirty(true);
+	}
+	if (ImGui::MenuItem(Object->locked ? "Unlock" : "Lock", nullptr, false, !playSession.IsPlaying()))
+	{
+		Object->locked = !Object->locked;
+		sceneDocument.SetDirty(true);
+	}
 }
 
 bool EditorApplication::SaveCurrentScene()
@@ -1614,14 +2438,33 @@ bool EditorApplication::OpenSceneFile(const std::filesystem::path& path)
 	return true;
 }
 
-bool EditorApplication::PlayInPIE()
+void EditorApplication::FocusSelectedSceneObject()
+{
+	const EditorSelection& Selection = selectionService.GetSelection();
+	if (Selection.type != EditorSelectionType::SceneObject)
+	{
+		return;
+	}
+
+	const SceneObject* Object = sceneDocument.FindObject(Selection.objectId);
+	if (!Object)
+	{
+		selectionService.Clear();
+		return;
+	}
+
+	editorViewport.FocusObject(*Object);
+	LogBus::Add(LogLevel::Info, "Editor", "Focused selected object: " + Object->name);
+}
+
+bool EditorApplication::StartPlaySession(AE::EGameModuleRunMode RunMode)
 {
 	if (!activeProjectLoaded)
 	{
 		LogBus::Add(
 			LogLevel::Warning,
 			"Editor",
-			"No active project is open. Open a project before starting PIE.");
+			"No active project is open. Open a project before starting a runtime session.");
 		showProjectBrowser = true;
 		return false;
 	}
@@ -1633,7 +2476,18 @@ bool EditorApplication::PlayInPIE()
 	request.scenePath = scenePath;
 	request.gameModuleTarget = activeProject.gameModuleTarget;
 	request.playTarget = activeProject.playTarget;
+	request.RunMode = RunMode;
 	return playSession.PlayInPIE(request, sceneDocument);
+}
+
+bool EditorApplication::PlayInPIE()
+{
+	return StartPlaySession(AE::EGameModuleRunMode::Play);
+}
+
+bool EditorApplication::SimulateInEditor()
+{
+	return StartPlaySession(AE::EGameModuleRunMode::Simulate);
 }
 
 std::filesystem::path EditorApplication::FindEngineRoot() const
@@ -1729,7 +2583,7 @@ std::string EditorApplication::RelativeAssetLabel(const std::filesystem::path& p
 	for (const AssetRoot& root : assetRegistry.GetRoots())
 	{
 		std::error_code error;
-		const std::filesystem::path relative = std::filesystem::relative(path, root.path, error);
+		const std::filesystem::path relative = std::filesystem::relative(path, root.Path, error);
 		if (error || relative.empty())
 		{
 			continue;
@@ -1738,14 +2592,14 @@ std::string EditorApplication::RelativeAssetLabel(const std::filesystem::path& p
 		const std::string generic = relative.generic_string();
 		if (generic == ".")
 		{
-			return root.name;
+			return root.Name;
 		}
 		if (generic.rfind("../", 0) == 0 || generic == "..")
 		{
 			continue;
 		}
 
-		return root.name + "/" + generic;
+		return root.Name + "/" + generic;
 	}
 
 	return path.generic_string();

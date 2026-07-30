@@ -21,10 +21,12 @@ private:
      * 
      * The key is a string representing the asset ID, and the value is a pointer to the corresponding SDL_Texture.
      */
-    std::map<std::string, SDL_Texture*> textures;
+    std::map<std::string, SDL_Texture*> Textures;
 
-
-    std::map<std::string, TTF_Font*> fonts; 
+    /**
+     * @brief Loaded fonts indexed by asset identifier.
+     */
+    std::map<std::string, TTF_Font*> Fonts;
 
 public:
     /**
@@ -57,7 +59,7 @@ public:
      * @param assetID The unique identifier for the texture.
      * @param filePath The path to the image file to load as a texture.
      */
-    void AddTexture(SDL_Renderer* renderer, const std::string& assetID, const std::string& filePath);
+    void AddTexture(SDL_Renderer* Renderer, const std::string& AssetID, const std::string& FilePath);
 
     /**
      * @brief Retrieves a texture by its unique asset ID.
@@ -67,12 +69,25 @@ public:
      * @param assetID The unique identifier for the texture.
      * @return SDL_Texture* Pointer to the requested texture, or nullptr if not found.
      */
-    SDL_Texture* GetTexture(const std::string& assetID);  
+    SDL_Texture* GetTexture(const std::string& AssetID);
 
+    /**
+     * @brief Loads a font and stores it under the specified asset identifier.
+     *
+     * @param AssetID Unique identifier for the font.
+     * @param FilePath Path to the font file.
+     * @param FontSize Font size in points.
+     */
+    void AddFont(const std::string& AssetID, const std::string& FilePath, int FontSize);
 
-    void AddFont(const std::string& assetID, const std::string& filePath, int fontSize);  
-    
-    TTF_Font* GetFont(const std::string& assetID);
+    /**
+     * @brief Retrieves a font by its asset identifier.
+     *
+     * @param AssetID Unique font identifier.
+     *
+     * @return Pointer to the font, or nullptr if it does not exist.
+     */
+    TTF_Font* GetFont(const std::string& AssetID);
 };
 
 

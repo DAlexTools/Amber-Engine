@@ -33,8 +33,8 @@ TEST(RuntimeRendererConfigTests, BuildsSceneCameraConfigFromProjectDescriptor)
 	EXPECT_EQ(config.engineRoot, descriptor.engineRoot);
 	EXPECT_EQ(config.contentRoot, descriptor.projectRoot / "Content");
 	ASSERT_GE(config.assetRoots.size(), 1u);
-	EXPECT_EQ(config.assetRoots.front().name, "Project");
-	EXPECT_EQ(config.assetRoots.front().path, descriptor.projectRoot / "Content");
+	EXPECT_EQ(config.assetRoots.front().Name, "Project");
+	EXPECT_EQ(config.assetRoots.front().Path, descriptor.projectRoot / "Content");
 }
 
 TEST(RuntimeRendererConfigTests, LeavesExplicitCameraWhenNoSceneCameraExists)

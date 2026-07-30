@@ -142,6 +142,38 @@ SceneObject& SceneDocument::AddCircleObject(std::string objectName, EditorTransf
 	return object;
 }
 
+SceneObject* SceneDocument::DuplicateObject(uint32 Id, EditorVec2 Offset)
+{
+	const SceneObject* Source = FindObject(Id);
+	if (!Source || !IsObjectRemovable(Id))
+	{
+		return nullptr;
+	}
+
+	const std::string BaseName = Source->name.empty() ? "Object" : Source->name + " Copy";
+	std::string UniqueName = BaseName;
+	for (int Suffix = 2;; ++Suffix)
+	{
+		const bool NameExists = std::any_of(objects.begin(), objects.end(), [&UniqueName](const SceneObject& Object)
+											{ return Object.name == UniqueName; });
+		if (!NameExists)
+		{
+			break;
+		}
+		UniqueName = BaseName + " " + std::to_string(Suffix);
+	}
+
+	SceneObject Duplicate = *Source;
+	Duplicate.id = nextObjectId++;
+	Duplicate.name = std::move(UniqueName);
+	Duplicate.transform.position.x += Offset.x;
+	Duplicate.transform.position.y += Offset.y;
+	Duplicate.locked = false;
+	objects.push_back(std::move(Duplicate));
+	dirty = true;
+	return &objects.back();
+}
+
 bool SceneDocument::RemoveObject(uint32 id)
 {
 	const auto it = std::find_if(objects.begin(), objects.end(), [id](const SceneObject& object)
@@ -206,6 +238,7 @@ AE::Scene::Document SceneDocument::ToRuntimeDocument() const
 		sceneObject.size = AE::Scene::Vec2{object.size.x, object.size.y};
 		sceneObject.visible = object.visible;
 		sceneObject.locked = object.locked;
+		sceneObject.components = object.components;
 		document.objects.push_back(std::move(sceneObject));
 	}
 
@@ -246,6 +279,7 @@ bool SceneDocument::LoadFromFile(const std::filesystem::path& path, std::string*
 		object.size = EditorVec2{sceneObject.size.x, sceneObject.size.y};
 		object.visible = sceneObject.visible;
 		object.locked = sceneObject.locked;
+		object.components = sceneObject.components;
 
 		hasCamera = hasCamera || kind == SceneObjectKind::Camera;
 		hasGrid = hasGrid || kind == SceneObjectKind::Grid;

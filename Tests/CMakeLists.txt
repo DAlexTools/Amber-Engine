@@ -30,6 +30,7 @@ gtest_discover_tests(PhysicsUnitTests
 set(ENGINE_UNIT_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Engine/AssetResolverTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Engine/LogBusTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Engine/SceneAssetTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Engine/ThreadPoolTests.cpp
 )
 if(TARGET EngineRuntimePlayer)
@@ -66,8 +67,18 @@ gtest_discover_tests(EngineUnitTests
 )
 
 if(TARGET EditorShell)
-    add_executable(EditorUnitTests
+    set(EDITOR_UNIT_TEST_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/Editor/ActorTypeRegistryTests.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Editor/RuntimeParityTests.cpp
+    )
+    if(TARGET PlatformerGameModule)
+        list(APPEND EDITOR_UNIT_TEST_SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/Editor/PlatformerPIETests.cpp
+        )
+    endif()
+
+    add_executable(EditorUnitTests
+        ${EDITOR_UNIT_TEST_SOURCES}
     )
     amber_target_folder(EditorUnitTests "Tests/Editor")
     amber_group_sources(EditorUnitTests "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -79,6 +90,9 @@ if(TARGET EditorShell)
         GTest::gtest
         GTest::gtest_main
     )
+    if(TARGET PlatformerGameModule)
+        target_link_libraries(EditorUnitTests PRIVATE PlatformerGameModule)
+    endif()
     target_compile_definitions(EditorUnitTests PRIVATE
         C_UNIT_TEST=1
         AMBER_TEST_SOURCE_ROOT="${AMBER_TEST_SOURCE_ROOT}"

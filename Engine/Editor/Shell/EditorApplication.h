@@ -1,6 +1,7 @@
 #ifndef AMBER_EDITOR_SHELL_EDITOR_APPLICATION_H
 #define AMBER_EDITOR_SHELL_EDITOR_APPLICATION_H
 
+#include "ActorTypeRegistry.h"
 #include "AssetRegistry.h"
 #include "EditorViewport.h"
 #include "EditorPlaySession.h"
@@ -55,6 +56,7 @@ private:
     void DrawMainMenuBar();
     void DrawToolbar(float menuHeight, float toolbarHeight);
     void DrawSceneView(float x, float y, float width, float height);
+    void DrawActorPalette(float x, float y, float width, float height);
     void DrawAssetBrowser(float x, float y, float width, float height);
     void DrawSceneOutliner(float x, float y, float width, float height);
     void DrawDetailsPanel(float x, float y, float width, float height);
@@ -64,15 +66,29 @@ private:
     void RefreshAssets();
     void OpenAssetDirectory(const std::filesystem::path& path);
     void SwitchContentRoot(const std::filesystem::path& path);
+    void RebuildActorTypeRegistry();
     bool CreateProjectFromBrowser(bool generateSolutionAfterCreate = false);
     bool GenerateSolutionForActiveProject();
     bool OpenProjectFile(const std::filesystem::path& path);
     bool OpenLegacyWorkspaceProject();
     bool ApplyProjectDescriptor(const ProjectDescriptor& descriptor);
     bool DeleteSelectedSceneObject();
+    bool DeleteSceneObject(uint32 ObjectId);
+    bool DuplicateSceneObject(uint32 ObjectId);
+    SceneObject& AddActorAt(const FActorTypeDefinition& ActorType, EditorVec2 WorldPosition);
+    SceneObject& AddBoxAt(EditorVec2 WorldPosition);
+    SceneObject& AddCircleAt(EditorVec2 WorldPosition);
+    bool PlaceAssetAt(const AssetRecord& Asset, EditorVec2 WorldPosition);
+    bool PlaceAssetAtViewCenter(const AssetRecord& Asset);
+    void DrawActorPlacementMenu(EditorVec2 WorldPosition, bool CanEditScene);
+    void DrawSceneContextMenu(EditorVec2 WorldPosition);
+    void DrawSceneObjectContextMenu(uint32 ObjectId);
     bool SaveCurrentScene();
     bool OpenSceneFile(const std::filesystem::path& path);
+    void FocusSelectedSceneObject();
+    bool StartPlaySession(AE::EGameModuleRunMode RunMode);
     bool PlayInPIE();
+    bool SimulateInEditor();
     std::filesystem::path FindEngineRoot() const;
     std::filesystem::path DefaultScenePath() const;
     std::vector<AssetRoot> BuildAssetRoots() const;
@@ -90,6 +106,7 @@ private:
     bool showSceneOutliner = true;
     bool showDetails = true;
     bool showOutputLog = true;
+    bool ShowActorPalette = true;
     bool showProjectBrowser = true;
     bool activeProjectLoaded = false;
     bool dockLayoutInitialized = false;
@@ -100,6 +117,7 @@ private:
     std::array<char, 128> newProjectName{};
     std::array<char, 512> newProjectLocation{};
     std::array<char, 512> openProjectPath{};
+    std::array<char, 128> ActorPaletteSearch{};
     int newProjectTemplateIndex = 0;
     bool projectBrowserStatusIsError = false;
     std::string projectBrowserStatus;
@@ -111,9 +129,13 @@ private:
     std::filesystem::path currentAssetPath;
     std::filesystem::path currentScenePath;
     std::vector<AssetEntry> assetEntries;
+    EditorViewport::EContextMenuTarget SceneContextTarget = EditorViewport::EContextMenuTarget::Scene;
+    uint32 SceneContextObjectId = 0;
+    EditorVec2 SceneContextWorldPosition;
 
     AssetRegistry assetRegistry;
     TextureCache textureCache;
+    FActorTypeRegistry actorTypeRegistry;
     SceneDocument sceneDocument;
     SelectionService selectionService;
     EditorViewport editorViewport;

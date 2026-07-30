@@ -14,6 +14,7 @@
 #include <dlfcn.h>
 #endif
 
+#include <algorithm>
 #include <array>
 #include <system_error>
 #include <utility>
@@ -231,20 +232,42 @@ std::unique_ptr<LoadedGameModule> GameModuleResolver::Resolve(
     std::string* warning) const
 {
     std::string lastLoadError;
-    for (const std::filesystem::path& candidate : BuildCandidatePaths(gameModuleTarget, projectRoot))
+    std::vector<std::filesystem::path> ExistingCandidates;
+    for (const std::filesystem::path& Candidate : BuildCandidatePaths(gameModuleTarget, projectRoot))
     {
-        std::error_code filesystemError;
-        if (!std::filesystem::exists(candidate, filesystemError) ||
-            !std::filesystem::is_regular_file(candidate, filesystemError))
+        std::error_code FilesystemError;
+        if (!std::filesystem::exists(Candidate, FilesystemError) ||
+            !std::filesystem::is_regular_file(Candidate, FilesystemError))
         {
             continue;
         }
 
+        ExistingCandidates.push_back(Candidate);
+    }
+
+    std::stable_sort(
+        ExistingCandidates.begin(),
+        ExistingCandidates.end(),
+        [](const std::filesystem::path& Left, const std::filesystem::path& Right)
+        {
+            std::error_code LeftError;
+            std::error_code RightError;
+            const std::filesystem::file_time_type LeftWriteTime = std::filesystem::last_write_time(Left, LeftError);
+            const std::filesystem::file_time_type RightWriteTime = std::filesystem::last_write_time(Right, RightError);
+            if (LeftError || RightError)
+            {
+                return !LeftError && RightError;
+            }
+            return LeftWriteTime > RightWriteTime;
+        });
+
+    for (const std::filesystem::path& Candidate : ExistingCandidates)
+    {
         std::string loadError;
-        void* library = LoadLibraryHandle(candidate, &loadError);
+        void* library = LoadLibraryHandle(Candidate, &loadError);
         if (!library)
         {
-            lastLoadError = candidate.string() + ": " + loadError;
+            lastLoadError = Candidate.string() + ": " + loadError;
             continue;
         }
 
@@ -254,7 +277,7 @@ std::unique_ptr<LoadedGameModule> GameModuleResolver::Resolve(
             LoadSymbol(library, AE::DestroyGameModuleSymbolName));
         if (!create || !destroy)
         {
-            lastLoadError = candidate.string() + ": missing Amber game module exports.";
+            lastLoadError = Candidate.string() + ": missing Amber game module exports.";
             UnloadLibraryHandle(library);
             continue;
         }
@@ -262,13 +285,13 @@ std::unique_ptr<LoadedGameModule> GameModuleResolver::Resolve(
         AE::IGameModule* module = create();
         if (!module)
         {
-            lastLoadError = candidate.string() + ": AmberCreateGameModule returned null.";
+            lastLoadError = Candidate.string() + ": AmberCreateGameModule returned null.";
             UnloadLibraryHandle(library);
             continue;
         }
 
         return std::unique_ptr<LoadedGameModule>(
-            new LoadedGameModule(library, module, destroy, CanonicalIfPossible(candidate)));
+            new LoadedGameModule(library, module, destroy, CanonicalIfPossible(Candidate)));
     }
 
     if (warning)

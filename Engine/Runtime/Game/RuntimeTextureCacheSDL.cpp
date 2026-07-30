@@ -1,9 +1,6 @@
 #include "Game/RuntimeTextureCacheSDL.h"
-
 #include "Logging/Logger.h"
-
 #include <SDL2/SDL_image.h>
-
 #include <utility>
 
 namespace AE
@@ -19,7 +16,7 @@ bool SameRoots(const std::vector<RuntimeAssetRoot>& left, const std::vector<Runt
 
 	for (SizeT index = 0; index < left.size(); ++index)
 	{
-		if (left[index].name != right[index].name || left[index].path != right[index].path)
+		if (left[index].Name != right[index].Name || left[index].Path != right[index].Path)
 		{
 			return false;
 		}
@@ -30,10 +27,10 @@ bool SameRoots(const std::vector<RuntimeAssetRoot>& left, const std::vector<Runt
 
 bool SameConfig(const RuntimeAssetResolverConfig& left, const RuntimeAssetResolverConfig& right)
 {
-	return left.projectRoot == right.projectRoot &&
-		   left.engineRoot == right.engineRoot &&
-		   left.contentRoot == right.contentRoot &&
-		   SameRoots(left.roots, right.roots);
+	return left.ProjectRoot == right.ProjectRoot &&
+		   left.EngineRoot == right.EngineRoot &&
+		   left.ContentRoot == right.ContentRoot &&
+		   SameRoots(left.Roots, right.Roots);
 }
 } // namespace
 
@@ -68,7 +65,7 @@ void RuntimeTextureCacheSDL::SetResolverConfig(RuntimeAssetResolverConfig config
 void RuntimeTextureCacheSDL::SetAssetRoots(std::vector<RuntimeAssetRoot> roots)
 {
 	RuntimeAssetResolverConfig config = resolverConfig;
-	config.roots = std::move(roots);
+	config.Roots = std::move(roots);
 	SetResolverConfig(std::move(config));
 }
 

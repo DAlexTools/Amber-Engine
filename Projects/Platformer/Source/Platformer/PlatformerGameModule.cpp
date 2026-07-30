@@ -48,6 +48,7 @@ constexpr float PhysicsFixedTimeStep = 1.0f / 120.0f;
 constexpr uint32 PhysicsCategoryTerrain = 0x00000001u;
 constexpr uint32 PhysicsCategoryDynamic = 0x00000002u;
 constexpr uint32 PhysicsCategorySensor = 0x00000004u;
+constexpr float Pi = 3.14159265358979323846f;
 
 SDL_Color SkyTop{100, 168, 235, 255};
 SDL_Color SkyBottom{170, 215, 245, 255};
@@ -241,9 +242,9 @@ PlatformerGameModule::PlatformerGameModule()
 }
 
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
-void PlatformerGameModule::SetEditorScenePath(std::filesystem::path path)
+void PlatformerGameModule::SetEditorScenePath(std::filesystem::path Path)
 {
-	editorScenePathOverride = std::move(path);
+	editorScenePathOverride = std::move(Path);
 }
 #endif
 
@@ -251,6 +252,18 @@ const char* PlatformerGameModule::GetName() const
 {
 	return "PlatformerGameModule";
 }
+
+#if SMOKE_TEST && AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+AE::Math::FVector2D PlatformerGameModule::GetPlayerSpawnForTests() const
+{
+	return playerSpawn;
+}
+
+SizeT PlatformerGameModule::GetEditorSolidPlatformCountForTests() const
+{
+	return EditorSolidPlatforms.size();
+}
+#endif
 
 void PlatformerGameModule::RegisterSceneObjects(AE::Scene::ObjectFactory& objectFactory)
 {
@@ -264,6 +277,7 @@ void PlatformerGameModule::RegisterSceneObjects(AE::Scene::ObjectFactory& object
 bool PlatformerGameModule::StartPlay(const AE::GameModuleStartContext& context, std::string*)
 {
 	runtimePlayerMode = true;
+	SimulateOnly = context.RunMode == AE::EGameModuleRunMode::Simulate;
 	running = true;
 	paused = false;
 	fullscreen = false;
@@ -284,7 +298,8 @@ bool PlatformerGameModule::StartPlay(const AE::GameModuleStartContext& context, 
 	{
 		editorScenePathOverride = context.scenePath;
 	}
-	LoadEditorSceneProps();
+	const std::string SceneLabel = context.scenePath.empty() ? std::string("PIE") : context.scenePath.string();
+	LoadEditorSceneProps(context.sceneDocument, SceneLabel);
 #else
 	(void)context;
 #endif
@@ -335,6 +350,7 @@ void PlatformerGameModule::StopPlay()
 		Shutdown();
 		runtimePlayerMode = false;
 	}
+	SimulateOnly = false;
 	AE::Logger::Log("PlatformerGameModule StopPlay", "Platformer");
 }
 
@@ -1220,10 +1236,19 @@ void PlatformerGameModule::BuildPhysicsScene()
 	}
 
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
-	for (const RectF& platform : editorSolidPlatforms)
+	for (const FEditorSolidPlatform& Platform : EditorSolidPlatforms)
 	{
-		const AE::Math::FVector2D center(platform.x + platform.w * 0.5f, platform.y + platform.h * 0.5f);
-		AE::Physics::Body* body = AddPhysicsBox(center, platform.w, platform.h, 0.0f, SDL_Color{72, 124, 55, 95}, SDL_Color{55, 82, 46, 150}, 0.0f, false);
+		const RectF& Bounds = Platform.Bounds;
+		const AE::Math::FVector2D Center = RectCenter(Bounds);
+		AE::Physics::Body* body = AddPhysicsBox(
+			Center,
+			Bounds.w,
+			Bounds.h,
+			0.0f,
+			SDL_Color{72, 124, 55, 95},
+			SDL_Color{55, 82, 46, 150},
+			DegreesToRadians(Platform.RotationDegrees),
+			false);
 		body->collisionCategory = PhysicsCategoryTerrain;
 		body->collisionMask = PhysicsCategoryDynamic | PhysicsCategorySensor;
 	}
@@ -1389,12 +1414,12 @@ void PlatformerGameModule::AddScenePhysicsBody(const ScenePhysicsBodySpec& spec)
 		AE::Physics::Body* ball = AddPhysicsCircle(
 			center,
 			std::max(width, height) * 0.5f,
-			0.85f,
+			std::max(0.0f, spec.Mass),
 			ContainsText(spec.name, "gold") ? SDL_Color{230, 178, 72, 255} : PhysicsBall,
 			PhysicsMetalEdge,
 			true);
-		ball->friction = 0.05f;
-		ball->restitution = 0.32f;
+		ball->friction = std::max(0.0f, spec.Friction);
+		ball->restitution = std::max(0.0f, spec.Restitution);
 		return;
 	}
 
@@ -1407,15 +1432,15 @@ void PlatformerGameModule::AddScenePhysicsBody(const ScenePhysicsBodySpec& spec)
 			0.0f,
 			SDL_Color{104, 184, 116, 255},
 			PhysicsMetalEdge,
-			0.0f,
+			DegreesToRadians(spec.RotationDegrees),
 			true);
 		kinematicBodies.push_back(KinematicBody{
 			platform,
 			platform->position,
 			spec.verticalMotion ? AE::Math::FVector2D(0.0f, 1.0f) : AE::Math::FVector2D(1.0f, 0.0f),
-			spec.verticalMotion ? 72.0f : 92.0f,
-			spec.verticalMotion ? 1.05f : 1.15f,
-			spec.verticalMotion ? 1.4f : 0.0f});
+			std::max(0.0f, spec.MotionAmplitude),
+			std::max(0.0f, spec.MotionSpeed),
+			spec.MotionPhase});
 		return;
 	}
 
@@ -1423,13 +1448,13 @@ void PlatformerGameModule::AddScenePhysicsBody(const ScenePhysicsBodySpec& spec)
 		center,
 		width,
 		height,
-		1.1f,
+		std::max(0.0f, spec.Mass),
 		PhysicsWood,
 		PhysicsWoodEdge,
-		0.0f,
+		DegreesToRadians(spec.RotationDegrees),
 		true);
-	crate->friction = 0.24f;
-	crate->restitution = 0.08f;
+	crate->friction = std::max(0.0f, spec.Friction);
+	crate->restitution = std::max(0.0f, spec.Restitution);
 }
 
 void PlatformerGameModule::AddScenePhysicsBridge(const ScenePhysicsRigSpec& spec)
@@ -1447,7 +1472,7 @@ void PlatformerGameModule::AddScenePhysicsBridge(const ScenePhysicsRigSpec& spec
 	AE::Physics::Body* rightAnchor = AddPhysicsBox(AE::Math::FVector2D(rightX, anchorY), 46.0f, 24.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
 
 	std::vector<AE::Physics::Body*> links;
-	constexpr int BridgeSegments = 10;
+	const int BridgeSegments = std::max(2, spec.SegmentCount > 0 ? spec.SegmentCount : 10);
 	for (int index = 0; index < BridgeSegments; ++index)
 	{
 		const float t = static_cast<float>(index) / static_cast<float>(BridgeSegments - 1);
@@ -1485,7 +1510,7 @@ void PlatformerGameModule::AddScenePhysicsChain(const ScenePhysicsRigSpec& spec)
 
 	AE::Physics::Body* anchor = AddPhysicsBox(AE::Math::FVector2D(centerX, topY), 48.0f, 22.0f, 0.0f, PhysicsMetal, PhysicsMetalEdge, 0.0f, false);
 	AE::Physics::Body* previous = anchor;
-	constexpr int ChainLinks = 7;
+	const int ChainLinks = std::max(1, spec.SegmentCount > 0 ? spec.SegmentCount : 7);
 	const float spacing = std::max(22.0f, (height - 70.0f) / static_cast<float>(ChainLinks + 1));
 	for (int index = 0; index < ChainLinks; ++index)
 	{
@@ -1664,7 +1689,19 @@ void PlatformerGameModule::StepRuntime(float deltaSeconds)
 {
 	const Uint64 updateStart = SDL_GetPerformanceCounter();
 	InputState input;
-	ReadKeyboardInput(input);
+	if (SimulateOnly)
+	{
+		jumpKeyWasDown = false;
+		shootKeyWasDown = false;
+		pauseKeyWasDown = false;
+		resetKeyWasDown = false;
+		pendingJumpPressed = false;
+		pendingShootPressed = false;
+	}
+	else
+	{
+		ReadKeyboardInput(input);
+	}
 
 	fixedStepAccumulator += ClampFloat(deltaSeconds, 0.0f, 0.05f);
 	InputState stepInput = input;
@@ -1966,9 +2003,9 @@ void PlatformerGameModule::UpdateProjectiles(float dt)
 
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
 		bool hitEditorSolidPlatform = false;
-		for (const RectF& platform : editorSolidPlatforms)
+		for (const FEditorSolidPlatform& Platform : EditorSolidPlatforms)
 		{
-			if (Intersects(projectileBounds, platform))
+			if (IntersectsEditorSolidPlatform(projectileBounds, Platform))
 			{
 				hitEditorSolidPlatform = true;
 				break;
@@ -2264,39 +2301,11 @@ void PlatformerGameModule::ResolveTileCollisions(bool horizontal)
 	}
 
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
-	for (const RectF& platformBounds : editorSolidPlatforms)
+	for (const FEditorSolidPlatform& Platform : EditorSolidPlatforms)
 	{
-		if (!Intersects(playerBounds, platformBounds))
+		if (!ResolveEditorSolidPlatformCollision(Platform, horizontal))
 		{
 			continue;
-		}
-
-		if (horizontal)
-		{
-			if (player.velocity.X > 0.0f)
-			{
-				player.position.X = platformBounds.x - player.width;
-			}
-			else if (player.velocity.X < 0.0f)
-			{
-				player.position.X = platformBounds.x + platformBounds.w;
-			}
-			player.velocity.X = 0.0f;
-		}
-		else
-		{
-			if (player.velocity.Y > 0.0f)
-			{
-				player.position.Y = platformBounds.y - player.height;
-				player.grounded = true;
-				coyoteTimer = CoyoteTime;
-				player.airJumpsRemaining = MaxAirJumps;
-			}
-			else if (player.velocity.Y < 0.0f)
-			{
-				player.position.Y = platformBounds.y + platformBounds.h;
-			}
-			player.velocity.Y = 0.0f;
 		}
 
 		playerBounds = PlayerRect();
@@ -2410,6 +2419,166 @@ bool PlatformerGameModule::Intersects(const RectF& first, const RectF& second)
 		   first.y < second.y + second.h &&
 		   first.y + first.h > second.y;
 }
+
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+float PlatformerGameModule::DegreesToRadians(float Degrees)
+{
+	return Degrees * Pi / 180.0f;
+}
+
+AE::Math::FVector2D PlatformerGameModule::RectCenter(const RectF& Bounds)
+{
+	return AE::Math::FVector2D(Bounds.x + Bounds.w * 0.5f, Bounds.y + Bounds.h * 0.5f);
+}
+
+std::array<AE::Math::FVector2D, 4> PlatformerGameModule::RectVertices(const RectF& Bounds)
+{
+	return {
+		AE::Math::FVector2D(Bounds.x, Bounds.y),
+		AE::Math::FVector2D(Bounds.x + Bounds.w, Bounds.y),
+		AE::Math::FVector2D(Bounds.x + Bounds.w, Bounds.y + Bounds.h),
+		AE::Math::FVector2D(Bounds.x, Bounds.y + Bounds.h)};
+}
+
+std::array<AE::Math::FVector2D, 4> PlatformerGameModule::RotatedRectVertices(const RectF& Bounds, float RotationDegrees)
+{
+	const AE::Math::FVector2D Center = RectCenter(Bounds);
+	const float HalfWidth = Bounds.w * 0.5f;
+	const float HalfHeight = Bounds.h * 0.5f;
+	const float RotationRadians = DegreesToRadians(RotationDegrees);
+	const float CosValue = std::cos(RotationRadians);
+	const float SinValue = std::sin(RotationRadians);
+	const std::array<AE::Math::FVector2D, 4> LocalVertices{
+		AE::Math::FVector2D(-HalfWidth, -HalfHeight),
+		AE::Math::FVector2D(HalfWidth, -HalfHeight),
+		AE::Math::FVector2D(HalfWidth, HalfHeight),
+		AE::Math::FVector2D(-HalfWidth, HalfHeight)};
+	std::array<AE::Math::FVector2D, 4> Vertices{};
+
+	for (SizeT Index = 0; Index < Vertices.size(); ++Index)
+	{
+		const AE::Math::FVector2D& Local = LocalVertices[Index];
+		Vertices[Index] = AE::Math::FVector2D(
+			Center.X + Local.X * CosValue - Local.Y * SinValue,
+			Center.Y + Local.X * SinValue + Local.Y * CosValue);
+	}
+
+	return Vertices;
+}
+
+PlatformerGameModule::FCollisionProjection PlatformerGameModule::ProjectVertices(
+	const std::array<AE::Math::FVector2D, 4>& Vertices,
+	const AE::Math::FVector2D& Axis)
+{
+	const float FirstProjection = Vertices[0].DotProduct(Axis);
+	FCollisionProjection Projection{FirstProjection, FirstProjection};
+	for (SizeT Index = 1; Index < Vertices.size(); ++Index)
+	{
+		const float Value = Vertices[Index].DotProduct(Axis);
+		Projection.Min = std::min(Projection.Min, Value);
+		Projection.Max = std::max(Projection.Max, Value);
+	}
+	return Projection;
+}
+
+PlatformerGameModule::FCollisionResult PlatformerGameModule::IntersectAabbWithRotatedRect(
+	const RectF& Bounds,
+	const FEditorSolidPlatform& Platform)
+{
+	FCollisionResult Result;
+	const std::array<AE::Math::FVector2D, 4> AabbVertices = RectVertices(Bounds);
+	const std::array<AE::Math::FVector2D, 4> PlatformVertices = RotatedRectVertices(Platform.Bounds, Platform.RotationDegrees);
+	const float RotationRadians = DegreesToRadians(Platform.RotationDegrees);
+	const float CosValue = std::cos(RotationRadians);
+	const float SinValue = std::sin(RotationRadians);
+	const std::array<AE::Math::FVector2D, 4> Axes{
+		AE::Math::FVector2D(1.0f, 0.0f),
+		AE::Math::FVector2D(0.0f, 1.0f),
+		AE::Math::FVector2D(CosValue, SinValue),
+		AE::Math::FVector2D(-SinValue, CosValue)};
+
+	float SmallestOverlap = std::numeric_limits<float>::max();
+	AE::Math::FVector2D BestAxis = AE::Math::FVector2D::UnitY;
+	const AE::Math::FVector2D CenterDelta = RectCenter(Bounds) - RectCenter(Platform.Bounds);
+
+	for (const AE::Math::FVector2D& Axis : Axes)
+	{
+		const FCollisionProjection AabbProjection = ProjectVertices(AabbVertices, Axis);
+		const FCollisionProjection PlatformProjection = ProjectVertices(PlatformVertices, Axis);
+		const float Overlap = std::min(AabbProjection.Max, PlatformProjection.Max) - std::max(AabbProjection.Min, PlatformProjection.Min);
+		if (Overlap <= 0.0f)
+		{
+			return Result;
+		}
+
+		if (Overlap < SmallestOverlap)
+		{
+			SmallestOverlap = Overlap;
+			BestAxis = CenterDelta.DotProduct(Axis) < 0.0f ? -Axis : Axis;
+		}
+	}
+
+	Result.Intersects = true;
+	Result.MinimumTranslation = BestAxis * SmallestOverlap;
+	return Result;
+}
+
+bool PlatformerGameModule::IntersectsEditorSolidPlatform(const RectF& Bounds, const FEditorSolidPlatform& Platform)
+{
+	return IntersectAabbWithRotatedRect(Bounds, Platform).Intersects;
+}
+
+bool PlatformerGameModule::ResolveEditorSolidPlatformCollision(const FEditorSolidPlatform& Platform, bool Horizontal)
+{
+	const FCollisionResult Collision = IntersectAabbWithRotatedRect(PlayerRect(), Platform);
+	if (!Collision.Intersects)
+	{
+		return false;
+	}
+
+	const float AbsX = std::abs(Collision.MinimumTranslation.X);
+	const float AbsY = std::abs(Collision.MinimumTranslation.Y);
+	constexpr float CollisionEpsilon = 0.001f;
+	if (Horizontal && AbsX <= AbsY + CollisionEpsilon)
+	{
+		return false;
+	}
+	if (!Horizontal && AbsY + CollisionEpsilon < AbsX)
+	{
+		return false;
+	}
+
+	player.position += Collision.MinimumTranslation;
+	if (Horizontal)
+	{
+		if (AbsX > CollisionEpsilon)
+		{
+			player.velocity.X = 0.0f;
+		}
+		return true;
+	}
+
+	if (Collision.MinimumTranslation.Y < -CollisionEpsilon)
+	{
+		player.grounded = true;
+		coyoteTimer = CoyoteTime;
+		player.airJumpsRemaining = MaxAirJumps;
+		if (player.velocity.Y > 0.0f)
+		{
+			player.velocity.Y = 0.0f;
+		}
+	}
+	else if (Collision.MinimumTranslation.Y > CollisionEpsilon && player.velocity.Y < 0.0f)
+	{
+		player.velocity.Y = 0.0f;
+	}
+	else if (AbsY > CollisionEpsilon)
+	{
+		player.velocity.Y = 0.0f;
+	}
+	return true;
+}
+#endif
 
 int PlatformerGameModule::ClampInt(int value, int minValue, int maxValue)
 {
@@ -2634,7 +2803,7 @@ void PlatformerGameModule::RenderDiagnostics()
 		" | bodies " + std::to_string(PhysicsBodyCount())
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
 		+ " | editor props " + std::to_string(editorSceneProps.size()) +
-		" | editor solids " + std::to_string(editorSolidPlatforms.size())
+		" | editor solids " + std::to_string(EditorSolidPlatforms.size())
 #endif
 		;
 
@@ -2676,7 +2845,7 @@ void PlatformerGameModule::RenderDiagnostics()
         ImGui::Text("Scripted enemies: %s", scriptedEnemiesLoaded ? "yes" : "no");
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
         ImGui::Text("Editor scene props: %zu", editorSceneProps.size());
-        ImGui::Text("Editor solid platforms: %zu", editorSolidPlatforms.size());
+        ImGui::Text("Editor solid platforms: %zu", EditorSolidPlatforms.size());
 #endif
         ImGui::Text("Physics bodies: %d", PhysicsBodyCount());
         ImGui::Text("Physics constraints: %d", PhysicsConstraintCount());
@@ -2743,11 +2912,9 @@ void PlatformerGameModule::DrawLevel() const
 	}
 
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
-	for (const RectF& platform : editorSolidPlatforms)
+	for (const FEditorSolidPlatform& Platform : EditorSolidPlatforms)
 	{
-		DrawRect(platform, Brick);
-		DrawRect(RectF{platform.x, platform.y, platform.w, 4.0f}, Ground);
-		DrawRect(RectF{platform.x, platform.y, 2.0f, platform.h}, SDL_Color{205, 137, 96, 255});
+		DrawRotatedRect(Platform.Bounds, Platform.RotationDegrees, Brick);
 	}
 #endif
 }
@@ -2915,17 +3082,17 @@ void PlatformerGameModule::LoadEditorSceneProps()
 	projectContentRoot.clear();
 	if (!editorScenePathOverride.empty())
 	{
-		std::error_code canonicalError;
-		std::filesystem::path scenePath = std::filesystem::weakly_canonical(editorScenePathOverride, canonicalError);
-		if (scenePath.empty())
+		std::error_code CanonicalError;
+		std::filesystem::path ScenePath = std::filesystem::weakly_canonical(editorScenePathOverride, CanonicalError);
+		if (ScenePath.empty())
 		{
-			scenePath = editorScenePathOverride;
+			ScenePath = editorScenePathOverride;
 		}
 
-		const std::filesystem::path sceneDirectory = scenePath.parent_path();
-		if (sceneDirectory.filename() == "Scenes" && sceneDirectory.has_parent_path())
+		const std::filesystem::path SceneDirectory = ScenePath.parent_path();
+		if (SceneDirectory.filename() == "Scenes" && SceneDirectory.has_parent_path())
 		{
-			projectContentRoot = sceneDirectory.parent_path();
+			projectContentRoot = SceneDirectory.parent_path();
 		}
 	}
 	if (projectContentRoot.empty())
@@ -2937,176 +3104,242 @@ void PlatformerGameModule::LoadEditorSceneProps()
 		return;
 	}
 
-	const std::filesystem::path scenePath = editorScenePathOverride.empty() ? projectContentRoot / "Scenes" / "PlatformerTest.amber.scene" : editorScenePathOverride;
-	std::error_code errorCode;
-	if (!std::filesystem::exists(scenePath, errorCode))
+	const std::filesystem::path ScenePath = editorScenePathOverride.empty() ? projectContentRoot / "Scenes" / "PlatformerTest.amber.scene" : editorScenePathOverride;
+	std::error_code ErrorCode;
+	if (!std::filesystem::exists(ScenePath, ErrorCode))
 	{
 		return;
 	}
 
-	AE::Scene::Document document;
-	std::string error;
-	if (!AE::Scene::LoadScene(scenePath, document, &error))
+	AE::Scene::Document SceneDocument;
+	std::string Error;
+	if (!AE::Scene::LoadScene(ScenePath, SceneDocument, &Error))
 	{
-		std::cerr << "Platformer editor scene load failed: " << error << std::endl;
+		std::cerr << "Platformer editor scene load failed: " << Error << std::endl;
 		return;
 	}
 
-	AE::Scene::ObjectFactory factory;
-	PlatformerScene::RegisterPlatformerSceneObjects(factory);
+	LoadEditorSceneProps(SceneDocument, ScenePath.string());
+}
+
+void PlatformerGameModule::LoadEditorSceneProps(const AE::Scene::Document& SceneDocument, const std::string& SceneLabel)
+{
+	ClearEditorSceneProps();
+
+	AE::Scene::ObjectFactory Factory;
+	PlatformerScene::RegisterPlatformerSceneObjects(Factory);
 	editorSceneRegistry = std::make_unique<Registry>();
-	editorSceneObjects = factory.CreateObjects(document, editorSceneRegistry.get());
+	editorSceneObjects = Factory.CreateObjects(SceneDocument, editorSceneRegistry.get());
 	editorSceneRegistry->Update();
 
-	std::vector<Coin> sceneCoins;
-	std::vector<RectF> sceneSolidPlatforms;
-	std::vector<Enemy> sceneEnemies;
-	std::vector<ScenePhysicsBodySpec> scenePhysicsBodies;
-	std::vector<ScenePhysicsRigSpec> scenePhysicsRigs;
-	SizeT gameplayObjectCount = 0;
+	std::vector<Coin> SceneCoins;
+	std::vector<FEditorSolidPlatform> SceneSolidPlatforms;
+	std::vector<Enemy> SceneEnemies;
+	std::vector<ScenePhysicsBodySpec> ScenePhysicsBodies;
+	std::vector<ScenePhysicsRigSpec> ScenePhysicsRigs;
+	SizeT GameplayObjectCount = 0;
 
-	for (const std::unique_ptr<AE::Scene::Object>& object : editorSceneObjects)
+	for (const std::unique_ptr<AE::Scene::Object>& Object : editorSceneObjects)
 	{
-		if (!object)
+		if (!Object)
 		{
 			continue;
 		}
 
-		const AE::Scene::ObjectData& objectData = object->GetData();
-		const RectF bounds = EditorSceneObjectBounds(objectData);
-		if (objectData.className == "PlayerSpawnObject")
+		const AE::Scene::ObjectData& ObjectData = Object->GetData();
+		const RectF Bounds = EditorSceneObjectBounds(ObjectData);
+		if (ObjectData.className == "PlayerSpawnObject")
 		{
-			playerSpawn = AE::Math::FVector2D(bounds.x, bounds.y);
-			++gameplayObjectCount;
+			playerSpawn = AE::Math::FVector2D(Bounds.x, Bounds.y);
+			++GameplayObjectCount;
 			continue;
 		}
-		if (objectData.className == "GoalObject")
+		if (ObjectData.className == "GoalObject")
 		{
-			finish = bounds;
-			++gameplayObjectCount;
+			finish = Bounds;
+			++GameplayObjectCount;
 			continue;
 		}
-		if (objectData.className == "CoinObject")
+		if (ObjectData.className == "CoinObject")
 		{
-			sceneCoins.push_back(Coin{bounds, false});
-			++gameplayObjectCount;
+			SceneCoins.push_back(Coin{Bounds, false});
+			++GameplayObjectCount;
 			continue;
 		}
-		if (objectData.className == "SolidPlatformObject")
+		if (ObjectData.className == "SolidPlatformObject")
 		{
-			sceneSolidPlatforms.push_back(bounds);
-			++gameplayObjectCount;
+			SceneSolidPlatforms.push_back(FEditorSolidPlatform{Bounds, ObjectData.transform.rotationDegrees});
+			++GameplayObjectCount;
 			continue;
 		}
-		if (objectData.className == "EnemySpawnObject")
+		if (ObjectData.className == "EnemySpawnObject")
 		{
-			Enemy enemy;
-			if (BuildEditorSceneEnemy(objectData, bounds, enemy))
+			Enemy Enemy;
+			if (BuildEditorSceneEnemy(ObjectData, Bounds, Enemy))
 			{
-				sceneEnemies.push_back(enemy);
+				if (Object->HasComponent<PlatformerScene::FEnemySpawnComponent>())
+				{
+					const PlatformerScene::FEnemySpawnComponent& Component = Object->GetComponent<PlatformerScene::FEnemySpawnComponent>();
+					Enemy.speed = std::max(0.0f, Component.Speed);
+					Enemy.direction = Component.Direction < 0.0f ? -1.0f : 1.0f;
+					Enemy.velocity = AE::Math::FVector2D(Enemy.speed * Enemy.direction, 0.0f);
+					Enemy.leftBound = Bounds.x - std::max(0.0f, Component.PatrolWidth) * 0.45f;
+					Enemy.rightBound = Bounds.x + Enemy.width + std::max(0.0f, Component.PatrolWidth);
+					Enemy.maxHealth = std::max(1, Component.MaxHealth);
+					Enemy.health = Enemy.maxHealth;
+					Enemy.jumpCooldown = std::max(0.0f, Component.JumpCooldown);
+					Enemy.jumpVelocity = Component.JumpVelocity;
+					Enemy.alertRange = std::max(0.0f, Component.AlertRange);
+					Enemy.canShoot = Component.CanShoot;
+					Enemy.shootCooldown = std::max(0.0f, Component.ShootCooldown);
+					Enemy.shootRange = std::max(0.0f, Component.ShootRange);
+					Enemy.projectileSpeed = std::max(0.0f, Component.ProjectileSpeed);
+					Enemy.shootTimer = Enemy.canShoot ? 0.25f : 0.0f;
+				}
+				SceneEnemies.push_back(Enemy);
 			}
-			++gameplayObjectCount;
+			++GameplayObjectCount;
 			continue;
 		}
-		if (objectData.className == "PhysicsBoxObject")
+		if (ObjectData.className == "PhysicsBoxObject")
 		{
-			scenePhysicsBodies.push_back(ScenePhysicsBodySpec{
+			ScenePhysicsBodySpec Spec{
 				ScenePhysicsBodySpec::Type::Box,
-				objectData.name,
-				bounds,
-				false});
-			++gameplayObjectCount;
+				ObjectData.name,
+				Bounds,
+				false};
+			Spec.RotationDegrees = ObjectData.transform.rotationDegrees;
+			if (Object->HasComponent<PlatformerScene::FPhysicsBoxComponent>())
+			{
+				const PlatformerScene::FPhysicsBoxComponent& Component = Object->GetComponent<PlatformerScene::FPhysicsBoxComponent>();
+				Spec.Mass = Component.Mass;
+				Spec.Friction = Component.Friction;
+				Spec.Restitution = Component.Restitution;
+			}
+			ScenePhysicsBodies.push_back(Spec);
+			++GameplayObjectCount;
 			continue;
 		}
-		if (objectData.className == "PhysicsCircleObject")
+		if (ObjectData.className == "PhysicsCircleObject")
 		{
-			scenePhysicsBodies.push_back(ScenePhysicsBodySpec{
+			ScenePhysicsBodySpec Spec{
 				ScenePhysicsBodySpec::Type::Circle,
-				objectData.name,
-				bounds,
-				false});
-			++gameplayObjectCount;
+				ObjectData.name,
+				Bounds,
+				false};
+			Spec.RotationDegrees = ObjectData.transform.rotationDegrees;
+			if (Object->HasComponent<PlatformerScene::FPhysicsCircleComponent>())
+			{
+				const PlatformerScene::FPhysicsCircleComponent& Component = Object->GetComponent<PlatformerScene::FPhysicsCircleComponent>();
+				Spec.Mass = Component.Mass;
+				Spec.Friction = Component.Friction;
+				Spec.Restitution = Component.Restitution;
+			}
+			ScenePhysicsBodies.push_back(Spec);
+			++GameplayObjectCount;
 			continue;
 		}
-		if (objectData.className == "MovingPlatformObject")
+		if (ObjectData.className == "MovingPlatformObject")
 		{
-			scenePhysicsBodies.push_back(ScenePhysicsBodySpec{
+			ScenePhysicsBodySpec Spec{
 				ScenePhysicsBodySpec::Type::MovingPlatform,
-				objectData.name,
-				bounds,
-				ContainsText(objectData.name, "elevator") || ContainsText(objectData.name, "vertical") || bounds.h > bounds.w});
-			++gameplayObjectCount;
+				ObjectData.name,
+				Bounds,
+				ContainsText(ObjectData.name, "elevator") || ContainsText(ObjectData.name, "vertical") || Bounds.h > Bounds.w};
+			Spec.RotationDegrees = ObjectData.transform.rotationDegrees;
+			if (Object->HasComponent<PlatformerScene::FMovingPlatformComponent>())
+			{
+				const PlatformerScene::FMovingPlatformComponent& Component = Object->GetComponent<PlatformerScene::FMovingPlatformComponent>();
+				Spec.verticalMotion = Component.VerticalMotion;
+				Spec.MotionAmplitude = Component.Amplitude;
+				Spec.MotionSpeed = Component.Speed;
+				Spec.MotionPhase = Component.Phase;
+			}
+			ScenePhysicsBodies.push_back(Spec);
+			++GameplayObjectCount;
 			continue;
 		}
-		if (objectData.className == "PhysicsBridgeObject")
+		if (ObjectData.className == "PhysicsBridgeObject")
 		{
-			scenePhysicsRigs.push_back(ScenePhysicsRigSpec{
+			ScenePhysicsRigSpec Spec{
 				ScenePhysicsRigSpec::Type::Bridge,
-				objectData.name,
-				bounds});
-			++gameplayObjectCount;
+				ObjectData.name,
+				Bounds};
+			if (Object->HasComponent<PlatformerScene::FPhysicsBridgeComponent>())
+			{
+				const PlatformerScene::FPhysicsBridgeComponent& Component = Object->GetComponent<PlatformerScene::FPhysicsBridgeComponent>();
+				Spec.SegmentCount = Component.SegmentCount;
+			}
+			ScenePhysicsRigs.push_back(Spec);
+			++GameplayObjectCount;
 			continue;
 		}
-		if (objectData.className == "PhysicsChainObject")
+		if (ObjectData.className == "PhysicsChainObject")
 		{
-			scenePhysicsRigs.push_back(ScenePhysicsRigSpec{
+			ScenePhysicsRigSpec Spec{
 				ScenePhysicsRigSpec::Type::Chain,
-				objectData.name,
-				bounds});
-			++gameplayObjectCount;
+				ObjectData.name,
+				Bounds};
+			if (Object->HasComponent<PlatformerScene::FPhysicsChainComponent>())
+			{
+				const PlatformerScene::FPhysicsChainComponent& Component = Object->GetComponent<PlatformerScene::FPhysicsChainComponent>();
+				Spec.SegmentCount = Component.LinkCount;
+			}
+			ScenePhysicsRigs.push_back(Spec);
+			++GameplayObjectCount;
 			continue;
 		}
-		if (PlatformerScene::IsPlatformerGameplayClass(objectData.className))
+		if (PlatformerScene::IsPlatformerGameplayClass(ObjectData.className))
 		{
-			++gameplayObjectCount;
+			++GameplayObjectCount;
 			continue;
 		}
 
-		if (!objectData.visible || objectData.kind != AE::Scene::ObjectKind::AssetInstance || objectData.assetId.empty())
+		if (!ObjectData.visible || ObjectData.kind != AE::Scene::ObjectKind::AssetInstance || ObjectData.assetId.empty())
 		{
 			continue;
 		}
 
-		const std::filesystem::path assetPath = ResolveEditorSceneAssetPath(objectData.assetId);
+		const std::filesystem::path AssetPath = ResolveEditorSceneAssetPath(ObjectData.assetId);
 
-		EditorSceneProp prop;
-		prop.name = objectData.name;
-		prop.assetId = objectData.assetId;
-		prop.bounds = bounds;
-		prop.rotationDegrees = objectData.transform.rotationDegrees;
-		prop.texture = GetEditorSceneTexture(objectData.assetId, assetPath);
-		editorSceneProps.push_back(prop);
+		EditorSceneProp Prop;
+		Prop.name = ObjectData.name;
+		Prop.assetId = ObjectData.assetId;
+		Prop.bounds = Bounds;
+		Prop.rotationDegrees = ObjectData.transform.rotationDegrees;
+		Prop.texture = GetEditorSceneTexture(ObjectData.assetId, AssetPath);
+		editorSceneProps.push_back(Prop);
 	}
 
-	if (!sceneCoins.empty())
+	if (!SceneCoins.empty())
 	{
-		coins = std::move(sceneCoins);
+		coins = std::move(SceneCoins);
 	}
-	editorSolidPlatforms = std::move(sceneSolidPlatforms);
-	sceneDrivenLevel = !editorSolidPlatforms.empty();
+	EditorSolidPlatforms = std::move(SceneSolidPlatforms);
+	sceneDrivenLevel = !EditorSolidPlatforms.empty();
 	if (sceneDrivenLevel)
 	{
 		solidPlatforms.clear();
 		levelTiles.assign(LevelRows, std::string(LevelCols, '.'));
 	}
-	editorSceneEnemies = std::move(sceneEnemies);
+	editorSceneEnemies = std::move(SceneEnemies);
 	if (!editorSceneEnemies.empty())
 	{
 		enemies = editorSceneEnemies;
 		sceneEnemiesLoaded = true;
 		scriptedEnemiesLoaded = false;
-		enemyScriptPath = "scene:" + scenePath.string();
+		enemyScriptPath = "scene:" + (SceneLabel.empty() ? std::string("memory") : SceneLabel);
 	}
-	editorScenePhysicsBodies = std::move(scenePhysicsBodies);
-	editorScenePhysicsRigs = std::move(scenePhysicsRigs);
+	editorScenePhysicsBodies = std::move(ScenePhysicsBodies);
+	editorScenePhysicsRigs = std::move(ScenePhysicsRigs);
 	scenePhysicsLoaded = !editorScenePhysicsBodies.empty() || !editorScenePhysicsRigs.empty();
 
-	if (!editorSceneProps.empty() || gameplayObjectCount > 0)
+	if (!editorSceneProps.empty() || GameplayObjectCount > 0)
 	{
 		std::cout
 			<< "Loaded Platformer editor scene: props=" << editorSceneProps.size()
-			<< " gameplayObjects=" << gameplayObjectCount
-			<< " solidPlatforms=" << editorSolidPlatforms.size()
+			<< " gameplayObjects=" << GameplayObjectCount
+			<< " solidPlatforms=" << EditorSolidPlatforms.size()
 			<< " enemies=" << editorSceneEnemies.size()
 			<< " physicsBodies=" << editorScenePhysicsBodies.size()
 			<< " physicsRigs=" << editorScenePhysicsRigs.size()
@@ -3120,7 +3353,7 @@ void PlatformerGameModule::ClearEditorSceneProps()
 	sceneEnemiesLoaded = false;
 	scenePhysicsLoaded = false;
 	editorSceneProps.clear();
-	editorSolidPlatforms.clear();
+	EditorSolidPlatforms.clear();
 	editorSceneEnemies.clear();
 	editorScenePhysicsBodies.clear();
 	editorScenePhysicsRigs.clear();
@@ -3223,7 +3456,7 @@ void PlatformerGameModule::DrawEditorSceneProps() const
 		}
 		else
 		{
-			DrawRect(prop.bounds, SDL_Color{92, 153, 214, 185});
+			DrawRotatedRect(prop.bounds, prop.rotationDegrees, SDL_Color{92, 153, 214, 185});
 		}
 	}
 }
@@ -3292,6 +3525,26 @@ void PlatformerGameModule::DrawRect(const RectF& rect, SDL_Color color) const
 		static_cast<int>(std::round(rect.h)),
 		color);
 }
+
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+void PlatformerGameModule::DrawRotatedRect(const RectF& Bounds, float RotationDegrees, SDL_Color Color) const
+{
+	const std::array<AE::Math::FVector2D, 4> WorldVertices = RotatedRectVertices(Bounds, RotationDegrees);
+	std::vector<AE::Math::FVector2D> ScreenVertices;
+	ScreenVertices.reserve(WorldVertices.size());
+	for (const AE::Math::FVector2D& Vertex : WorldVertices)
+	{
+		ScreenVertices.emplace_back(Vertex.X - cameraX, Vertex.Y);
+	}
+
+	DrawFilledPolygon(ScreenVertices, Color);
+	const auto DarkenChannel = [](Uint8 Channel)
+	{
+		return static_cast<Uint8>(Channel > 48 ? Channel - 48 : 0);
+	};
+	DrawPolyline(ScreenVertices, SDL_Color{DarkenChannel(Color.r), DarkenChannel(Color.g), DarkenChannel(Color.b), Color.a}, true);
+}
+#endif
 
 void PlatformerGameModule::DrawWorldLine(const AE::Math::FVector2D& from, const AE::Math::FVector2D& to, SDL_Color color) const
 {

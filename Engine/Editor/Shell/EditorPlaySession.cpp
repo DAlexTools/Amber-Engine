@@ -24,7 +24,7 @@ void EditorPlaySession::Update()
 		Registry& registry = runtimeWorld->GetRegistry();
 		if (activeGameModule)
 		{
-			AE::GameModuleTickContext tickContext{registry, 1.0f / 60.0f, frameCount};
+			AE::GameModuleTickContext tickContext{registry, 1.0f / 60.0f, frameCount, ActiveRunMode};
 			activeGameModule->Get()->Tick(tickContext);
 		}
 		registry.Update();
@@ -53,6 +53,7 @@ bool EditorPlaySession::PlayInPIE(const PlayInPIERequest& request, const SceneDo
 	}
 
 	activeRequest = request;
+	ActiveRunMode = request.RunMode;
 	runtimeSceneDocument = editScene;
 	runtimeSceneDocument.SetDirty(false);
 	runtimeWorld = std::make_unique<AE::RuntimeWorld>();
@@ -75,6 +76,10 @@ bool EditorPlaySession::PlayInPIE(const PlayInPIERequest& request, const SceneDo
 			LogLevel::Info,
 			"Editor",
 			"Dynamic PIE module loaded; scene object registration stays editor-side until the runtime ABI is shared.");
+		LogBus::Add(
+			LogLevel::Info,
+			"Editor",
+			"PIE module path: " + activeGameModule->GetLibraryPath().string());
 	}
 
 	std::string buildError;
@@ -90,6 +95,7 @@ bool EditorPlaySession::PlayInPIE(const PlayInPIERequest& request, const SceneDo
 		runtimeDocument = {};
 		runtimeSceneDocument.NewScene();
 		runtimeSceneDocument.SetDirty(false);
+		ActiveRunMode = AE::EGameModuleRunMode::Play;
 		LogBus::Add(LogLevel::Error, "Editor", buildError.empty() ? "PIE runtime world build failed." : buildError);
 		return false;
 	}
@@ -104,7 +110,8 @@ bool EditorPlaySession::PlayInPIE(const PlayInPIERequest& request, const SceneDo
 			runtimeDocument,
 			runtimeWorld->GetRegistry(),
 			runtimeWorld->GetObjectFactory(),
-			runtimeWorld->GetSceneObjects()};
+			runtimeWorld->GetSceneObjects(),
+			ActiveRunMode};
 		if (!activeGameModule->Get()->StartPlay(startContext, &error))
 		{
 			DestroyRuntimeWorld();
@@ -112,6 +119,7 @@ bool EditorPlaySession::PlayInPIE(const PlayInPIERequest& request, const SceneDo
 			runtimeDocument = {};
 			runtimeSceneDocument.NewScene();
 			runtimeSceneDocument.SetDirty(false);
+			ActiveRunMode = AE::EGameModuleRunMode::Play;
 			LogBus::Add(LogLevel::Error, "Editor", "PIE game module start failed: " + error);
 			return false;
 		}
@@ -124,7 +132,7 @@ bool EditorPlaySession::PlayInPIE(const PlayInPIERequest& request, const SceneDo
 	LogBus::Add(
 		LogLevel::Info,
 		"Editor",
-		"PIE session started for " + activeRequest.projectName +
+		std::string(GetRunModeName()) + " session started for " + activeRequest.projectName +
 			" using game module " + std::string(GetRuntimeModuleName()) +
 			". Runtime objects: " + std::to_string(GetRuntimeObjectCount()));
 	return true;
@@ -149,7 +157,8 @@ void EditorPlaySession::Stop()
 	frameCount = 0;
 	renderCount = 0;
 	gameModuleStarted = false;
-	LogBus::Add(LogLevel::Info, "Editor", "PIE session stopped.");
+	ActiveRunMode = AE::EGameModuleRunMode::Play;
+	LogBus::Add(LogLevel::Info, "Editor", "Runtime session stopped.");
 }
 
 void EditorPlaySession::SetPaused(bool isPaused)
@@ -161,7 +170,7 @@ void EditorPlaySession::SetPaused(bool isPaused)
 	}
 
 	paused = isPaused;
-	LogBus::Add(LogLevel::Info, "Editor", paused ? "PIE session paused." : "PIE session resumed.");
+	LogBus::Add(LogLevel::Info, "Editor", paused ? "Runtime session paused." : "Runtime session resumed.");
 }
 
 bool EditorPlaySession::IsPlaying() const
@@ -217,6 +226,21 @@ const char* EditorPlaySession::GetRuntimeModuleName() const
 bool EditorPlaySession::IsRuntimeModuleDynamic() const
 {
 	return activeGameModule && activeGameModule->IsDynamic();
+}
+
+AE::EGameModuleRunMode EditorPlaySession::GetRunMode() const
+{
+	return playing ? ActiveRunMode : AE::EGameModuleRunMode::Play;
+}
+
+bool EditorPlaySession::IsSimulating() const
+{
+	return playing && ActiveRunMode == AE::EGameModuleRunMode::Simulate;
+}
+
+const char* EditorPlaySession::GetRunModeName() const
+{
+	return ActiveRunMode == AE::EGameModuleRunMode::Simulate ? "Simulate" : "PIE";
 }
 
 const std::string& EditorPlaySession::GetRequestedGameModuleTarget() const

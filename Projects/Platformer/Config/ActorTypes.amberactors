@@ -1,0 +1,74 @@
+AmberActorTypes 1
+
+actor "Platformer.PlayerSpawn" "Player Spawn" "PlayerSpawnObject" "Platformer" "Box" 28.000 42.000 "#4AB274AC" "#68E098EB"
+component "FPlayerSpawnComponent"
+endcomponent
+endactor
+
+actor "Platformer.Goal" "Goal" "GoalObject" "Platformer" "Box" 32.000 96.000 "#E45356B6" "#FF7476EB"
+component "FGoalComponent"
+endcomponent
+endactor
+
+actor "Platformer.Coin" "Coin" "CoinObject" "Platformer" "Circle" 18.000 18.000 "#E8BA44D2" "#FFD656F5"
+component "FCoinComponent"
+endcomponent
+endactor
+
+actor "Platformer.SolidPlatform" "Solid Platform" "SolidPlatformObject" "Platformer" "Box" 128.000 32.000 "#5F8E4ABE" "#80B860EB"
+component "FSolidPlatformComponent"
+endcomponent
+endactor
+
+actor "Platformer.EnemySpawn" "Enemy Spawn" "EnemySpawnObject" "Platformer" "Box" 30.000 28.000 "#CD5C5CB8" "#F08383EB"
+component "FEnemySpawnComponent"
+property "Speed" "Float" "70.000"
+property "Direction" "Float" "1.000"
+property "PatrolWidth" "Float" "192.000"
+property "MaxHealth" "Int" "2"
+property "JumpCooldown" "Float" "1.200"
+property "JumpVelocity" "Float" "-340.000"
+property "AlertRange" "Float" "260.000"
+property "CanShoot" "Bool" "false"
+property "ShootCooldown" "Float" "1.450"
+property "ShootRange" "Float" "340.000"
+property "ProjectileSpeed" "Float" "360.000"
+endcomponent
+endactor
+
+actor "Platformer.PhysicsBox" "Physics Box" "PhysicsBoxObject" "Platformer" "Box" 30.000 30.000 "#B084D8BC" "#D2B0F0EB"
+component "FPhysicsBoxComponent"
+property "Mass" "Float" "1.100"
+property "Friction" "Float" "0.240"
+property "Restitution" "Float" "0.080"
+endcomponent
+endactor
+
+actor "Platformer.PhysicsCircle" "Physics Circle" "PhysicsCircleObject" "Platformer" "Circle" 26.000 26.000 "#B084D8BC" "#D2B0F0EB"
+component "FPhysicsCircleComponent"
+property "Mass" "Float" "0.850"
+property "Friction" "Float" "0.050"
+property "Restitution" "Float" "0.320"
+endcomponent
+endactor
+
+actor "Platformer.PhysicsBridge" "Physics Bridge" "PhysicsBridgeObject" "Platformer" "Box" 370.000 96.000 "#B084D8BC" "#D2B0F0EB"
+component "FPhysicsBridgeComponent"
+property "SegmentCount" "Int" "10"
+endcomponent
+endactor
+
+actor "Platformer.PhysicsChain" "Physics Chain" "PhysicsChainObject" "Platformer" "Box" 96.000 276.000 "#B084D8BC" "#D2B0F0EB"
+component "FPhysicsChainComponent"
+property "LinkCount" "Int" "7"
+endcomponent
+endactor
+
+actor "Platformer.MovingPlatform" "Moving Platform" "MovingPlatformObject" "Platformer" "Box" 154.000 20.000 "#60A0C8BE" "#8CC8E8EB"
+component "FMovingPlatformComponent"
+property "VerticalMotion" "Bool" "false"
+property "Amplitude" "Float" "92.000"
+property "Speed" "Float" "1.150"
+property "Phase" "Float" "0.000"
+endcomponent
+endactor

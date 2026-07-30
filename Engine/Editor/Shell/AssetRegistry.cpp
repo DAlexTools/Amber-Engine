@@ -38,10 +38,10 @@ void AssetRegistry::ScanRoots(const std::vector<AssetRoot>& scanRoots)
     for (const AssetRoot& inputRoot : scanRoots)
     {
         std::error_code error;
-        std::filesystem::path canonicalRoot = std::filesystem::weakly_canonical(inputRoot.path, error);
+        std::filesystem::path canonicalRoot = std::filesystem::weakly_canonical(inputRoot.Path, error);
         if (canonicalRoot.empty())
         {
-            canonicalRoot = inputRoot.path;
+            canonicalRoot = inputRoot.Path;
         }
 
         if (!std::filesystem::exists(canonicalRoot, error) || !std::filesystem::is_directory(canonicalRoot, error))
@@ -49,7 +49,7 @@ void AssetRegistry::ScanRoots(const std::vector<AssetRoot>& scanRoots)
             continue;
         }
 
-        AssetRoot rootRecord{inputRoot.name, canonicalRoot};
+        AssetRoot rootRecord{inputRoot.Name, canonicalRoot};
         roots.push_back(rootRecord);
         if (contentRoot.empty())
         {
@@ -75,10 +75,10 @@ void AssetRegistry::ScanRoots(const std::vector<AssetRoot>& scanRoots)
             }
 
             AssetRecord asset;
-            asset.rootName = rootRecord.name;
+            asset.rootName = rootRecord.Name;
             asset.absolutePath = absolutePath;
             asset.relativePath = relativePath;
-            asset.id = MakeRuntimeAssetId(rootRecord.name, relativePath);
+            asset.id = MakeRuntimeAssetId(rootRecord.Name, relativePath);
             asset.name = absolutePath.filename().string();
             asset.type = Classify(absolutePath);
             assets.push_back(std::move(asset));

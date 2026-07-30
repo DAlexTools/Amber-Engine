@@ -46,6 +46,7 @@ struct SceneObject
 	EditorVec2 size{80.0f, 80.0f};
 	bool visible = true;
 	bool locked = false;
+	std::vector<AE::Scene::ComponentData> components;
 };
 
 class SceneDocument
@@ -64,6 +65,7 @@ public:
 	SceneObject& AddAssetInstance(std::string name, std::string assetId, EditorTransform transform);
 	SceneObject& AddBoxObject(std::string name, EditorTransform transform, EditorVec2 size = EditorVec2{96.0f, 64.0f});
 	SceneObject& AddCircleObject(std::string name, EditorTransform transform, EditorVec2 size = EditorVec2{64.0f, 64.0f});
+	SceneObject* DuplicateObject(uint32 Id, EditorVec2 Offset = EditorVec2{24.0f, 24.0f});
 	bool RemoveObject(uint32 id);
 	bool IsObjectRemovable(uint32 id) const;
 	bool SaveToFile(const std::filesystem::path& path, std::string* error = nullptr);

@@ -6,6 +6,7 @@
 #include <SDL2/SDL_image.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <vector>
 #include <utility>
@@ -14,6 +15,8 @@ namespace AE
 {
 namespace
 {
+    constexpr double Pi = 3.14159265358979323846;
+
     void SetError(std::string* error, const std::string& message)
     {
         if (error)
@@ -24,47 +27,13 @@ namespace
 
     SDL_Color ShapeFillColor(const Scene::ObjectData& object)
     {
-        if (object.className == "PlayerSpawnObject")
-        {
-            return SDL_Color{74, 178, 116, 120};
-        }
-        if (object.className == "GoalObject")
-        {
-            return SDL_Color{228, 83, 86, 120};
-        }
-        if (object.className == "CoinObject")
-        {
-            return SDL_Color{232, 186, 68, 150};
-        }
-        if (object.className == "SolidPlatformObject")
-        {
-            return SDL_Color{95, 142, 78, 140};
-        }
-
         return object.kind == Scene::ObjectKind::Circle ?
             SDL_Color{225, 142, 72, 120} :
             SDL_Color{78, 150, 204, 110};
     }
 
-    SDL_Color ShapeOutlineColor(const Scene::ObjectData& object)
+    SDL_Color ShapeOutlineColor(const Scene::ObjectData&)
     {
-        if (object.className == "PlayerSpawnObject")
-        {
-            return SDL_Color{104, 224, 152, 235};
-        }
-        if (object.className == "GoalObject")
-        {
-            return SDL_Color{255, 116, 118, 235};
-        }
-        if (object.className == "CoinObject")
-        {
-            return SDL_Color{255, 214, 86, 245};
-        }
-        if (object.className == "SolidPlatformObject")
-        {
-            return SDL_Color{128, 184, 96, 235};
-        }
-
         return SDL_Color{104, 184, 238, 230};
     }
 
@@ -73,15 +42,76 @@ namespace
         SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
     }
 
-    void DrawRectOutline(SDL_Renderer* renderer, const SDL_Rect& rect, SDL_Color color)
+    double DegreesToRadians(double Degrees)
     {
-        SetDrawColor(renderer, color);
-        SDL_RenderDrawRect(renderer, &rect);
-        if (rect.w > 2 && rect.h > 2)
+        return Degrees * Pi / 180.0;
+    }
+
+    SDL_FPoint RotatePoint(SDL_FPoint Point, SDL_FPoint Center, double RotationDegrees)
+    {
+        const double Radians = DegreesToRadians(RotationDegrees);
+        const float SinValue = static_cast<float>(std::sin(Radians));
+        const float CosValue = static_cast<float>(std::cos(Radians));
+        const float LocalX = Point.x - Center.x;
+        const float LocalY = Point.y - Center.y;
+        return SDL_FPoint{
+            Center.x + LocalX * CosValue - LocalY * SinValue,
+            Center.y + LocalX * SinValue + LocalY * CosValue
+        };
+    }
+
+    std::array<SDL_FPoint, 4> RotatedRectPoints(const SDL_Rect& Rect, double RotationDegrees)
+    {
+        const SDL_FPoint Center{
+            static_cast<float>(Rect.x) + static_cast<float>(Rect.w) * 0.5f,
+            static_cast<float>(Rect.y) + static_cast<float>(Rect.h) * 0.5f
+        };
+        std::array<SDL_FPoint, 4> Points = {
+            SDL_FPoint{static_cast<float>(Rect.x), static_cast<float>(Rect.y)},
+            SDL_FPoint{static_cast<float>(Rect.x + Rect.w), static_cast<float>(Rect.y)},
+            SDL_FPoint{static_cast<float>(Rect.x + Rect.w), static_cast<float>(Rect.y + Rect.h)},
+            SDL_FPoint{static_cast<float>(Rect.x), static_cast<float>(Rect.y + Rect.h)}
+        };
+
+        for (SDL_FPoint& Point : Points)
         {
-            SDL_Rect inner{rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2};
-            SDL_RenderDrawRect(renderer, &inner);
+            Point = RotatePoint(Point, Center, RotationDegrees);
         }
+        return Points;
+    }
+
+    void DrawLine(SDL_Renderer* Renderer, SDL_FPoint First, SDL_FPoint Second)
+    {
+        SDL_RenderDrawLine(
+            Renderer,
+            static_cast<int>(std::round(First.x)),
+            static_cast<int>(std::round(First.y)),
+            static_cast<int>(std::round(Second.x)),
+            static_cast<int>(std::round(Second.y)));
+    }
+
+    void DrawFilledRotatedRect(
+        SDL_Renderer* Renderer,
+        const SDL_Rect& Rect,
+        double RotationDegrees,
+        SDL_Color Fill,
+        SDL_Color Outline)
+    {
+        const std::array<SDL_FPoint, 4> Points = RotatedRectPoints(Rect, RotationDegrees);
+        SDL_Vertex Vertices[4] = {
+            SDL_Vertex{Points[0], Fill, SDL_FPoint{0.0f, 0.0f}},
+            SDL_Vertex{Points[1], Fill, SDL_FPoint{1.0f, 0.0f}},
+            SDL_Vertex{Points[2], Fill, SDL_FPoint{1.0f, 1.0f}},
+            SDL_Vertex{Points[3], Fill, SDL_FPoint{0.0f, 1.0f}}
+        };
+        const int Indices[6] = {0, 1, 2, 0, 2, 3};
+        SDL_RenderGeometry(Renderer, nullptr, Vertices, 4, Indices, 6);
+
+        SetDrawColor(Renderer, Outline);
+        DrawLine(Renderer, Points[0], Points[1]);
+        DrawLine(Renderer, Points[1], Points[2]);
+        DrawLine(Renderer, Points[2], Points[3]);
+        DrawLine(Renderer, Points[3], Points[0]);
     }
 
     void DrawFilledCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius, SDL_Color fill, SDL_Color outline)
@@ -331,9 +361,7 @@ void RuntimeSceneRendererSDL::RenderDocumentObjects(
         {
             SDL_Color fill = ShapeFillColor(object);
             SDL_Color outline = ShapeOutlineColor(object);
-            SetDrawColor(renderer, fill);
-            SDL_RenderFillRect(renderer, &rect);
-            DrawRectOutline(renderer, rect, outline);
+            DrawFilledRotatedRect(renderer, rect, object.transform.rotationDegrees, fill, outline);
         }
     }
 }
@@ -384,9 +412,7 @@ bool RuntimeSceneRendererSDL::RenderRegistryObjects(
             {
                 const SDL_Color fill = ShapeFillColor(objectData);
                 const SDL_Color outline = ShapeOutlineColor(objectData);
-                SetDrawColor(renderer, fill);
-                SDL_RenderFillRect(renderer, &rect);
-                DrawRectOutline(renderer, rect, outline);
+                DrawFilledRotatedRect(renderer, rect, transform.rotation, fill, outline);
             }
 
             renderedAny = true;
@@ -484,10 +510,10 @@ bool RuntimeSceneRendererSDL::RenderRegistryObjects(
 SDL_Texture* RuntimeSceneRendererSDL::GetTexture(const std::string& assetId, const RuntimeSceneRendererConfig& config)
 {
     RuntimeAssetResolverConfig resolverConfig;
-    resolverConfig.projectRoot = config.projectRoot;
-    resolverConfig.engineRoot = config.engineRoot;
-    resolverConfig.contentRoot = config.contentRoot;
-    resolverConfig.roots = config.assetRoots;
+    resolverConfig.ProjectRoot = config.projectRoot;
+    resolverConfig.EngineRoot = config.engineRoot;
+    resolverConfig.ContentRoot = config.contentRoot;
+    resolverConfig.Roots = config.assetRoots;
     textureCache.SetResolverConfig(std::move(resolverConfig));
 
     RuntimeTextureSDL* texture = textureCache.GetTexture(assetId);

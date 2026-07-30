@@ -23,6 +23,7 @@ struct PlayInPIERequest
 	std::filesystem::path scenePath;
 	std::string gameModuleTarget;
 	std::string playTarget;
+	AE::EGameModuleRunMode RunMode = AE::EGameModuleRunMode::Play;
 };
 
 class EditorPlaySession
@@ -47,6 +48,9 @@ public:
 	uint64 GetRenderCount() const;
 	const char* GetRuntimeModuleName() const;
 	bool IsRuntimeModuleDynamic() const;
+	AE::EGameModuleRunMode GetRunMode() const;
+	bool IsSimulating() const;
+	const char* GetRunModeName() const;
 	const std::string& GetRequestedGameModuleTarget() const;
 
 private:
@@ -63,6 +67,7 @@ private:
 	bool gameModuleStarted = false;
 	bool playing = false;
 	bool paused = false;
+	AE::EGameModuleRunMode ActiveRunMode = AE::EGameModuleRunMode::Play;
 };
 
 } // namespace AE::Editor

@@ -53,6 +53,7 @@ endif()
 
 if(TARGET ImGuiSDL AND TARGET EditorOutputLog AND SDL2_TARGET_FOUND AND SDL2_IMAGE_TARGET_FOUND)
     add_library(EditorShell STATIC
+        ${ENGINE_EDITOR_SHELL_DIR}/ActorTypeRegistry.cpp
         ${ENGINE_EDITOR_SHELL_DIR}/AssetRegistry.cpp
         ${ENGINE_EDITOR_SHELL_DIR}/EditorViewport.cpp
         ${ENGINE_EDITOR_SHELL_DIR}/EditorApplication.cpp

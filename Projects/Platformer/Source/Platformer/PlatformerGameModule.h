@@ -3,6 +3,7 @@
 
 #include <SDL2/SDL.h>
 
+#include <array>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -45,10 +46,14 @@ public:
 
 	int Run();
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
-	void SetEditorScenePath(std::filesystem::path path);
+	void SetEditorScenePath(std::filesystem::path Path);
 #endif
 #if SMOKE_TEST
 	bool RunSmokeTest();
+#endif
+#if SMOKE_TEST && AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+	AE::Math::FVector2D GetPlayerSpawnForTests() const;
+	SizeT GetEditorSolidPlatformCountForTests() const;
 #endif
 
 private:
@@ -156,6 +161,24 @@ private:
 		SDL_Texture* texture = nullptr;
 	};
 
+	struct FEditorSolidPlatform
+	{
+		RectF Bounds;
+		float RotationDegrees = 0.0f;
+	};
+
+	struct FCollisionProjection
+	{
+		float Min = 0.0f;
+		float Max = 0.0f;
+	};
+
+	struct FCollisionResult
+	{
+		bool Intersects = false;
+		AE::Math::FVector2D MinimumTranslation;
+	};
+
 	struct ScenePhysicsBodySpec
 	{
 		enum class Type
@@ -169,6 +192,13 @@ private:
 		std::string name;
 		RectF bounds;
 		bool verticalMotion = false;
+		float Mass = 1.1f;
+		float Friction = 0.24f;
+		float Restitution = 0.08f;
+		float MotionAmplitude = 92.0f;
+		float MotionSpeed = 1.15f;
+		float MotionPhase = 0.0f;
+		float RotationDegrees = 0.0f;
 	};
 
 	struct ScenePhysicsRigSpec
@@ -182,6 +212,7 @@ private:
 		Type type = Type::Bridge;
 		std::string name;
 		RectF bounds;
+		int32 SegmentCount = 0;
 	};
 #endif
 
@@ -208,6 +239,7 @@ private:
 	bool ownsImageSystem = false;
 #endif
 	bool running = false;
+	bool SimulateOnly = false;
 #if SMOKE_TEST
 	bool smokeMode = false;
 #endif
@@ -258,7 +290,7 @@ private:
 	std::unique_ptr<Registry> editorSceneRegistry;
 	std::vector<std::unique_ptr<AE::Scene::Object>> editorSceneObjects;
 	std::vector<EditorSceneProp> editorSceneProps;
-	std::vector<RectF> editorSolidPlatforms;
+	std::vector<FEditorSolidPlatform> EditorSolidPlatforms;
 	std::vector<Enemy> editorSceneEnemies;
 	std::vector<ScenePhysicsBodySpec> editorScenePhysicsBodies;
 	std::vector<ScenePhysicsRigSpec> editorScenePhysicsRigs;
@@ -310,6 +342,16 @@ private:
 	static int ClampInt(int value, int minValue, int maxValue);
 	static float ClampFloat(float value, float minValue, float maxValue);
 	static float MoveTowardZero(float value, float amount);
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+	static float DegreesToRadians(float Degrees);
+	static AE::Math::FVector2D RectCenter(const RectF& Bounds);
+	static std::array<AE::Math::FVector2D, 4> RectVertices(const RectF& Bounds);
+	static std::array<AE::Math::FVector2D, 4> RotatedRectVertices(const RectF& Bounds, float RotationDegrees);
+	static FCollisionProjection ProjectVertices(const std::array<AE::Math::FVector2D, 4>& Vertices, const AE::Math::FVector2D& Axis);
+	static FCollisionResult IntersectAabbWithRotatedRect(const RectF& Bounds, const FEditorSolidPlatform& Platform);
+	static bool IntersectsEditorSolidPlatform(const RectF& Bounds, const FEditorSolidPlatform& Platform);
+	bool ResolveEditorSolidPlatformCollision(const FEditorSolidPlatform& Platform, bool Horizontal);
+#endif
 
 	void Render();
 	void RenderFrameContents();
@@ -328,6 +370,7 @@ private:
 	void DrawPhysics() const;
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
 	void LoadEditorSceneProps();
+	void LoadEditorSceneProps(const AE::Scene::Document& SceneDocument, const std::string& SceneLabel);
 	void ClearEditorSceneProps();
 	void RefreshEditorSceneTextures();
 	bool BuildEditorSceneEnemy(const AE::Scene::ObjectData& objectData, const RectF& bounds, Enemy& enemy) const;
@@ -344,6 +387,9 @@ private:
 	void DrawFinish() const;
 	void DrawHud() const;
 	void DrawRect(const RectF& rect, SDL_Color color) const;
+#if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
+	void DrawRotatedRect(const RectF& Bounds, float RotationDegrees, SDL_Color Color) const;
+#endif
 	void DrawWorldLine(const AE::Math::FVector2D& from, const AE::Math::FVector2D& to, SDL_Color color) const;
 	void DrawFilledCircle(int centerX, int centerY, int radius, SDL_Color color) const;
 	void DrawFilledPolygon(const std::vector<AE::Math::FVector2D>& vertices, SDL_Color color) const;

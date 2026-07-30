@@ -16,6 +16,7 @@ struct ProjectDescriptor
     std::string gameModuleTarget;
     std::string playTarget;
     std::filesystem::path startupScene;
+    std::filesystem::path actorTypes;
     std::filesystem::path contentRoot;
     std::string buildPreset;
     std::filesystem::path solutionPath;

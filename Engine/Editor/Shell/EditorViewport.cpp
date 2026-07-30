@@ -1,21 +1,80 @@
 #include "EditorViewport.h"
 
+#include "ActorTypeRegistry.h"
 #include "AssetRegistry.h"
 #include "SelectionService.h"
 #include "TextureCache.h"
 #include "imgui.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace AE::Editor
 {
 namespace
 {
+constexpr float Pi = 3.14159265358979323846f;
+
 bool Contains(float x, float y, const EditorViewport::ObjectBounds& bounds)
 {
 	return x >= bounds.x && x <= bounds.x + bounds.w &&
 		   y >= bounds.y && y <= bounds.y + bounds.h;
+}
+
+float DegreesToRadians(float Degrees)
+{
+	return Degrees * Pi / 180.0f;
+}
+
+float MouseAngleDegrees(const ImVec2& Center, const ImVec2& Mouse)
+{
+	return std::atan2(Mouse.y - Center.y, Mouse.x - Center.x) * 180.0f / Pi;
+}
+
+float NormalizeDegrees(float Degrees)
+{
+	float Result = std::fmod(Degrees, 360.0f);
+	if (Result < 0.0f)
+	{
+		Result += 360.0f;
+	}
+	return Result;
+}
+
+ImVec2 RotatePoint(const ImVec2& Point, const ImVec2& Center, float RotationDegrees)
+{
+	const float Radians = DegreesToRadians(RotationDegrees);
+	const float SinValue = std::sin(Radians);
+	const float CosValue = std::cos(Radians);
+	const float LocalX = Point.x - Center.x;
+	const float LocalY = Point.y - Center.y;
+	return ImVec2{
+		Center.x + LocalX * CosValue - LocalY * SinValue,
+		Center.y + LocalX * SinValue + LocalY * CosValue};
+}
+
+std::array<ImVec2, 4> RotatedQuad(const EditorViewport::ObjectBounds& Bounds, float RotationDegrees)
+{
+	const ImVec2 Center(Bounds.x + Bounds.w * 0.5f, Bounds.y + Bounds.h * 0.5f);
+	std::array<ImVec2, 4> Points = {
+		ImVec2(Bounds.x, Bounds.y),
+		ImVec2(Bounds.x + Bounds.w, Bounds.y),
+		ImVec2(Bounds.x + Bounds.w, Bounds.y + Bounds.h),
+		ImVec2(Bounds.x, Bounds.y + Bounds.h)};
+
+	for (ImVec2& Point : Points)
+	{
+		Point = RotatePoint(Point, Center, RotationDegrees);
+	}
+	return Points;
+}
+
+bool ContainsRotatedBounds(const ImVec2& Mouse, const EditorViewport::ObjectBounds& Bounds, float RotationDegrees)
+{
+	const ImVec2 Center(Bounds.x + Bounds.w * 0.5f, Bounds.y + Bounds.h * 0.5f);
+	const ImVec2 UnrotatedMouse = RotatePoint(Mouse, Center, -RotationDegrees);
+	return Contains(UnrotatedMouse.x, UnrotatedMouse.y, Bounds);
 }
 
 ImTextureID ToImTextureId(SDL_Texture* texture)
@@ -28,54 +87,113 @@ bool IsShapeObject(const SceneObject& object)
 	return object.kind == SceneObjectKind::Box || object.kind == SceneObjectKind::Circle;
 }
 
-ImU32 ShapeFillColor(const SceneObject& object, bool playing)
+constexpr float MinimumObjectScale = 0.05f;
+
+float ClampObjectScale(float Value)
 {
-	if (object.className == "PlayerSpawnObject")
-	{
-		return IM_COL32(74, 178, 116, playing ? 95 : 72);
-	}
-	if (object.className == "GoalObject")
-	{
-		return IM_COL32(228, 83, 86, playing ? 95 : 72);
-	}
-	if (object.className == "CoinObject")
-	{
-		return IM_COL32(232, 186, 68, playing ? 120 : 96);
-	}
-	if (object.className == "SolidPlatformObject")
-	{
-		return IM_COL32(95, 142, 78, playing ? 105 : 82);
-	}
-	return object.kind == SceneObjectKind::Circle ? IM_COL32(225, 142, 72, playing ? 95 : 72) : IM_COL32(78, 150, 204, playing ? 90 : 68);
+	return std::max(MinimumObjectScale, Value);
 }
 
-ImU32 ShapeOutlineColor(const SceneObject& object, bool selected, bool playing)
+EditorVec2 ClampObjectScale(EditorVec2 Value)
 {
-	if (selected)
+	Value.x = ClampObjectScale(Value.x);
+	Value.y = ClampObjectScale(Value.y);
+	return Value;
+}
+
+bool CanScaleObject(const SceneObject& Object)
+{
+	return Object.kind == SceneObjectKind::AssetInstance ||
+		   Object.kind == SceneObjectKind::Box ||
+		   Object.kind == SceneObjectKind::Circle ||
+		   Object.kind == SceneObjectKind::Empty;
+}
+
+ImVec2 Midpoint(const ImVec2& First, const ImVec2& Second)
+{
+	return ImVec2((First.x + Second.x) * 0.5f, (First.y + Second.y) * 0.5f);
+}
+
+bool ContainsHandle(const ImVec2& Mouse, const ImVec2& HandleCenter, float Radius)
+{
+	return std::fabs(Mouse.x - HandleCenter.x) <= Radius &&
+		   std::fabs(Mouse.y - HandleCenter.y) <= Radius;
+}
+
+EditorVec2 RotateDeltaToLocal(EditorVec2 Delta, float RotationDegrees)
+{
+	const float Radians = DegreesToRadians(RotationDegrees);
+	const float SinValue = std::sin(Radians);
+	const float CosValue = std::cos(Radians);
+	return EditorVec2{
+		Delta.x * CosValue + Delta.y * SinValue,
+		-Delta.x * SinValue + Delta.y * CosValue};
+}
+
+ImU32 PreviewColor(const FActorPreviewColor& Color)
+{
+	return IM_COL32(Color.R, Color.G, Color.B, Color.A);
+}
+
+ImU32 ShapeFillColor(const SceneObject& Object, bool Playing, const FActorTypeRegistry* ActorTypeRegistry)
+{
+	if (ActorTypeRegistry)
+	{
+		if (const FActorTypeDefinition* ActorType = ActorTypeRegistry->FindByClassName(Object.className))
+		{
+			FActorPreviewColor Color = ActorType->FillColor;
+			if (Playing)
+			{
+				Color.A = static_cast<uint8>(std::min<int>(Color.A, 120));
+			}
+			return PreviewColor(Color);
+		}
+	}
+
+	return Object.kind == SceneObjectKind::Circle ?
+		IM_COL32(225, 142, 72, Playing ? 95 : 72) :
+		IM_COL32(78, 150, 204, Playing ? 90 : 68);
+}
+
+ImU32 ShapeOutlineColor(
+	const SceneObject& Object,
+	bool Selected,
+	bool Playing,
+	const FActorTypeRegistry* ActorTypeRegistry)
+{
+	if (Selected)
 	{
 		return IM_COL32(255, 211, 91, 255);
 	}
-	if (object.className == "PlayerSpawnObject")
+
+	if (ActorTypeRegistry)
 	{
-		return IM_COL32(104, 224, 152, 235);
+		if (const FActorTypeDefinition* ActorType = ActorTypeRegistry->FindByClassName(Object.className))
+		{
+			return PreviewColor(ActorType->OutlineColor);
+		}
 	}
-	if (object.className == "GoalObject")
+
+	return Playing ? IM_COL32(102, 206, 138, 230) : IM_COL32(104, 184, 238, 230);
+}
+
+std::string PayloadString(const ImGuiPayload& Payload)
+{
+	if (!Payload.Data || Payload.DataSize <= 0)
 	{
-		return IM_COL32(255, 116, 118, 235);
+		return {};
 	}
-	if (object.className == "CoinObject")
+
+	std::string Value(static_cast<const char*>(Payload.Data), static_cast<SizeT>(Payload.DataSize));
+	if (!Value.empty() && Value.back() == '\0')
 	{
-		return IM_COL32(255, 214, 86, 245);
+		Value.pop_back();
 	}
-	if (object.className == "SolidPlatformObject")
-	{
-		return IM_COL32(128, 184, 96, 235);
-	}
-	return playing ? IM_COL32(102, 206, 138, 230) : IM_COL32(104, 184, 238, 230);
+	return Value;
 }
 } // namespace
 
-std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
+std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 	SceneDocument& sceneDocument,
 	SelectionService& selection,
 	const AssetRegistry& assetRegistry,
@@ -84,6 +202,7 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
 	SDL_Window* window,
 	SDL_Renderer* renderer,
 	const ProjectDescriptor* activeProject,
+	const FActorTypeRegistry* actorTypeRegistry,
 	ViewportMode mode,
 	bool paused,
 	Registry* runtimeRegistry,
@@ -92,7 +211,8 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
 	(void)assetRegistry;
 	(void)textureCache;
 
-	std::optional<AssetDropRequest> dropRequest;
+	std::optional<FDropRequest> DropRequest;
+	PendingContextMenuRequest.reset();
 	const bool playing = mode == ViewportMode::PlayOutput;
 	const bool editEnabled = mode == ViewportMode::EditPreview;
 
@@ -160,6 +280,8 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
 		panStartCamera = EditorVec2{cameraX, cameraY};
 		activeGizmoAxis = GizmoAxis::None;
 		activeGizmoObjectId = 0;
+		ActiveScaleGizmoAxis = GizmoAxis::None;
+		ActiveScaleGizmoObjectId = 0;
 	}
 
 	if (panning)
@@ -283,8 +405,9 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
 
 			const ObjectBounds screenBounds = boundsToScreen(GetObjectBounds(object));
 			const bool selected = editEnabled && selection.IsSceneObjectSelected(object.id);
-			const ImU32 color = IsShapeObject(object) ? ShapeOutlineColor(object, selected, playing) : (selected ? IM_COL32(255, 211, 91, 255) : (playing ? IM_COL32(102, 206, 138, 220) : IM_COL32(92, 153, 214, 220)));
+			const ImU32 color = IsShapeObject(object) ? ShapeOutlineColor(object, selected, playing, actorTypeRegistry) : (selected ? IM_COL32(255, 211, 91, 255) : (playing ? IM_COL32(102, 206, 138, 220) : IM_COL32(92, 153, 214, 220)));
 			const float thickness = selected ? 3.0f : 2.0f;
+			const std::array<ImVec2, 4> ScreenQuad = RotatedQuad(screenBounds, object.transform.rotationDegrees);
 
 			const AssetRecord* asset = object.assetId.empty() ? nullptr : assetRegistry.FindAssetById(object.assetId);
 			TexturePreview* preview = asset ? textureCache.GetTexture(*asset) : nullptr;
@@ -304,28 +427,30 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
 					}
 					else
 					{
-						drawList->AddRect(
-							ImVec2(screenBounds.x, screenBounds.y),
-							ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
+						drawList->AddQuad(
+							ScreenQuad[0],
+							ScreenQuad[1],
+							ScreenQuad[2],
+							ScreenQuad[3],
 							color,
-							2.0f,
-							0,
 							thickness);
 					}
 				}
 			}
 			else if (preview && preview->texture)
 			{
-				drawList->AddImage(
+				drawList->AddImageQuad(
 					ToImTextureId(preview->texture),
-					ImVec2(screenBounds.x, screenBounds.y),
-					ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h));
-				drawList->AddRect(
-					ImVec2(screenBounds.x, screenBounds.y),
-					ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
+					ScreenQuad[0],
+					ScreenQuad[1],
+					ScreenQuad[2],
+					ScreenQuad[3]);
+				drawList->AddQuad(
+					ScreenQuad[0],
+					ScreenQuad[1],
+					ScreenQuad[2],
+					ScreenQuad[3],
 					color,
-					2.0f,
-					0,
 					thickness);
 			}
 			else if (object.kind == SceneObjectKind::Camera)
@@ -343,32 +468,33 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
 					screenBounds.x + screenBounds.w * 0.5f,
 					screenBounds.y + screenBounds.h * 0.5f);
 				const float radius = std::max(4.0f, std::min(screenBounds.w, screenBounds.h) * 0.5f);
-				drawList->AddCircleFilled(center, radius, ShapeFillColor(object, playing), 32);
+				drawList->AddCircleFilled(center, radius, ShapeFillColor(object, playing, actorTypeRegistry), 32);
 				drawList->AddCircle(center, radius, color, 32, thickness);
 			}
 			else if (object.kind == SceneObjectKind::Box)
 			{
-				drawList->AddRectFilled(
-					ImVec2(screenBounds.x, screenBounds.y),
-					ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
-					ShapeFillColor(object, playing),
-					2.0f);
-				drawList->AddRect(
-					ImVec2(screenBounds.x, screenBounds.y),
-					ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
+				drawList->AddQuadFilled(
+					ScreenQuad[0],
+					ScreenQuad[1],
+					ScreenQuad[2],
+					ScreenQuad[3],
+					ShapeFillColor(object, playing, actorTypeRegistry));
+				drawList->AddQuad(
+					ScreenQuad[0],
+					ScreenQuad[1],
+					ScreenQuad[2],
+					ScreenQuad[3],
 					color,
-					2.0f,
-					0,
 					thickness);
 			}
 			else
 			{
-				drawList->AddRect(
-					ImVec2(screenBounds.x, screenBounds.y),
-					ImVec2(screenBounds.x + screenBounds.w, screenBounds.y + screenBounds.h),
+				drawList->AddQuad(
+					ScreenQuad[0],
+					ScreenQuad[1],
+					ScreenQuad[2],
+					ScreenQuad[3],
 					color,
-					2.0f,
-					0,
 					thickness);
 			}
 
@@ -507,6 +633,211 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
 		drawList->AddText(ImVec2(yEnd.x - 4.0f, yEnd.y + 14.0f), yColor, "Y");
 	}
 
+	if (!editEnabled || activeTool != EditorTool::Rotate || !selectedObject || !selectedObject->visible || selectedObject->locked)
+	{
+		RotatingObject = false;
+		RotatingObjectId = 0;
+	}
+	else
+	{
+		activeGizmoAxis = GizmoAxis::None;
+		activeGizmoObjectId = 0;
+
+		const ObjectBounds SelectedScreenBounds = boundsToScreen(GetObjectBounds(*selectedObject));
+		const ImVec2 Center = worldToScreen(selectedObject->transform.position);
+		const ImVec2 Mouse = ImGui::GetIO().MousePos;
+		const float Radius = std::max(34.0f, std::max(SelectedScreenBounds.w, SelectedScreenBounds.h) * 0.62f);
+		const float DistanceX = Mouse.x - Center.x;
+		const float DistanceY = Mouse.y - Center.y;
+		const float Distance = std::sqrt(DistanceX * DistanceX + DistanceY * DistanceY);
+		const bool HitRotationRing = Distance >= Radius - 16.0f && Distance <= Radius + 16.0f;
+		const bool HitSelectedObject = ContainsRotatedBounds(
+			Mouse,
+			SelectedScreenBounds,
+			selectedObject->transform.rotationDegrees);
+
+		if (!RotatingObject && canvasHovered && ImGui::IsMouseClicked(0) && (HitRotationRing || HitSelectedObject))
+		{
+			RotatingObject = true;
+			RotatingObjectId = selectedObject->id;
+			DragStartRotationDegrees = selectedObject->transform.rotationDegrees;
+			DragStartMouseAngleDegrees = MouseAngleDegrees(Center, Mouse);
+			canvasClickConsumed = true;
+		}
+
+		if (RotatingObject)
+		{
+			if (!ImGui::IsMouseDown(0))
+			{
+				RotatingObject = false;
+				RotatingObjectId = 0;
+			}
+			else if (RotatingObjectId == selectedObject->id)
+			{
+				const float CurrentMouseAngleDegrees = MouseAngleDegrees(Center, Mouse);
+				const float DeltaDegrees = CurrentMouseAngleDegrees - DragStartMouseAngleDegrees;
+				selectedObject->transform.rotationDegrees = NormalizeDegrees(DragStartRotationDegrees + DeltaDegrees);
+				sceneDocument.SetDirty(true);
+				canvasClickConsumed = true;
+			}
+			else
+			{
+				RotatingObject = false;
+				RotatingObjectId = 0;
+			}
+		}
+
+		const float RotationRadians = DegreesToRadians(selectedObject->transform.rotationDegrees);
+		const ImVec2 Handle(
+			Center.x + std::cos(RotationRadians) * Radius,
+			Center.y + std::sin(RotationRadians) * Radius);
+		const ImU32 RingColor = RotatingObject ? IM_COL32(255, 211, 91, 255) : IM_COL32(134, 185, 236, 230);
+		drawList->AddCircle(Center, Radius, IM_COL32(24, 24, 24, 180), 48, 5.0f);
+		drawList->AddCircle(Center, Radius, RingColor, 48, 2.0f);
+		drawList->AddLine(Center, Handle, RingColor, 2.0f);
+		drawList->AddCircleFilled(Handle, 6.0f, RingColor, 24);
+		drawList->AddCircle(Handle, 6.0f, IM_COL32(20, 20, 20, 220), 24, 1.0f);
+	}
+
+	if (!editEnabled || activeTool != EditorTool::Scale || !selectedObject || !selectedObject->visible || selectedObject->locked || !CanScaleObject(*selectedObject))
+	{
+		ActiveScaleGizmoAxis = GizmoAxis::None;
+		ActiveScaleGizmoObjectId = 0;
+	}
+	else
+	{
+		activeGizmoAxis = GizmoAxis::None;
+		activeGizmoObjectId = 0;
+		RotatingObject = false;
+		RotatingObjectId = 0;
+
+		const ObjectBounds SelectedScreenBounds = boundsToScreen(GetObjectBounds(*selectedObject));
+		const std::array<ImVec2, 4> SelectedQuad = RotatedQuad(SelectedScreenBounds, selectedObject->transform.rotationDegrees);
+		const ImVec2 Mouse = ImGui::GetIO().MousePos;
+		const ImVec2 RightHandle = Midpoint(SelectedQuad[1], SelectedQuad[2]);
+		const ImVec2 BottomHandle = Midpoint(SelectedQuad[2], SelectedQuad[3]);
+		const ImVec2 CornerHandle = SelectedQuad[2];
+		const float HandleRadius = 9.0f;
+
+		auto HitScaleGizmo = [&]() -> GizmoAxis
+		{
+			if (ContainsHandle(Mouse, CornerHandle, HandleRadius + 2.0f))
+			{
+				return GizmoAxis::XY;
+			}
+			if (ContainsHandle(Mouse, RightHandle, HandleRadius))
+			{
+				return GizmoAxis::X;
+			}
+			if (ContainsHandle(Mouse, BottomHandle, HandleRadius))
+			{
+				return GizmoAxis::Y;
+			}
+			return GizmoAxis::None;
+		};
+
+		if (ActiveScaleGizmoAxis == GizmoAxis::None && canvasHovered && ImGui::IsMouseClicked(0))
+		{
+			const GizmoAxis HitAxis = HitScaleGizmo();
+			if (HitAxis != GizmoAxis::None)
+			{
+				ActiveScaleGizmoAxis = HitAxis;
+				ActiveScaleGizmoObjectId = selectedObject->id;
+				DragStartScaleMouseWorld = screenToWorld(Mouse);
+				DragStartObjectScale = ClampObjectScale(selectedObject->transform.scale);
+				canvasClickConsumed = true;
+			}
+		}
+
+		if (ActiveScaleGizmoAxis != GizmoAxis::None)
+		{
+			if (!ImGui::IsMouseDown(0))
+			{
+				ActiveScaleGizmoAxis = GizmoAxis::None;
+				ActiveScaleGizmoObjectId = 0;
+			}
+			else if (ActiveScaleGizmoObjectId == selectedObject->id)
+			{
+				const EditorVec2 MouseWorld = screenToWorld(Mouse);
+				const EditorVec2 WorldDelta{
+					MouseWorld.x - DragStartScaleMouseWorld.x,
+					MouseWorld.y - DragStartScaleMouseWorld.y};
+				const EditorVec2 LocalDelta = RotateDeltaToLocal(WorldDelta, selectedObject->transform.rotationDegrees);
+				const float BaseWidth = std::max(1.0f, std::fabs(selectedObject->size.x));
+				const float BaseHeight = std::max(1.0f, std::fabs(selectedObject->size.y));
+				EditorVec2 Scale = DragStartObjectScale;
+
+				if (ActiveScaleGizmoAxis == GizmoAxis::X || ActiveScaleGizmoAxis == GizmoAxis::XY)
+				{
+					Scale.x = ClampObjectScale(DragStartObjectScale.x + (LocalDelta.x * 2.0f) / BaseWidth);
+				}
+				if (ActiveScaleGizmoAxis == GizmoAxis::Y || ActiveScaleGizmoAxis == GizmoAxis::XY)
+				{
+					Scale.y = ClampObjectScale(DragStartObjectScale.y + (LocalDelta.y * 2.0f) / BaseHeight);
+				}
+
+				selectedObject->transform.scale = Scale;
+				sceneDocument.SetDirty(true);
+				canvasClickConsumed = true;
+			}
+			else
+			{
+				ActiveScaleGizmoAxis = GizmoAxis::None;
+				ActiveScaleGizmoObjectId = 0;
+			}
+		}
+
+		const ObjectBounds UpdatedScreenBounds = boundsToScreen(GetObjectBounds(*selectedObject));
+		const std::array<ImVec2, 4> UpdatedQuad = RotatedQuad(UpdatedScreenBounds, selectedObject->transform.rotationDegrees);
+		const ImVec2 UpdatedRightHandle = Midpoint(UpdatedQuad[1], UpdatedQuad[2]);
+		const ImVec2 UpdatedBottomHandle = Midpoint(UpdatedQuad[2], UpdatedQuad[3]);
+		const ImVec2 UpdatedCornerHandle = UpdatedQuad[2];
+		const bool XActive = ActiveScaleGizmoAxis == GizmoAxis::X || ActiveScaleGizmoAxis == GizmoAxis::XY;
+		const bool YActive = ActiveScaleGizmoAxis == GizmoAxis::Y || ActiveScaleGizmoAxis == GizmoAxis::XY;
+		const ImU32 XColor = XActive ? IM_COL32(255, 102, 102, 255) : IM_COL32(222, 72, 72, 255);
+		const ImU32 YColor = YActive ? IM_COL32(102, 235, 142, 255) : IM_COL32(72, 190, 104, 255);
+		const ImU32 CornerColor = ActiveScaleGizmoAxis == GizmoAxis::XY ? IM_COL32(255, 226, 96, 255) : IM_COL32(236, 196, 76, 255);
+		const ImVec2 Center = worldToScreen(selectedObject->transform.position);
+
+		drawList->AddQuad(
+			UpdatedQuad[0],
+			UpdatedQuad[1],
+			UpdatedQuad[2],
+			UpdatedQuad[3],
+			IM_COL32(24, 24, 24, 190),
+			5.0f);
+		drawList->AddQuad(
+			UpdatedQuad[0],
+			UpdatedQuad[1],
+			UpdatedQuad[2],
+			UpdatedQuad[3],
+			IM_COL32(255, 211, 91, 235),
+			2.0f);
+		drawList->AddLine(Center, UpdatedRightHandle, XColor, 2.0f);
+		drawList->AddLine(Center, UpdatedBottomHandle, YColor, 2.0f);
+		drawList->AddLine(Center, UpdatedCornerHandle, CornerColor, 2.0f);
+
+		auto DrawScaleHandle = [&](const ImVec2& Position, ImU32 Color, float Radius)
+		{
+			drawList->AddRectFilled(
+				ImVec2(Position.x - Radius, Position.y - Radius),
+				ImVec2(Position.x + Radius, Position.y + Radius),
+				Color,
+				2.0f);
+			drawList->AddRect(
+				ImVec2(Position.x - Radius, Position.y - Radius),
+				ImVec2(Position.x + Radius, Position.y + Radius),
+				IM_COL32(20, 20, 20, 220),
+				2.0f,
+				0,
+				1.0f);
+		};
+
+		DrawScaleHandle(UpdatedRightHandle, XColor, 6.0f);
+		DrawScaleHandle(UpdatedBottomHandle, YColor, 6.0f);
+		DrawScaleHandle(UpdatedCornerHandle, CornerColor, 7.0f);
+	}
+
 	if (paused)
 	{
 		drawList->AddText(ImVec2(canvasPos.x + 12.0f, canvasPos.y + 12.0f), IM_COL32(255, 216, 120, 255), "Paused");
@@ -520,50 +851,97 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
 
 	if (editEnabled && ImGui::BeginDragDropTarget())
 	{
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AMBER_ASSET"))
+		auto BuildWorldPosition = [&]() -> EditorVec2
 		{
-			if (payload->IsDelivery() && payload->Data && payload->DataSize > 0)
-			{
-				std::string assetId(static_cast<const char*>(payload->Data), static_cast<SizeT>(payload->DataSize));
-				if (!assetId.empty() && assetId.back() == '\0')
-				{
-					assetId.pop_back();
-				}
+			const ImVec2 Mouse = ImGui::GetIO().MousePos;
+			return EditorVec2{
+				cameraX + (Mouse.x - canvasCenter.x) / zoom,
+				cameraY + (Mouse.y - canvasCenter.y) / zoom};
+		};
 
-				const ImVec2 mouse = ImGui::GetIO().MousePos;
-				dropRequest = AssetDropRequest{
-					assetId,
-					EditorVec2{
-						cameraX + (mouse.x - canvasCenter.x) / zoom,
-						cameraY + (mouse.y - canvasCenter.y) / zoom}};
+		if (const ImGuiPayload* Payload = ImGui::AcceptDragDropPayload("AMBER_ASSET"))
+		{
+			if (Payload->IsDelivery())
+			{
+				const std::string PayloadId = PayloadString(*Payload);
+				if (!PayloadId.empty())
+				{
+					DropRequest = FDropRequest{
+						EDropPayloadType::Asset,
+						PayloadId,
+						BuildWorldPosition()};
+				}
+			}
+		}
+		if (const ImGuiPayload* Payload = ImGui::AcceptDragDropPayload("AMBER_ACTOR_TYPE"))
+		{
+			if (Payload->IsDelivery())
+			{
+				const std::string PayloadId = PayloadString(*Payload);
+				if (!PayloadId.empty())
+				{
+					DropRequest = FDropRequest{
+						EDropPayloadType::ActorType,
+						PayloadId,
+						BuildWorldPosition()};
+				}
 			}
 		}
 		ImGui::EndDragDropTarget();
 	}
 
-	if (editEnabled && !canvasClickConsumed && canvasHovered && ImGui::IsMouseClicked(0))
+	auto HitSceneObject = [&]() -> uint32
 	{
-		const ImVec2 mouse = ImGui::GetIO().MousePos;
-		uint32 selectedObjectId = 0;
-		const std::vector<SceneObject>& objects = sceneDocument.GetObjects();
-		for (auto it = objects.rbegin(); it != objects.rend(); ++it)
+		const ImVec2 Mouse = ImGui::GetIO().MousePos;
+		uint32 SelectedObjectId = 0;
+		const std::vector<SceneObject>& Objects = sceneDocument.GetObjects();
+		for (auto It = Objects.rbegin(); It != Objects.rend(); ++It)
 		{
-			if (!it->visible || it->kind == SceneObjectKind::Grid)
+			if (!It->visible || It->kind == SceneObjectKind::Grid)
 			{
 				continue;
 			}
 
-			const ObjectBounds screenBounds = boundsToScreen(GetObjectBounds(*it));
-			if (Contains(mouse.x, mouse.y, screenBounds))
+			const ObjectBounds ScreenBounds = boundsToScreen(GetObjectBounds(*It));
+			if (It->kind == SceneObjectKind::Circle ?
+					Contains(Mouse.x, Mouse.y, ScreenBounds) :
+					ContainsRotatedBounds(Mouse, ScreenBounds, It->transform.rotationDegrees))
 			{
-				selectedObjectId = it->id;
+				SelectedObjectId = It->id;
 				break;
 			}
 		}
+		return SelectedObjectId;
+	};
 
-		if (selectedObjectId != 0)
+	if (editEnabled && canvasHovered && ImGui::IsMouseClicked(1))
+	{
+		const ImVec2 Mouse = ImGui::GetIO().MousePos;
+		const uint32 SelectedObjectId = HitSceneObject();
+		if (SelectedObjectId != 0)
 		{
-			selection.SelectSceneObject(selectedObjectId);
+			selection.SelectSceneObject(SelectedObjectId);
+			PendingContextMenuRequest = FContextMenuRequest{
+				EContextMenuTarget::SceneObject,
+				SelectedObjectId,
+				screenToWorld(Mouse)};
+		}
+		else
+		{
+			selection.Clear();
+			PendingContextMenuRequest = FContextMenuRequest{
+				EContextMenuTarget::Scene,
+				0u,
+				screenToWorld(Mouse)};
+		}
+	}
+
+	if (editEnabled && !canvasClickConsumed && canvasHovered && ImGui::IsMouseClicked(0))
+	{
+		const uint32 SelectedObjectId = HitSceneObject();
+		if (SelectedObjectId != 0)
+		{
+			selection.SelectSceneObject(SelectedObjectId);
 		}
 		else
 		{
@@ -571,7 +949,7 @@ std::optional<EditorViewport::AssetDropRequest> EditorViewport::Draw(
 		}
 	}
 
-	return dropRequest;
+	return DropRequest;
 }
 
 float EditorViewport::GetZoom() const
@@ -590,9 +968,22 @@ void EditorViewport::FocusOrigin()
 	cameraY = 0.0f;
 }
 
+void EditorViewport::FocusObject(const SceneObject& Object)
+{
+	cameraX = Object.transform.position.x;
+	cameraY = Object.transform.position.y;
+}
+
 EditorVec2 EditorViewport::GetViewCenter() const
 {
 	return EditorVec2{cameraX, cameraY};
+}
+
+std::optional<EditorViewport::FContextMenuRequest> EditorViewport::ConsumeContextMenuRequest()
+{
+	std::optional<FContextMenuRequest> Request = PendingContextMenuRequest;
+	PendingContextMenuRequest.reset();
+	return Request;
 }
 
 void EditorViewport::ReleaseRenderResources()
@@ -626,8 +1017,9 @@ EditorViewport::ObjectBounds EditorViewport::GetObjectBounds(const SceneObject& 
 		object.kind == SceneObjectKind::Box ||
 		object.kind == SceneObjectKind::Circle)
 	{
-		const float width = object.size.x * object.transform.scale.x;
-		const float height = object.size.y * object.transform.scale.y;
+		const EditorVec2 Scale = ClampObjectScale(object.transform.scale);
+		const float width = object.size.x * Scale.x;
+		const float height = object.size.y * Scale.y;
 		return ObjectBounds{
 			object.transform.position.x - width * 0.5f,
 			object.transform.position.y - height * 0.5f,
@@ -635,11 +1027,12 @@ EditorViewport::ObjectBounds EditorViewport::GetObjectBounds(const SceneObject& 
 			height};
 	}
 
+	const EditorVec2 Scale = ClampObjectScale(object.transform.scale);
 	return ObjectBounds{
-		object.transform.position.x - 32.0f,
-		object.transform.position.y - 32.0f,
-		64.0f,
-		64.0f};
+		object.transform.position.x - 32.0f * Scale.x,
+		object.transform.position.y - 32.0f * Scale.y,
+		64.0f * Scale.x,
+		64.0f * Scale.y};
 }
 
 EditorViewport::~EditorViewport()

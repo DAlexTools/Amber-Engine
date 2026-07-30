@@ -72,6 +72,7 @@ bool SaveProjectDescriptor(const ProjectDescriptor& descriptor, const std::files
 	file << "gameModuleTarget " << std::quoted(descriptor.gameModuleTarget) << '\n';
 	file << "playTarget " << std::quoted(descriptor.playTarget) << '\n';
 	file << "startupScene " << std::quoted(GenericPathString(descriptor.startupScene)) << '\n';
+	file << "actorTypes " << std::quoted(GenericPathString(descriptor.actorTypes)) << '\n';
 	file << "contentRoot " << std::quoted(GenericPathString(descriptor.contentRoot)) << '\n';
 	file << "buildPreset " << std::quoted(descriptor.buildPreset) << '\n';
 	file << "solutionPath " << std::quoted(GenericPathString(descriptor.solutionPath)) << '\n';
@@ -107,6 +108,7 @@ bool LoadProjectDescriptor(const std::filesystem::path& path, ProjectDescriptor&
 	loaded.projectFilePath = CanonicalIfPossible(path);
 	loaded.projectRoot = loaded.projectFilePath.parent_path();
 	loaded.startupScene = std::filesystem::path("Content") / "Scenes" / "Startup.amber.scene";
+	loaded.actorTypes = std::filesystem::path("Config") / "ActorTypes.amberactors";
 	loaded.contentRoot = "Content";
 	loaded.buildPreset = "editor";
 
@@ -151,6 +153,10 @@ bool LoadProjectDescriptor(const std::filesystem::path& path, ProjectDescriptor&
 		else if (key == "startupScene")
 		{
 			loaded.startupScene = value;
+		}
+		else if (key == "actorTypes")
+		{
+			loaded.actorTypes = value;
 		}
 		else if (key == "contentRoot")
 		{

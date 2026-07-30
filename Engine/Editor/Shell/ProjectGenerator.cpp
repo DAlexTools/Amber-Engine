@@ -317,6 +317,12 @@ std::string BuildStartupScene(const std::string& projectName)
 	return text.str();
 }
 
+std::string BuildActorTypesConfig()
+{
+	return "AmberActorTypes 1\n"
+		   "# Add project actor schemas here.\n";
+}
+
 std::string BuildGitIgnore()
 {
 	return "Builds/\n.vs/\n*.user\n*.log\n";
@@ -539,6 +545,7 @@ bool ProjectGenerator::CreateProject(const ProjectGenerationRequest& request, Pr
 		!WriteTextFile(moduleDirectory / (moduleName + "ModulePlugin.cpp"), BuildModulePluginSource(moduleName), error) ||
 		!WriteTextFile(launcherDirectory / "main.cpp", BuildLauncherSource(moduleName), error) ||
 		!WriteTextFile(scenesDirectory / "Startup.amber.scene", BuildStartupScene(moduleName), error) ||
+		!WriteTextFile(configDirectory / "ActorTypes.amberactors", BuildActorTypesConfig(), error) ||
 		!WriteTextFile(configDirectory / "DefaultGame.ini", "[Project]\nName=" + moduleName + "\n", error))
 	{
 		return false;
@@ -552,6 +559,7 @@ bool ProjectGenerator::CreateProject(const ProjectGenerationRequest& request, Pr
 	descriptor.gameModuleTarget = moduleName + "Module";
 	descriptor.playTarget = moduleName + "Launcher";
 	descriptor.startupScene = std::filesystem::path("Content") / "Scenes" / "Startup.amber.scene";
+	descriptor.actorTypes = std::filesystem::path("Config") / "ActorTypes.amberactors";
 	descriptor.contentRoot = "Content";
 	descriptor.buildPreset = "editor";
 	descriptor.solutionPath = std::filesystem::path("Builds") / "Editor" / (moduleName + ".sln");

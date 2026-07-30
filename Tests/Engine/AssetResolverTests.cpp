@@ -62,9 +62,9 @@ TEST(AssetResolverTests, ResolvesProjectEngineRelativeAndAbsoluteAssets)
     const std::filesystem::path looseAsset = tree.CreateFile("Project/Content/loose.txt");
 
     AE::RuntimeAssetResolverConfig config;
-    config.projectRoot = projectRoot;
-    config.engineRoot = engineRoot;
-    config.contentRoot = "Content";
+    config.ProjectRoot = projectRoot;
+    config.EngineRoot = engineRoot;
+    config.ContentRoot = "Content";
 
     EXPECT_EQ(AE::ResolveRuntimeAssetPath("Project/images/player.png", config), tree.Canonical(projectTexture));
     EXPECT_EQ(AE::ResolveRuntimeAssetPath("Engine/icons/default.png", config), tree.Canonical(engineTexture));
@@ -79,7 +79,7 @@ TEST(AssetResolverTests, UsesExplicitRootsWhenProvided)
     const std::filesystem::path secondTexture = tree.CreateFile("Second/shared.png");
 
     AE::RuntimeAssetResolverConfig config;
-    config.roots = {
+    config.Roots = {
         AE::RuntimeAssetRoot{"Project", tree.root / "First"},
         AE::RuntimeAssetRoot{"Engine", tree.root / "Second"}
     };

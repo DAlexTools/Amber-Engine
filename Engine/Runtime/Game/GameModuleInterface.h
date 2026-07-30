@@ -21,6 +21,12 @@
 namespace AE
 {
 
+enum class EGameModuleRunMode
+{
+	Play,
+	Simulate
+};
+
 struct GameModuleStartContext
 {
 	std::string projectName;
@@ -30,6 +36,7 @@ struct GameModuleStartContext
 	Registry& registry;
 	Scene::ObjectFactory& objectFactory;
 	std::vector<std::unique_ptr<Scene::Object>>& sceneObjects;
+	EGameModuleRunMode RunMode = EGameModuleRunMode::Play;
 };
 
 struct GameModuleTickContext
@@ -37,6 +44,7 @@ struct GameModuleTickContext
 	Registry& registry;
 	float deltaSeconds = 0.0f;
 	uint64 frameIndex = 0;
+	EGameModuleRunMode RunMode = EGameModuleRunMode::Play;
 };
 
 struct GameModuleRenderContext
