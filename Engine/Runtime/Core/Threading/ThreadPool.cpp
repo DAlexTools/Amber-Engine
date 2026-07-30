@@ -1,187 +1,319 @@
 #include "Core/Threading/ThreadPool.h"
 
 #include <algorithm>
+#include <stdexcept>
 
 namespace AE::Threading
 {
 
-ThreadPool& ThreadPool::Get()
+FThreadPool& FThreadPool::Get()
 {
-	static ThreadPool pool;
-	return pool;
+	static FThreadPool Pool;
+	return Pool;
 }
 
-ThreadPool::ThreadPool()
+FThreadPool::FThreadPool()
 {
-	const unsigned int hardwareThreads = std::thread::hardware_concurrency();
-	const SizeT workerCount = hardwareThreads > 2u ? hardwareThreads - 1u : 1u;
-	Start(workerCount);
+	// Keep one hardware thread available for the main application thread.
+	const unsigned int HardwareThreads = std::thread::hardware_concurrency();
+	const SizeT WorkerCount = HardwareThreads > 2u ? HardwareThreads - 1u : 1u;
+	Start(WorkerCount);
 }
 
-ThreadPool::~ThreadPool()
+FThreadPool::~FThreadPool()
 {
 	Stop();
 }
 
-SizeT ThreadPool::WorkerCount() const
+SizeT FThreadPool::WorkerCount() const
 {
-	std::lock_guard<std::mutex> lock(mutex);
-	return workers.size();
+	std::lock_guard<std::mutex> Lock(Mutex);
+	return Workers.size();
 }
 
-void ThreadPool::SetWorkerCount(SizeT workerCount)
+void FThreadPool::SetWorkerCount(SizeT WorkerCount)
 {
-	workerCount = std::max<SizeT>(1u, workerCount);
+	WorkerCount = std::max<SizeT>(1u, WorkerCount);
 
 	{
-		std::unique_lock<std::mutex> lock(mutex);
-		workFinished.wait(lock, [this]()
-						  { return !hasWork; });
-		if (workers.size() == workerCount)
+		std::unique_lock<std::mutex> Lock(Mutex);
+
+		// Wait until the current task completes before recreating workers.
+		WorkFinished.wait(Lock, [this]()
+						{
+							return !HasWork;
+						});
+
+		if (Workers.size() == WorkerCount)
 		{
+			// Avoid unnecessary thread recreation when the count is unchanged.
 			return;
 		}
 	}
-
+	// Recreate worker threads with the new count.
 	Stop();
-	Start(workerCount);
+	Start(WorkerCount);
 }
 
-void ThreadPool::ParallelFor(
-	SizeT itemCount,
-	SizeT minItemsPerJob,
-	const std::function<void(SizeT begin, SizeT end)>& function)
+void FThreadPool::ParallelFor(SizeT ItemCount, SizeT MinItemsPerJob, const std::function<void(SizeT begin, SizeT end)>& Function)
 {
-	if (itemCount == 0u)
+	// Executes a range-based task by splitting the workload into dynamically
+	// scheduled chunks processed by worker threads. The function blocks until
+	// all chunks have been completed.
+
+	//-------------------------------------------------------------------------
+	// Validate input.
+	//-------------------------------------------------------------------------
+	if (ItemCount == 0u)
 	{
 		return;
 	}
 
-	const SizeT workerCount = WorkerCount();
-	minItemsPerJob = std::max<SizeT>(1u, minItemsPerJob);
-	const SizeT jobCount = std::min(workerCount, (itemCount + minItemsPerJob - 1u) / minItemsPerJob);
-
-	if (jobCount < 2u)
+	if (!Function)
 	{
-		function(0u, itemCount);
+		throw std::invalid_argument("FThreadPool::ParallelFor requires a valid callback.");
+	}
+
+	//-------------------------------------------------------------------------
+	// Calculate work distribution.
+	//
+	// Determine how many chunks should be created based on the available
+	// worker threads and the minimum chunk size.
+	//-------------------------------------------------------------------------
+	const SizeT LocalWorkerCount = WorkerCount();
+	MinItemsPerJob = std::max<SizeT>(1u, MinItemsPerJob);
+	const SizeT JobCount = std::min(LocalWorkerCount, (ItemCount + MinItemsPerJob - 1u) / MinItemsPerJob);
+
+	//-------------------------------------------------------------------------
+	// Execute small workloads directly.
+	//
+	// For small tasks, thread synchronization overhead can be higher than
+	// the actual processing time, so execute them on the calling thread.
+	//-------------------------------------------------------------------------
+	if (JobCount < 2u)
+	{
+		Function(0u, ItemCount);
 		return;
 	}
 
-	{
-		std::unique_lock<std::mutex> lock(mutex);
-		workFinished.wait(lock, [this]()
-						  { return !hasWork; });
 
-		currentTask = function;
-		taskCount = itemCount;
-		chunkSize = (itemCount + jobCount - 1u) / jobCount;
-		nextItem.store(0u, std::memory_order_relaxed);
-		activeWorkers = workers.size();
-		hasWork = true;
-		++workGeneration;
+	//-------------------------------------------------------------------------
+	// Submit new task.
+	//
+	// Wait until the previous ParallelFor operation has finished, then
+	// initialize shared task data consumed by worker threads.
+	//-------------------------------------------------------------------------
+	{
+		std::unique_lock<std::mutex> Lock(Mutex);
+		WorkFinished.wait(Lock, [this]()
+							{
+								return !HasWork;
+							});
+
+		CurrentTask = Function;
+		TaskException = nullptr;
+		TaskCount = ItemCount;
+		ChunkSize = (ItemCount + JobCount - 1u) / JobCount;
+		NextItem.store(0u, std::memory_order_relaxed);
+
+		// Track the number of workers participating in this task.
+		// The last worker reaching zero signals completion.
+		ActiveWorkers = Workers.size();
+		HasWork = true;
+
+		// Publish a new task generation.
+		// Workers compare this value with their local generation counter
+		// to detect newly submitted work.
+		++WorkGeneration;
 	}
 
-	workAvailable.notify_all();
+	//-------------------------------------------------------------------------
+	// Wake worker threads.
+	//-------------------------------------------------------------------------
+	WorkAvailable.notify_all();
 
-	std::unique_lock<std::mutex> lock(mutex);
-	workFinished.wait(lock, [this]()
-					  { return !hasWork; });
-	currentTask = nullptr;
+	//-------------------------------------------------------------------------
+	// Wait for completion.
+	//
+	// The calling thread blocks until the last worker finishes processing
+	// all chunks.
+	//-------------------------------------------------------------------------
+	std::exception_ptr Exception;
+	{
+		std::unique_lock<std::mutex> Lock(Mutex);
+		WorkFinished.wait(Lock, [this]()
+						{
+							return !HasWork;
+						});
+
+		//-------------------------------------------------------------------------
+		// Cleanup task state.
+		//-------------------------------------------------------------------------
+		Exception = TaskException;
+		TaskException = nullptr;
+		CurrentTask = nullptr;
+	}
+
+	if (Exception)
+	{
+		std::rethrow_exception(Exception);
+	}
 }
 
-void ThreadPool::Start(SizeT workerCount)
+void FThreadPool::Start(SizeT WorkerCount)
 {
-	std::lock_guard<std::mutex> lock(mutex);
-	stopping = false;
-	hasWork = false;
-	activeWorkers = 0u;
-	workGeneration = 0u;
-	workers.reserve(workerCount);
-	for (SizeT index = 0; index < workerCount; ++index)
+	std::lock_guard<std::mutex> Lock(Mutex);
+
+	// Reserve storage to prevent vector reallocations while creating threads.
+	Stopping = false;
+	HasWork = false;
+	ActiveWorkers = 0u;
+	WorkGeneration = 0u;
+	Workers.reserve(WorkerCount);
+
+	// Create persistent worker threads.
+	for (SizeT Index = 0; Index < WorkerCount; ++Index)
 	{
-		workers.emplace_back(&ThreadPool::WorkerLoop, this);
+		Workers.emplace_back(&FThreadPool::WorkerLoop, this);
 	}
 }
 
-void ThreadPool::Stop()
+void FThreadPool::Stop()
 {
+	//-------------------------------------------------------------------------
+	// Request shutdown.
+	//
+	// Change the state while holding the mutex so sleeping workers can
+	// safely observe the stop request.
+	//-------------------------------------------------------------------------
 	{
-		std::lock_guard<std::mutex> lock(mutex);
-		stopping = true;
-		++workGeneration;
+		std::lock_guard<std::mutex> Lock(Mutex);
+		Stopping = true;
+		// Increment generation to wake sleeping workers.
+		++WorkGeneration;
 	}
 
-	workAvailable.notify_all();
+	//-------------------------------------------------------------------------
+	// Wake all workers.
+	//-------------------------------------------------------------------------
+	WorkAvailable.notify_all();
 
-	for (std::thread& worker : workers)
+	//-------------------------------------------------------------------------
+	// Wait for worker termination.
+	//-------------------------------------------------------------------------
+	for (std::thread& Worker : Workers)
 	{
-		if (worker.joinable())
+		if (Worker.joinable())
 		{
-			worker.join();
+			Worker.join();
 		}
 	}
 
+	//-------------------------------------------------------------------------
+	// Reset internal state.
+	//-------------------------------------------------------------------------
 	{
-		std::lock_guard<std::mutex> lock(mutex);
-		workers.clear();
-		currentTask = nullptr;
-		nextItem.store(0u, std::memory_order_relaxed);
-		taskCount = 0u;
-		chunkSize = 1u;
-		activeWorkers = 0u;
-		workGeneration = 0u;
-		hasWork = false;
-		stopping = false;
+		std::lock_guard<std::mutex> Lock(Mutex);
+		Workers.clear();
+		CurrentTask = nullptr;
+		TaskException = nullptr;
+		NextItem.store(0u, std::memory_order_relaxed);
+		TaskCount = 0u;
+		ChunkSize = 1u;
+		ActiveWorkers = 0u;
+		WorkGeneration = 0u;
+		HasWork = false;
+		Stopping = false;
 	}
 }
 
-void ThreadPool::WorkerLoop()
+void FThreadPool::WorkerLoop()
 {
-	SizeT observedGeneration = 0u;
+	SizeT ObservedGeneration = 0u;
 
 	while (true)
 	{
-		std::function<void(SizeT begin, SizeT end)> task;
-		SizeT count = 0u;
-		SizeT chunk = 1u;
+		std::function<void(SizeT begin, SizeT end)> Task;
+		SizeT Count = 0u;
+		SizeT Chunk = 1u;
 
+		//-------------------------------------------------------------------------
+		// Wait for new work.
+		//
+		// Worker threads sleep here while the pool is idle. They wake up when
+		// a new task generation is published or when shutdown is requested.
+		//-------------------------------------------------------------------------
 		{
-			std::unique_lock<std::mutex> lock(mutex);
-			workAvailable.wait(lock, [this, &observedGeneration]()
-							   { return stopping || workGeneration != observedGeneration; });
+			std::unique_lock<std::mutex> Lock(Mutex);
+			WorkAvailable.wait(Lock, [this, &ObservedGeneration]()
+							{
+								return Stopping || WorkGeneration != ObservedGeneration;
+							});
 
-			if (stopping)
+			if (Stopping)
 			{
 				return;
 			}
 
-			observedGeneration = workGeneration;
-			task = currentTask;
-			count = taskCount;
-			chunk = chunkSize;
+			ObservedGeneration = WorkGeneration;
+
+			// Copy task state locally.
+			// Worker threads must release the mutex before executing user code
+			// to avoid blocking other workers.
+			Task = CurrentTask;
+			Count = TaskCount;
+			Chunk = ChunkSize;
 		}
 
+		//-------------------------------------------------------------------------
+		// Process assigned chunks.
+		//
+		// Workers dynamically acquire chunks using an atomic counter. This
+		// avoids fixed thread ownership and provides automatic load balancing.
+		//-------------------------------------------------------------------------
 		while (true)
 		{
-			const SizeT begin = nextItem.fetch_add(chunk, std::memory_order_relaxed);
-			if (begin >= count)
+			// Atomically reserve the next chunk of work.
+			// Multiple workers can request chunks simultaneously without locking.
+			const SizeT Begin = NextItem.fetch_add(Chunk, std::memory_order_relaxed);
+			if (Begin >= Count)
 			{
 				break;
 			}
+			const SizeT End = std::min(Begin + Chunk, Count);
 
-			task(begin, std::min(begin + chunk, count));
+			try
+			{
+				Task(Begin, End);
+			}
+			catch (...)
+			{
+				// Store the first exception thrown by a worker thread.
+				// The exception will be rethrown on the calling thread after completion.
+				std::lock_guard<std::mutex> Lock(Mutex);
+
+				if (!TaskException)
+				{
+					TaskException = std::current_exception();
+				}
+			}
 		}
 
+		//-------------------------------------------------------------------------
+		// Notify completion.
+		//
+		// The last worker finishing the task wakes the waiting thread.
+		//-------------------------------------------------------------------------
 		{
-			std::lock_guard<std::mutex> lock(mutex);
-			if (activeWorkers > 0u)
+			std::lock_guard<std::mutex> Lock(Mutex);
+			if (ActiveWorkers > 0u)
 			{
-				--activeWorkers;
+				--ActiveWorkers;
 			}
-			if (activeWorkers == 0u)
+			if (ActiveWorkers == 0u)
 			{
-				hasWork = false;
-				workFinished.notify_one();
+				HasWork = false;
+				WorkFinished.notify_one();
 			}
 		}
 	}
