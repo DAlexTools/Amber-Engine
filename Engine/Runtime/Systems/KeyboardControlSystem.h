@@ -8,57 +8,56 @@
 #include "../Components/SpriteComponent.h"
 #include "../Components/KeyboardControlledComponent.h"
 
-class KeyboardControlSystem: public System 
+class KeyboardControlSystem : public System
 {
-    public:
-        KeyboardControlSystem() 
-        {
-            RequireComponent<KeyboardControlledComponent>();
-            RequireComponent<SpriteComponent>();
-            RequireComponent<RigidBodyComponent>();
-            AE::Logger::Log("Create Keyboard Control System");
-        }
+public:
+	KeyboardControlSystem()
+	{
+		RequireComponent<KeyboardControlledComponent>();
+		RequireComponent<SpriteComponent>();
+		RequireComponent<RigidBodyComponent>();
+		AE::Logger::Log("Create Keyboard Control System");
+	}
 
-        void SubscribeToEvents(std::unique_ptr<EventBus>& eventBus) 
-        {
-            eventBus->SubscribeToEvent<KeyPressedEvent>(this, &KeyboardControlSystem::OnKeyPressed);
-        }
+	void SubscribeToEvents(std::unique_ptr<EventBus>& eventBus)
+	{
+		eventBus->SubscribeToEvent<KeyPressedEvent>(this, &KeyboardControlSystem::OnKeyPressed);
+	}
 
-        void OnKeyPressed(KeyPressedEvent& event) 
-        {
-            for (auto entity : GetSystemEntity())
-            {
-                auto keyboardcontrol = entity.GetComponent<KeyboardControlledComponent>();
-                auto& sprite = entity.GetComponent<SpriteComponent>();
-                auto& rigidbody = entity.GetComponent<RigidBodyComponent>();
-                switch (event.symbol)
-                {
-                    case SDLK_UP:
-                        rigidbody.velocity = keyboardcontrol.upVelocity;
-                        sprite.srcRect.y = sprite.height * 0;
-                        break;
-                    case SDLK_RIGHT:
-                        rigidbody.velocity = keyboardcontrol.rightVelocity;
-                        sprite.srcRect.y = sprite.height * 1;
-                        break;
+	void OnKeyPressed(KeyPressedEvent& event)
+	{
+		for (auto entity : GetSystemEntity())
+		{
+			auto keyboardcontrol = entity.GetComponent<KeyboardControlledComponent>();
+			auto& sprite = entity.GetComponent<SpriteComponent>();
+			auto& rigidbody = entity.GetComponent<RigidBodyComponent>();
+			switch (event.symbol)
+			{
+			case SDLK_UP:
+				rigidbody.velocity = keyboardcontrol.upVelocity;
+				sprite.srcRect.y = sprite.height * 0;
+				break;
+			case SDLK_RIGHT:
+				rigidbody.velocity = keyboardcontrol.rightVelocity;
+				sprite.srcRect.y = sprite.height * 1;
+				break;
 
-                    case SDLK_DOWN:
-                        rigidbody.velocity =  keyboardcontrol.downVelocity;
-                        sprite.srcRect.y = sprite.height * 2;
-                        break;
+			case SDLK_DOWN:
+				rigidbody.velocity = keyboardcontrol.downVelocity;
+				sprite.srcRect.y = sprite.height * 2;
+				break;
 
-                    case SDLK_LEFT:
-                        rigidbody.velocity = keyboardcontrol.leftVelocity;
-                        sprite.srcRect.y = sprite.height * 3;
-                        break;
-                }
-            }
-        }
+			case SDLK_LEFT:
+				rigidbody.velocity = keyboardcontrol.leftVelocity;
+				sprite.srcRect.y = sprite.height * 3;
+				break;
+			}
+		}
+	}
 
-        void Update() 
-        {
-                
-        }
+	void Update()
+	{
+	}
 };
 
 #endif

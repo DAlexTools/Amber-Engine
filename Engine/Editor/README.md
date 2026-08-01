@@ -2,7 +2,14 @@
 
 Editor-only modules live here.
 
-- `Shell` owns the standalone `AmberEditor` application shell: SDL/ImGui lifecycle, Project Browser, Unreal-style fixed panel layout, top toolbar, `Scene View`, `Asset Browser`, `Scene Outliner`, `Details` and Output Log placement. Its first internal services are `ProjectDescriptor`, `ProjectGenerator`, `SceneDocument`, `SelectionService`, `EditorViewport`, `EditorPlaySession`, `GameModuleResolver`, `AssetRegistry` and `TextureCache`; `Scene View` supports picking, viewport pan/zoom, asset placement, standard `BoxObject`/`CircleObject` creation from the `Add` menu and a first move gizmo for selected scene objects. Scene save/load uses the runtime-neutral `AE::Scene` file format and stores an editable object class name such as `SpriteObject`. The toolbar/menu `Play In PIE` command creates an embedded runtime copy of the active scene, resolves the active project's compiled `AE::IGameModule` plugin through `AmberCreateGameModule`/`AmberDestroyGameModule`, instantiates editor-side runtime-neutral scene objects through `ObjectFactory` and draws that copy in `Scene View`; `Stop PIE` stops the game module, destroys the runtime world and returns to the edit scene. If no compatible plugin is found, the editor logs a warning and uses the editor scene preview fallback. Dynamic game modules receive the full `SceneDocument` in `StartPlay`; registering plugin-owned ECS component types into the editor registry is deferred until the runtime ABI is shared.
+- `Application` owns the standalone `AmberEditor` entry point, SDL/ImGui lifecycle, Project Browser, main menu, dock layout, toolbar and panel orchestration.
+- `Viewport` owns `Scene View`: runtime preview rendering, editor camera, picking, drag/drop placement, transform gizmos and context-menu requests.
+- `Scene` owns the editable `SceneDocument` wrapper around the runtime-neutral `AE::Scene` file format.
+- `Actors` owns `ActorTypeRegistry` and project-provided actor type schemas.
+- `Assets` owns editor asset scanning and texture preview caching on top of runtime asset/texture services.
+- `Runtime` owns PIE orchestration and game-module loading through `EditorPlaySession` and `GameModuleResolver`.
+- `Project` owns editor project generation helpers. Runtime project descriptors live under `Engine/Runtime/Project`.
+- `Selection` owns editor selection state.
 - Project Browser can create a `Blank C++ Game` in a separate folder with `.amberproject`, `CMakeLists.txt`, `CMakePresets.json`, source launcher/module stubs, `Content/Scenes/Startup.amber.scene`, `Config`, `Scripts` and `Tests`. It can run `cmake --preset <preset>` from the editor to generate the project-local Visual Studio solution, and it can open the current repo workspace as a legacy project. `AmberEditor.exe` also accepts a positional `.amberproject` path or `--project <path>` so Windows file associations can launch projects directly.
 - `OutputLog` owns the ImGui output log widget. It reads the runtime log bus and does not own gameplay/runtime logging state.
 - `Diagnostics` owns reusable sample diagnostics panels while those samples are still SDL applications.

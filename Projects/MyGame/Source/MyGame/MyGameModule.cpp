@@ -9,33 +9,33 @@ namespace MyGame
 
 const char* MyGameModule::GetName() const
 {
-    return "MyGameModule";
+	return "MyGameModule";
 }
 
 bool MyGameModule::StartPlay(const AE::GameModuleStartContext& context, std::string*)
 {
-    tickCount = 0;
-    renderCount = 0;
-    AE::Logger::Log("MyGame StartPlay: " + context.projectName, "MyGame");
-    return true;
+	tickCount = 0;
+	renderCount = 0;
+	AE::Logger::Log("MyGame StartPlay: " + context.projectName, "MyGame");
+	return true;
 }
 
 void MyGameModule::Tick(const AE::GameModuleTickContext&)
 {
-    ++tickCount;
+	++tickCount;
 }
 
 void MyGameModule::Render(const AE::GameModuleRenderContext&)
 {
-    ++renderCount;
+	++renderCount;
 }
 
 void MyGameModule::StopPlay()
 {
-    AE::Logger::Log(
-        "MyGame StopPlay ticks=" + std::to_string(tickCount) +
-            " renders=" + std::to_string(renderCount),
-        "MyGame");
+	AE::Logger::Log(
+		"MyGame StopPlay ticks=" + std::to_string(tickCount) +
+			" renders=" + std::to_string(renderCount),
+		"MyGame");
 }
 
-}
+} // namespace MyGame

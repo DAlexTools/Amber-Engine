@@ -12,159 +12,162 @@
 #include "../Events/CollisionEvent.h"
 #include "../EventBus/EventBus.h"
 
-
 class DamageSystem : public System
 {
-    public:
-        DamageSystem() {
-            RequireComponent<BoxCollisionComponent>();
-        }
+public:
+	DamageSystem()
+	{
+		RequireComponent<BoxCollisionComponent>();
+	}
 
-        void SubscribeToEvents(std::unique_ptr<EventBus>& eventBus) 
-        {
-            processedProjectileCollisions.clear();
-            eventBus->SubscribeToEvent<CollisionEvent>(this, &DamageSystem::OnCollision);
-        }
+	void SubscribeToEvents(std::unique_ptr<EventBus>& eventBus)
+	{
+		processedProjectileCollisions.clear();
+		eventBus->SubscribeToEvent<CollisionEvent>(this, &DamageSystem::OnCollision);
+	}
 
-        void OnCollision(CollisionEvent& event) 
-        {
-            Entity a = event.a;
-            Entity b = event.b;
-            AE::Logger::Log(std::string(event.fromPhysics ? "Physics" : "AABB") + " collision event emitted: " + std::to_string(a.GetID()) + " and " + std::to_string(b.GetID()));
+	void OnCollision(CollisionEvent& event)
+	{
+		Entity a = event.a;
+		Entity b = event.b;
+		AE::Logger::Log(std::string(event.fromPhysics ? "Physics" : "AABB") + " collision event emitted: " + std::to_string(a.GetID()) + " and " + std::to_string(b.GetID()));
 
-            if (!event.fromPhysics && IsProjectileDamagePair(a, b))
-            {
-                AE::Logger::Log("Ignoring AABB projectile damage collision; projectile damage is handled by physics contacts.");
-                return;
-            }
-        
-            if (TryApplyProjectileHit(a, b))
-            {
-                return;
-            }
+		if (!event.fromPhysics && IsProjectileDamagePair(a, b))
+		{
+			AE::Logger::Log("Ignoring AABB projectile damage collision; projectile damage is handled by physics contacts.");
+			return;
+		}
 
-            TryApplyProjectileHit(b, a);
-        }
+		if (TryApplyProjectileHit(a, b))
+		{
+			return;
+		}
 
-        void OnProjectileHitsPlayer(Entity projectile, Entity player) 
-        {
-            if (!projectile.HasComponent<ProjectileComponent>() || !player.HasComponent<HealthComponent>())
-            {
-                return;
-            }
+		TryApplyProjectileHit(b, a);
+	}
 
-            const auto projectileComponent = projectile.GetComponent<ProjectileComponent>();
+	void OnProjectileHitsPlayer(Entity projectile, Entity player)
+	{
+		if (!projectile.HasComponent<ProjectileComponent>() || !player.HasComponent<HealthComponent>())
+		{
+			return;
+		}
 
-            if (!projectileComponent.isFriendly) {
-                // Reduce the health of the player by the projectile hitPercentDamage
-                auto& health = player.GetComponent<HealthComponent>();
+		const auto projectileComponent = projectile.GetComponent<ProjectileComponent>();
 
-                // Subtract the health of the player
-                health.healthPercentage -= projectileComponent.hitPercentDamage;
+		if (!projectileComponent.isFriendly)
+		{
+			// Reduce the health of the player by the projectile hitPercentDamage
+			auto& health = player.GetComponent<HealthComponent>();
 
-                // Kills the player when health reaches zero
-                if (health.healthPercentage <= 0) {
-                    player.Kill();
-                }
+			// Subtract the health of the player
+			health.healthPercentage -= projectileComponent.hitPercentDamage;
 
-                // Kill the projectile
-                projectile.Kill();
-            }
-        }
+			// Kills the player when health reaches zero
+			if (health.healthPercentage <= 0)
+			{
+				player.Kill();
+			}
 
-        void OnProjectileHitsEnemy(Entity projectile, Entity enemy) 
-        {
-            if (!projectile.HasComponent<ProjectileComponent>() || !enemy.HasComponent<HealthComponent>())
-            {
-                return;
-            }
+			// Kill the projectile
+			projectile.Kill();
+		}
+	}
 
-            const auto projectileComponent = projectile.GetComponent<ProjectileComponent>();
+	void OnProjectileHitsEnemy(Entity projectile, Entity enemy)
+	{
+		if (!projectile.HasComponent<ProjectileComponent>() || !enemy.HasComponent<HealthComponent>())
+		{
+			return;
+		}
 
-            // Only damage the enemy if projectile is friendly
-            if (projectileComponent.isFriendly) {
-                auto& health = enemy.GetComponent<HealthComponent>();
+		const auto projectileComponent = projectile.GetComponent<ProjectileComponent>();
 
-                // Subtract from enemy health
-                health.healthPercentage -= projectileComponent.hitPercentDamage;
+		// Only damage the enemy if projectile is friendly
+		if (projectileComponent.isFriendly)
+		{
+			auto& health = enemy.GetComponent<HealthComponent>();
 
-                // Kills the enemy if health reaches zero
-                if (health.healthPercentage <= 0) {
-                    enemy.Kill();
-                }
+			// Subtract from enemy health
+			health.healthPercentage -= projectileComponent.hitPercentDamage;
 
-                // Destroy projectile
-                projectile.Kill();
-            }
-        }
+			// Kills the enemy if health reaches zero
+			if (health.healthPercentage <= 0)
+			{
+				enemy.Kill();
+			}
 
-    private:
-        std::vector<std::pair<int, int>> processedProjectileCollisions;
+			// Destroy projectile
+			projectile.Kill();
+		}
+	}
 
-        bool TryApplyProjectileHit(Entity projectile, Entity target)
-        {
-            if (!projectile.BelongsToGroup("projectiles") || !projectile.HasComponent<ProjectileComponent>())
-            {
-                return false;
-            }
+private:
+	std::vector<std::pair<int, int>> processedProjectileCollisions;
 
-            if (!target.HasTag("player") && !target.BelongsToGroup("enemies"))
-            {
-                return false;
-            }
+	bool TryApplyProjectileHit(Entity projectile, Entity target)
+	{
+		if (!projectile.BelongsToGroup("projectiles") || !projectile.HasComponent<ProjectileComponent>())
+		{
+			return false;
+		}
 
-            if (HasProcessedProjectileCollision(projectile, target))
-            {
-                return true;
-            }
+		if (!target.HasTag("player") && !target.BelongsToGroup("enemies"))
+		{
+			return false;
+		}
 
-            if (target.HasTag("player"))
-            {
-                OnProjectileHitsPlayer(projectile, target);
-                return true;
-            }
+		if (HasProcessedProjectileCollision(projectile, target))
+		{
+			return true;
+		}
 
-            OnProjectileHitsEnemy(projectile, target);
-            return true;
-        }
+		if (target.HasTag("player"))
+		{
+			OnProjectileHitsPlayer(projectile, target);
+			return true;
+		}
 
-        bool HasProcessedProjectileCollision(Entity projectile, Entity target)
-        {
-            const auto pair = MakeEntityPair(projectile, target);
-            if (std::find(processedProjectileCollisions.begin(), processedProjectileCollisions.end(), pair) != processedProjectileCollisions.end())
-            {
-                return true;
-            }
+		OnProjectileHitsEnemy(projectile, target);
+		return true;
+	}
 
-            processedProjectileCollisions.push_back(pair);
-            return false;
-        }
+	bool HasProcessedProjectileCollision(Entity projectile, Entity target)
+	{
+		const auto pair = MakeEntityPair(projectile, target);
+		if (std::find(processedProjectileCollisions.begin(), processedProjectileCollisions.end(), pair) != processedProjectileCollisions.end())
+		{
+			return true;
+		}
 
-        std::pair<int, int> MakeEntityPair(Entity a, Entity b) const
-        {
-            const int aID = a.GetID();
-            const int bID = b.GetID();
-            return aID < bID
-                ? std::make_pair(aID, bID)
-                : std::make_pair(bID, aID);
-        }
+		processedProjectileCollisions.push_back(pair);
+		return false;
+	}
 
-        bool IsProjectileDamagePair(Entity a, Entity b) const
-        {
-            return
-                (IsProjectile(a) && IsProjectileTarget(b)) ||
-                (IsProjectile(b) && IsProjectileTarget(a));
-        }
+	std::pair<int, int> MakeEntityPair(Entity a, Entity b) const
+	{
+		const int aID = a.GetID();
+		const int bID = b.GetID();
+		return aID < bID
+				   ? std::make_pair(aID, bID)
+				   : std::make_pair(bID, aID);
+	}
 
-        bool IsProjectile(Entity entity) const
-        {
-            return entity.BelongsToGroup("projectiles") && entity.HasComponent<ProjectileComponent>();
-        }
+	bool IsProjectileDamagePair(Entity a, Entity b) const
+	{
+		return (IsProjectile(a) && IsProjectileTarget(b)) ||
+			   (IsProjectile(b) && IsProjectileTarget(a));
+	}
 
-        bool IsProjectileTarget(Entity entity) const
-        {
-            return entity.HasTag("player") || entity.BelongsToGroup("enemies");
-        }
+	bool IsProjectile(Entity entity) const
+	{
+		return entity.BelongsToGroup("projectiles") && entity.HasComponent<ProjectileComponent>();
+	}
+
+	bool IsProjectileTarget(Entity entity) const
+	{
+		return entity.HasTag("player") || entity.BelongsToGroup("enemies");
+	}
 };
 
 #endif

@@ -1,9 +1,9 @@
 #include "Application.h"
-#include "Body.h"
-#include "Physics/Constants.h"
-#include "Physics/Force.h"
-#include "Physics/CollisionDetection.h"
-#include "Physics/Contact.h"
+#include "Physics/Dynamics/Body.h"
+#include "Physics/Core/Constants.h"
+#include "Physics/Dynamics/Force.h"
+#include "Physics/Collision/CollisionDetection.h"
+#include "Physics/Collision/Contact.h"
 
 bool Application::IsRunning()
 {

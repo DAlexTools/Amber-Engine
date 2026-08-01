@@ -8,20 +8,20 @@ namespace AE::Scene
 {
 
 SpriteObject::SpriteObject(ObjectData objectData)
-    : Object(std::move(objectData))
+	: Object(std::move(objectData))
 {
-    data.className = GetClassName();
+	data.className = GetClassName();
 }
 
 const char* SpriteObject::GetClassName() const
 {
-    return "SpriteObject";
+	return "SpriteObject";
 }
 
 void SpriteObject::ConfigureEntity(Registry& ownerRegistry)
 {
-    Object::ConfigureEntity(ownerRegistry);
-    entity.AddComponent<SceneSpriteComponent>(data.assetId, data.size.x, data.size.y);
+	Object::ConfigureEntity(ownerRegistry);
+	entity.AddComponent<SceneSpriteComponent>(data.assetId, data.size.x, data.size.y);
 }
 
-}
+} // namespace AE::Scene

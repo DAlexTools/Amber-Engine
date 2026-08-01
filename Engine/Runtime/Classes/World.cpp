@@ -1,7 +1,7 @@
 #include "Classes/World.h"
 #include "Core/Threading/ThreadPool.h"
-#include "Physics/Constants.h"
-#include "Physics/CollisionDetection.h"
+#include "Physics/Core/Constants.h"
+#include "Physics/Collision/CollisionDetection.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>

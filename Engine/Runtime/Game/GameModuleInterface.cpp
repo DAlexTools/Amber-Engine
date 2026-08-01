@@ -9,7 +9,7 @@ void IGameModule::RegisterSceneObjects(Scene::ObjectFactory&)
 
 bool IGameModule::StartPlay(const GameModuleStartContext&, std::string*)
 {
-    return true;
+	return true;
 }
 
 void IGameModule::Tick(const GameModuleTickContext&)
@@ -24,4 +24,4 @@ void IGameModule::StopPlay()
 {
 }
 
-}
+} // namespace AE

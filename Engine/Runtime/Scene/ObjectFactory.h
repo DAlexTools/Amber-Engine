@@ -15,18 +15,18 @@ namespace AE::Scene
 class ObjectFactory
 {
 public:
-    using Creator = std::function<std::unique_ptr<Object>(ObjectData)>;
+	using Creator = std::function<std::unique_ptr<Object>(ObjectData)>;
 
-    ObjectFactory();
+	ObjectFactory();
 
-    void RegisterClass(std::string className, Creator creator);
-    std::unique_ptr<Object> CreateObject(const ObjectData& data, Registry* registry = nullptr) const;
-    std::vector<std::unique_ptr<Object>> CreateObjects(const Document& document, Registry* registry = nullptr) const;
+	void RegisterClass(std::string className, Creator creator);
+	std::unique_ptr<Object> CreateObject(const ObjectData& data, Registry* registry = nullptr) const;
+	std::vector<std::unique_ptr<Object>> CreateObjects(const Document& document, Registry* registry = nullptr) const;
 
 private:
-    std::unordered_map<std::string, Creator> creators;
+	std::unordered_map<std::string, Creator> creators;
 };
 
-}
+} // namespace AE::Scene
 
 #endif

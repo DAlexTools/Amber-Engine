@@ -6,19 +6,19 @@
 
 namespace
 {
-	int ParseLevelNumber(const std::string& value)
+int ParseLevelNumber(const std::string& value)
+{
+	try
 	{
-		try
-		{
-			const int parsedLevel = std::stoi(value);
-			return parsedLevel > 0 ? parsedLevel : 1;
-		}
-		catch (...)
-		{
-			return 1;
-		}
+		const int parsedLevel = std::stoi(value);
+		return parsedLevel > 0 ? parsedLevel : 1;
+	}
+	catch (...)
+	{
+		return 1;
 	}
 }
+} // namespace
 
 int main(int argc, char* argv[])
 {

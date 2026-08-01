@@ -1,6 +1,6 @@
 #include "Application.h"
-#include "Physics/Constants.h"
-#include "Physics/Force.h"
+#include "Physics/Core/Constants.h"
+#include "Physics/Dynamics/Force.h"
 
 bool Application::IsRunning()
 {

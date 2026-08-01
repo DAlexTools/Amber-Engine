@@ -8,7 +8,7 @@
 
 #include "Core/BuildConfig.h"
 #include "Core/Platform/PlatformTypes.h"
-#include "Body.h"
+#include "Physics/Dynamics/Body.h"
 #include "Core/Math/Vector2D.h"
 #include "Classes/World.h"
 

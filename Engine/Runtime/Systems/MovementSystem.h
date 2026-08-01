@@ -9,60 +9,57 @@
 
 class MovementSystem : public System
 {
-	public:
-		MovementSystem()
-		{
-			RequireComponent<TransformComponent>();
-			RequireComponent<RigidBodyComponent>();
-		}
+public:
+	MovementSystem()
+	{
+		RequireComponent<TransformComponent>();
+		RequireComponent<RigidBodyComponent>();
+	}
 
-		void Update(double deltaTime)
+	void Update(double deltaTime)
+	{
+		for (auto entity : GetSystemEntity())
 		{
-			for (auto entity : GetSystemEntity())
+			auto& transform = entity.GetComponent<TransformComponent>();
+			const auto rigidbody = entity.GetComponent<RigidBodyComponent>();
+			bool isMovedByPhysics = false;
+
+			if (entity.HasComponent<PhysicsBodyComponent>())
 			{
-				auto& transform = entity.GetComponent<TransformComponent>();
-				const auto rigidbody = entity.GetComponent<RigidBodyComponent>();
-				bool isMovedByPhysics = false;
+				const auto& physicsBody = entity.GetComponent<PhysicsBodyComponent>();
+				isMovedByPhysics = physicsBody.body && physicsBody.pullPositionFromPhysics;
+			}
 
-				if (entity.HasComponent<PhysicsBodyComponent>())
-				{
-					const auto& physicsBody = entity.GetComponent<PhysicsBodyComponent>();
-					isMovedByPhysics = physicsBody.body && physicsBody.pullPositionFromPhysics;
-				}
+			if (!isMovedByPhysics)
+			{
+				transform.position.x += rigidbody.velocity.x * deltaTime;
+				transform.position.y += rigidbody.velocity.y * deltaTime;
+			}
 
-				if (!isMovedByPhysics)
-				{
-					transform.position.x += rigidbody.velocity.x * deltaTime;
-					transform.position.y += rigidbody.velocity.y * deltaTime;
-				}
+			if (entity.HasTag("player"))
+			{
+				int paddingLeft = 10;
+				int paddingTop = 10;
+				int paddingRight = 50;
+				int paddingBottom = 50;
+				transform.position.x = transform.position.x < paddingLeft ? paddingLeft : transform.position.x;
+				transform.position.x = transform.position.x > AE::Engine::MapWidth - paddingRight ? AE::Engine::MapWidth - paddingRight : transform.position.x;
+				transform.position.y = transform.position.y < paddingTop ? paddingTop : transform.position.y;
+				transform.position.y = transform.position.y > AE::Engine::MapHeight - paddingBottom ? AE::Engine::MapHeight - paddingBottom : transform.position.y;
+			}
 
-				if (entity.HasTag("player"))
-				{
-					int paddingLeft = 10;
-					int paddingTop = 10;
-					int paddingRight = 50;
-					int paddingBottom = 50;
-					transform.position.x = transform.position.x < paddingLeft ? paddingLeft : transform.position.x;
-					transform.position.x = transform.position.x > AE::Engine::MapWidth - paddingRight ? AE::Engine::MapWidth - paddingRight : transform.position.x;
-					transform.position.y = transform.position.y < paddingTop ? paddingTop : transform.position.y;
-					transform.position.y = transform.position.y > AE::Engine::MapHeight - paddingBottom ? AE::Engine::MapHeight - paddingBottom : transform.position.y;
-				}
+			bool isEntityOutsideMap =
+				(transform.position.x < 0 ||
+				 transform.position.x > AE::Engine::MapWidth ||
+				 transform.position.y < 0 ||
+				 transform.position.y > AE::Engine::MapHeight);
 
-				bool isEntityOutsideMap = 
-				(
-					transform.position.x < 0 || 
-					transform.position.x > AE::Engine::MapWidth ||
-					transform.position.y < 0 || 
-					transform.position.y > AE::Engine::MapHeight
-				);
-
-				if (isEntityOutsideMap && !entity.HasTag("player"))
-				{
-					entity.Kill();
-				}
+			if (isEntityOutsideMap && !entity.HasTag("player"))
+			{
+				entity.Kill();
 			}
 		}
+	}
 };
-
 
 #endif

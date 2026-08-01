@@ -9,16 +9,16 @@ namespace AE::Editor
 class OutputLogWidget
 {
 public:
-    void Draw(bool* open = nullptr);
+	void Draw(bool* open = nullptr);
 
 private:
-    ImGuiTextFilter filter;
-    bool autoScroll = true;
-    bool showInfo = true;
-    bool showWarnings = true;
-    bool showErrors = true;
+	ImGuiTextFilter filter;
+	bool autoScroll = true;
+	bool showInfo = true;
+	bool showWarnings = true;
+	bool showErrors = true;
 };
 
-}
+} // namespace AE::Editor
 
 #endif

@@ -40,9 +40,7 @@ void FThreadPool::SetWorkerCount(SizeT WorkerCount)
 
 		// Wait until the current task completes before recreating workers.
 		WorkFinished.wait(Lock, [this]()
-						{
-							return !HasWork;
-						});
+						  { return !HasWork; });
 
 		if (Workers.size() == WorkerCount)
 		{
@@ -96,7 +94,6 @@ void FThreadPool::ParallelFor(SizeT ItemCount, SizeT MinItemsPerJob, const std::
 		return;
 	}
 
-
 	//-------------------------------------------------------------------------
 	// Submit new task.
 	//
@@ -106,9 +103,7 @@ void FThreadPool::ParallelFor(SizeT ItemCount, SizeT MinItemsPerJob, const std::
 	{
 		std::unique_lock<std::mutex> Lock(Mutex);
 		WorkFinished.wait(Lock, [this]()
-							{
-								return !HasWork;
-							});
+						  { return !HasWork; });
 
 		CurrentTask = Function;
 		TaskException = nullptr;
@@ -142,9 +137,7 @@ void FThreadPool::ParallelFor(SizeT ItemCount, SizeT MinItemsPerJob, const std::
 	{
 		std::unique_lock<std::mutex> Lock(Mutex);
 		WorkFinished.wait(Lock, [this]()
-						{
-							return !HasWork;
-						});
+						  { return !HasWork; });
 
 		//-------------------------------------------------------------------------
 		// Cleanup task state.
@@ -246,9 +239,7 @@ void FThreadPool::WorkerLoop()
 		{
 			std::unique_lock<std::mutex> Lock(Mutex);
 			WorkAvailable.wait(Lock, [this, &ObservedGeneration]()
-							{
-								return Stopping || WorkGeneration != ObservedGeneration;
-							});
+							   { return Stopping || WorkGeneration != ObservedGeneration; });
 
 			if (Stopping)
 			{

@@ -1,9 +1,9 @@
 #include "Application.h"
-#include "Physics/Constants.h"
-#include "Physics/Force.h"
-#include "Physics/CollisionDetection.h"
-#include "Physics/Contact.h"
-#include "Physics/Constraint.h"
+#include "Physics/Core/Constants.h"
+#include "Physics/Dynamics/Force.h"
+#include "Physics/Collision/CollisionDetection.h"
+#include "Physics/Collision/Contact.h"
+#include "Physics/Constraints/Constraint.h"
 
 #define DEBUG_IFNO 0
 

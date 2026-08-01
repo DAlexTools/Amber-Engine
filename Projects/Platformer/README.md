@@ -55,7 +55,7 @@ Open in AmberEditor:
 
 ```powershell
 .\Setup.bat -Target Editor
-.\Builds\Editor\Engine\Editor\Shell\Debug\AmberEditor.exe .\Projects\Platformer\Platformer.amberproject
+.\Builds\Editor\Engine\Editor\Debug\AmberEditor.exe .\Projects\Platformer\Platformer.amberproject
 ```
 
 Register `.amberproject` for double-click opening in Windows:

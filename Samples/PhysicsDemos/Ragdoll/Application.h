@@ -7,23 +7,24 @@
 #include "../Common/LegacyDiagnosticsOverlay.h"
 #include <vector>
 
-class Application {
-    private:
-        bool debug = true;
-        bool running = false;
-        World* world;
-        BodyTextureStore bodyTextures;
-        LegacyDiagnosticsOverlay diagnostics;
+class Application
+{
+private:
+	bool debug = true;
+	bool running = false;
+	World* world;
+	BodyTextureStore bodyTextures;
+	LegacyDiagnosticsOverlay diagnostics;
 
-    public:
-        Application() = default;
-        ~Application() = default;
-        bool IsRunning();
-        void Setup();
-        void Input();
-        void Update();
-        void Render();
-        void Destroy();
+public:
+	Application() = default;
+	~Application() = default;
+	bool IsRunning();
+	void Setup();
+	void Input();
+	void Update();
+	void Render();
+	void Destroy();
 };
 
 #endif

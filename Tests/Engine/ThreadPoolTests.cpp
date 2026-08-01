@@ -38,20 +38,17 @@ TEST(FThreadPoolTests, RethrowsWorkerExceptionOnCallingThreadAndClearsState)
 
 	EXPECT_THROW(
 		ThreadPool.ParallelFor(8u, 1u, [](SizeT Begin, SizeT End)
-		{
+							   {
 			if (Begin == 0u)
 			{
 				throw std::runtime_error("thread pool task failed");
 			}
-			(void)End;
-		}),
+			(void)End; }),
 		std::runtime_error);
 
 	std::atomic<SizeT> ProcessedItemCount{0u};
 	EXPECT_NO_THROW(ThreadPool.ParallelFor(8u, 1u, [&ProcessedItemCount](SizeT Begin, SizeT End)
-	{
-		ProcessedItemCount.fetch_add(End - Begin, std::memory_order_relaxed);
-	}));
+										   { ProcessedItemCount.fetch_add(End - Begin, std::memory_order_relaxed); }));
 	EXPECT_EQ(ProcessedItemCount.load(std::memory_order_relaxed), 8u);
 }
 

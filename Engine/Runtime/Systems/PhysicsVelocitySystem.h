@@ -4,42 +4,41 @@
 #include "../Components/PhysicsBodyComponent.h"
 #include "../Components/RigidBodyComponent.h"
 #include "../EntityComponentSystem/ECS.h"
-#include "Body.h"
+#include "Physics/Dynamics/Body.h"
 #include "Core/Math/Vector2D.h"
 
 class PhysicsVelocitySystem : public System
 {
 public:
-    PhysicsVelocitySystem()
-    {
-        RequireComponent<PhysicsBodyComponent>();
-        RequireComponent<RigidBodyComponent>();
-    }
+	PhysicsVelocitySystem()
+	{
+		RequireComponent<PhysicsBodyComponent>();
+		RequireComponent<RigidBodyComponent>();
+	}
 
-    void Update()
-    {
-        for (auto entity : GetSystemEntity())
-        {
-            auto& physicsBody = entity.GetComponent<PhysicsBodyComponent>();
-            const auto rigidBody = entity.GetComponent<RigidBodyComponent>();
+	void Update()
+	{
+		for (auto entity : GetSystemEntity())
+		{
+			auto& physicsBody = entity.GetComponent<PhysicsBodyComponent>();
+			const auto rigidBody = entity.GetComponent<RigidBodyComponent>();
 
-            if (!physicsBody.body)
-            {
-                continue;
-            }
+			if (!physicsBody.body)
+			{
+				continue;
+			}
 
-            if (physicsBody.body->IsStatic())
-            {
-                physicsBody.body->velocity = AE::Math::FVector2D::Zero;
-                continue;
-            }
+			if (physicsBody.body->IsStatic())
+			{
+				physicsBody.body->velocity = AE::Math::FVector2D::Zero;
+				continue;
+			}
 
-            physicsBody.body->velocity = AE::Math::FVector2D(
-                rigidBody.velocity.x,
-                rigidBody.velocity.y);
-        }
-    }
+			physicsBody.body->velocity = AE::Math::FVector2D(
+				rigidBody.velocity.x,
+				rigidBody.velocity.y);
+		}
+	}
 };
 
 #endif
-

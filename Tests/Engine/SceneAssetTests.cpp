@@ -13,7 +13,7 @@ std::filesystem::path MakeSceneAssetTestPath(const char* Name)
 {
 	const auto Stamp = std::chrono::steady_clock::now().time_since_epoch().count();
 	return std::filesystem::temp_directory_path() /
-		("AmberSceneAsset_" + std::string(Name) + "_" + std::to_string(Stamp) + ".amber.scene");
+		   ("AmberSceneAsset_" + std::string(Name) + "_" + std::to_string(Stamp) + ".amber.scene");
 }
 } // namespace
 

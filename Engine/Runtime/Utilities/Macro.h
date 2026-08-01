@@ -1,7 +1,6 @@
 #ifndef MACRO_H
 #define MACRO_H
 
-
 #if ASSERTIONS_ENABLED
 #define debugBreak() asm { int 3 }
 #define ASSERT(expr) \

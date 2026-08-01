@@ -48,17 +48,17 @@ static_assert(sizeof(PtrInt) == sizeof(void*), "PtrInt must match pointer size")
 
 } // namespace AE
 
-using AE::int8;
 using AE::int16;
 using AE::int32;
 using AE::int64;
-using AE::uint8;
+using AE::int8;
+using AE::PtrInt;
+using AE::SizeT;
+using AE::SSizeT;
 using AE::uint16;
 using AE::uint32;
 using AE::uint64;
-using AE::SizeT;
-using AE::SSizeT;
+using AE::uint8;
 using AE::UPtrInt;
-using AE::PtrInt;
 
 #endif

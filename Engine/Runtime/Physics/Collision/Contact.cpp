@@ -1,0 +1,14 @@
+
+#include "Physics/Collision/Contact.h"
+
+namespace AE::Physics
+{
+
+void Contact::ResolvePenetration() {}
+
+///////////////////////////////////////////////////////////////////////////////
+// Resolves the collision using the impulse method
+///////////////////////////////////////////////////////////////////////////////
+void Contact::ResolveCollision() {}
+
+} // namespace AE::Physics

@@ -3,8 +3,7 @@
 
 struct CameraFollowComponent
 {
-    CameraFollowComponent() = default;
+	CameraFollowComponent() = default;
 };
-
 
 #endif

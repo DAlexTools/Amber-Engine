@@ -70,17 +70,12 @@ function Register-AmberProjectFiles {
     )
 
     $editorExe = Join-Path $Root "Builds\Editor\Engine\Editor\$BuildConfiguration\AmberEditor.exe"
-    $legacyEditorExe = Join-Path $Root "Builds\Editor\Engine\Editor\Shell\$BuildConfiguration\AmberEditor.exe"
     if (-not (Test-Path $editorExe)) {
         Invoke-ToolScript (Join-Path $PSScriptRoot "Build.ps1") @(
             "-Mode", "Editor",
             "-Target", "Editor",
             "-Configuration", $BuildConfiguration
         )
-    }
-
-    if (-not (Test-Path $editorExe) -and (Test-Path $legacyEditorExe)) {
-        $editorExe = $legacyEditorExe
     }
 
     if (-not (Test-Path $editorExe)) {

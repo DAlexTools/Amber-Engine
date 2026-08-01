@@ -4,6 +4,15 @@ get_filename_component(ENGINE_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/.. ABSOLUTE)
 set(ENGINE_RUNTIME_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(ENGINE_THIRD_PARTY_DIR ${ENGINE_ROOT_DIR}/ThirdParty)
 set(ENGINE_PHYSICS_DIR ${ENGINE_RUNTIME_DIR}/Physics)
+set(ENGINE_PHYSICS_CHECKS_DIR ${ENGINE_PHYSICS_DIR}/Checks)
+set(ENGINE_PHYSICS_COLLISION_DIR ${ENGINE_PHYSICS_DIR}/Collision)
+set(ENGINE_PHYSICS_CONSTRAINTS_DIR ${ENGINE_PHYSICS_DIR}/Constraints)
+set(ENGINE_PHYSICS_DYNAMICS_DIR ${ENGINE_PHYSICS_DIR}/Dynamics)
+set(ENGINE_PHYSICS_GEOMETRY_DIR ${ENGINE_PHYSICS_DIR}/Geometry)
+set(ENGINE_PHYSICS_INPUT_DIR ${ENGINE_PHYSICS_DIR}/Input)
+set(ENGINE_PHYSICS_PARTICLES_DIR ${ENGINE_PHYSICS_DIR}/Particles)
+set(ENGINE_PHYSICS_SERIALIZATION_DIR ${ENGINE_PHYSICS_DIR}/Serialization)
+set(ENGINE_PHYSICS_UTILITIES_DIR ${ENGINE_PHYSICS_DIR}/Utilities)
 
 add_library(EngineRuntimeCore STATIC
     ${ENGINE_RUNTIME_DIR}/Assets/AssetResolver.cpp
@@ -78,25 +87,24 @@ amber_group_sources(EngineRuntimeECS "${ENGINE_RUNTIME_DIR}")
 amber_enable_pch(EngineRuntimeECS)
 
 add_library(Physics STATIC
-    ${ENGINE_PHYSICS_DIR}/CollisionDetection.cpp
-    ${ENGINE_PHYSICS_DIR}/Contact.cpp
-    ${ENGINE_PHYSICS_DIR}/Constraint.cpp
-    ${ENGINE_PHYSICS_DIR}/Force.cpp
-    ${ENGINE_PHYSICS_DIR}/Mouse.cpp
-    ${ENGINE_PHYSICS_DIR}/Particle.cpp
-    ${ENGINE_PHYSICS_DIR}/Point.cpp
+    ${ENGINE_PHYSICS_COLLISION_DIR}/CollisionDetection.cpp
+    ${ENGINE_PHYSICS_COLLISION_DIR}/Contact.cpp
+    ${ENGINE_PHYSICS_CONSTRAINTS_DIR}/Constraint.cpp
+    ${ENGINE_PHYSICS_DYNAMICS_DIR}/Body.cpp
+    ${ENGINE_PHYSICS_DYNAMICS_DIR}/Force.cpp
+    ${ENGINE_PHYSICS_GEOMETRY_DIR}/Shape.cpp
+    ${ENGINE_PHYSICS_INPUT_DIR}/Mouse.cpp
+    ${ENGINE_PHYSICS_PARTICLES_DIR}/Cloth.cpp
+    ${ENGINE_PHYSICS_PARTICLES_DIR}/Particle.cpp
+    ${ENGINE_PHYSICS_PARTICLES_DIR}/Point.cpp
+    ${ENGINE_PHYSICS_PARTICLES_DIR}/Stick.cpp
     ${ENGINE_RUNTIME_DIR}/Classes/World.cpp
-    ${ENGINE_PHYSICS_DIR}/Body.cpp
-    ${ENGINE_PHYSICS_DIR}/Cloth.cpp
-    ${ENGINE_PHYSICS_DIR}/Shape.cpp
-    ${ENGINE_PHYSICS_DIR}/Stick.cpp
-    ${ENGINE_PHYSICS_DIR}/Utils.cpp
-    ${ENGINE_PHYSICS_DIR}/base64.cpp
+    ${ENGINE_PHYSICS_SERIALIZATION_DIR}/base64.cpp
+    ${ENGINE_PHYSICS_UTILITIES_DIR}/Utils.cpp
 )
 
 target_include_directories(Physics PUBLIC
     ${ENGINE_RUNTIME_DIR}
-    ${ENGINE_PHYSICS_DIR}
 )
 
 target_link_libraries(Physics PUBLIC
@@ -113,7 +121,7 @@ amber_group_sources(Physics "${ENGINE_RUNTIME_DIR}")
 amber_enable_pch(Physics)
 
 add_executable(PhysicsCollisionFilteringCheck
-    ${ENGINE_PHYSICS_DIR}/tests/PhysicsCollisionFilteringCheck.cpp
+    ${ENGINE_PHYSICS_CHECKS_DIR}/PhysicsCollisionFilteringCheck.cpp
 )
 
 target_link_libraries(PhysicsCollisionFilteringCheck PRIVATE

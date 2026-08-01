@@ -6,7 +6,7 @@
 #include <sstream>
 
 #include "Logging/Logger.h"
-#include "Shape.h"
+#include "Physics/Geometry/Shape.h"
 
 #ifdef AMBER_ENABLE_SAMPLE_DIAGNOSTICS
 #include "imgui.h"

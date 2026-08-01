@@ -66,7 +66,7 @@ gtest_discover_tests(EngineUnitTests
         LABELS "unit;engine"
 )
 
-if(TARGET EditorShell)
+if(TARGET AmberEditorCore)
     set(EDITOR_UNIT_TEST_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/Editor/ActorTypeRegistryTests.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Editor/RuntimeParityTests.cpp
@@ -86,7 +86,7 @@ if(TARGET EditorShell)
 
     target_link_libraries(EditorUnitTests PRIVATE
         AmberBuildConfig
-        EditorShell
+        AmberEditorCore
         GTest::gtest
         GTest::gtest_main
     )

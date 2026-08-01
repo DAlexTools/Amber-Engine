@@ -37,72 +37,69 @@
 #include "../Systems/PhysicsDebugRenderSystem.h"
 #include "../Logging/LogBus.h"
 
-
 #include <imgui/imgui_impl_sdl.h>
-
 
 #include "../Utilities/Macro.h"
 
 namespace
 {
-	double ElapsedMs(Uint64 startCounter, Uint64 endCounter)
-	{
-		return static_cast<double>(endCounter - startCounter) * 1000.0 /
-			static_cast<double>(SDL_GetPerformanceFrequency());
-	}
-
-	bool IsFullscreenToggleKey(const SDL_KeyboardEvent& keyEvent)
-	{
-		const SDL_Keycode key = keyEvent.keysym.sym;
-		const bool altPressed = (keyEvent.keysym.mod & KMOD_ALT) != 0;
-		return key == SDLK_F11 || (altPressed && (key == SDLK_RETURN || key == SDLK_KP_ENTER));
-	}
-
-	bool SetContentWorkingDirectory()
-	{
-		namespace fs = std::filesystem;
-
-		const fs::path levelScriptPath = fs::path("Content") / "scripts" / "Level1.lua";
-		if (fs::exists(levelScriptPath))
-		{
-			return true;
-		}
-
-		const fs::path candidateRoots[] = {
-			fs::path("AmberEngine"),
-			fs::path(".."),
-			fs::path("..") / "..",
-			fs::path("..") / ".." / "..",
-			fs::path("..") / "AmberEngine",
-			fs::path("..") / ".." / "AmberEngine"
-		};
-
-		for (const auto& candidateRoot : candidateRoots)
-		{
-			if (!fs::exists(candidateRoot / levelScriptPath))
-			{
-				continue;
-			}
-
-			std::error_code error;
-			fs::current_path(candidateRoot, error);
-			if (error)
-			{
-				AE::Logger::Err("Failed to set content working directory to " + candidateRoot.string() + ": " + error.message());
-				return false;
-			}
-
-			return true;
-		}
-
-		AE::Logger::Err("Could not locate Content/scripts/Level1.lua from the current working directory.");
-		return false;
-	}
+double ElapsedMs(Uint64 startCounter, Uint64 endCounter)
+{
+	return static_cast<double>(endCounter - startCounter) * 1000.0 /
+		   static_cast<double>(SDL_GetPerformanceFrequency());
 }
+
+bool IsFullscreenToggleKey(const SDL_KeyboardEvent& keyEvent)
+{
+	const SDL_Keycode key = keyEvent.keysym.sym;
+	const bool altPressed = (keyEvent.keysym.mod & KMOD_ALT) != 0;
+	return key == SDLK_F11 || (altPressed && (key == SDLK_RETURN || key == SDLK_KP_ENTER));
+}
+
+bool SetContentWorkingDirectory()
+{
+	namespace fs = std::filesystem;
+
+	const fs::path levelScriptPath = fs::path("Content") / "scripts" / "Level1.lua";
+	if (fs::exists(levelScriptPath))
+	{
+		return true;
+	}
+
+	const fs::path candidateRoots[] = {
+		fs::path("AmberEngine"),
+		fs::path(".."),
+		fs::path("..") / "..",
+		fs::path("..") / ".." / "..",
+		fs::path("..") / "AmberEngine",
+		fs::path("..") / ".." / "AmberEngine"};
+
+	for (const auto& candidateRoot : candidateRoots)
+	{
+		if (!fs::exists(candidateRoot / levelScriptPath))
+		{
+			continue;
+		}
+
+		std::error_code error;
+		fs::current_path(candidateRoot, error);
+		if (error)
+		{
+			AE::Logger::Err("Failed to set content working directory to " + candidateRoot.string() + ": " + error.message());
+			return false;
+		}
+
+		return true;
+	}
+
+	AE::Logger::Err("Could not locate Content/scripts/Level1.lua from the current working directory.");
+	return false;
+}
+} // namespace
 
 bool GameModule::isEditMode = false;
 /**
- * 
+ *
  */
 GameModule::GameModule(AE::Engine& engine)
 	: engine(engine)
@@ -112,7 +109,7 @@ GameModule::GameModule(AE::Engine& engine)
 }
 
 /**
- * 
+ *
  */
 GameModule::~GameModule()
 {
@@ -130,7 +127,7 @@ void GameModule::SetLevelNumber(int level)
 }
 
 /**
- * 
+ *
  */
 void GameModule::Setup()
 {
@@ -148,19 +145,19 @@ void GameModule::Setup()
 }
 
 /**
- * 
+ *
  */
 void GameModule::Run()
 {
 	Setup();
 
-	while(engine.IsRunning())
+	while (engine.IsRunning())
 	{
 		ProcessInput();
-		if (!isEditMode) Update();
-		
-		Render();
+		if (!isEditMode)
+			Update();
 
+		Render();
 	}
 }
 
@@ -242,7 +239,7 @@ bool GameModule::RunPhysicsContactSmokeTest()
 
 	const int aabbEnemyHealth = aabbEnemy.GetComponent<HealthComponent>().healthPercentage;
 	const bool aabbProjectileDamageIgnored = aabbEnemyHealth == 100 &&
-		registry->GetEntitiesToBeKilled().find(aabbProjectile) == registry->GetEntitiesToBeKilled().end();
+											 registry->GetEntitiesToBeKilled().find(aabbProjectile) == registry->GetEntitiesToBeKilled().end();
 
 	if (!hadPhysicsContact)
 	{
@@ -434,14 +431,14 @@ bool GameModule::RunPhysicsObstacleSmokeTest()
 #endif
 
 /**
- * 
+ *
  */
 void GameModule::ProcessInput()
 {
 	auto& eventBus = engine.GetEventBusHandle();
 	SDL_Event event;
-	
-	while(SDL_PollEvent(&event))
+
+	while (SDL_PollEvent(&event))
 	{
 		ImGui_ImplSDL2_ProcessEvent(&event);
 		ImGuiIO& io = ImGui::GetIO();
@@ -452,62 +449,61 @@ void GameModule::ProcessInput()
 		io.MouseDown[0] = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
 		io.MouseDown[1] = buttons & SDL_BUTTON(SDL_BUTTON_RIGHT);
 
-		switch(event.type)
+		switch (event.type)
 		{
-			case SDL_QUIT:
+		case SDL_QUIT:
+		{
+			engine.RequestShutdown();
+			break;
+		}
+
+		case SDL_WINDOWEVENT:
+		{
+			if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
+				event.window.event == SDL_WINDOWEVENT_RESIZED)
+			{
+				engine.UpdateWindowDimensions();
+			}
+			break;
+		}
+
+		case SDL_KEYDOWN:
+		{
+			if (!event.key.repeat && IsFullscreenToggleKey(event.key))
+			{
+				engine.ToggleFullscreen();
+				break;
+			}
+			if (event.key.keysym.sym == SDLK_ESCAPE)
 			{
 				engine.RequestShutdown();
+			}
+			if (event.key.keysym.sym == SDLK_F1)
+			{
+				showDiagnostics = !showDiagnostics;
 				break;
+			}
+			if (event.key.keysym.sym == SDLK_F3)
+			{
+				showOutputLog = !showOutputLog;
+				break;
+			}
+			if (io.WantCaptureKeyboard)
+			{
+				break;
+			}
+			if (event.key.keysym.sym == SDLK_d)
+			{
+				isDebug = !isDebug;
+			}
+			if (event.key.keysym.sym == SDLK_p)
+			{
+				isEditMode = !isEditMode;
 			}
 
-			case SDL_WINDOWEVENT:
-			{
-				if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
-					event.window.event == SDL_WINDOWEVENT_RESIZED)
-				{
-					engine.UpdateWindowDimensions();
-				}
-				break;
-			}
-		
-			case SDL_KEYDOWN:
-			{
-				if (!event.key.repeat && IsFullscreenToggleKey(event.key))
-				{
-					engine.ToggleFullscreen();
-					break;
-				}
-				if (event.key.keysym.sym == SDLK_ESCAPE)
-				{
-					engine.RequestShutdown();
-				}
-				if (event.key.keysym.sym == SDLK_F1)
-				{
-					showDiagnostics = !showDiagnostics;
-					break;
-				}
-				if (event.key.keysym.sym == SDLK_F3)
-				{
-					showOutputLog = !showOutputLog;
-					break;
-				}
-				if (io.WantCaptureKeyboard)
-				{
-					break;
-				}
-				if (event.key.keysym.sym == SDLK_d)
-				{
-					isDebug = !isDebug;
-				}
-				if (event.key.keysym.sym == SDLK_p)
-				{
-					isEditMode = !isEditMode;
-				}
-
-				eventBus->EmitEvent<KeyPressedEvent>(event.key.keysym.sym);
-				break;
-			}
-					
+			eventBus->EmitEvent<KeyPressedEvent>(event.key.keysym.sym);
+			break;
+		}
 		}
 	}
 }
@@ -516,19 +512,19 @@ void GameModule::Update()
 {
 	auto& registry = engine.GetRegistryHandle();
 	auto& eventBus = engine.GetEventBusHandle();
-    // If we are too fast, waste some time until we reach the MILLISECS_PER_FRAME
-    int timeToWait = MILLISECS_PER_FRAME - (SDL_GetTicks() - millisecsPreviousFrame);
+	// If we are too fast, waste some time until we reach the MILLISECS_PER_FRAME
+	int timeToWait = MILLISECS_PER_FRAME - (SDL_GetTicks() - millisecsPreviousFrame);
 
-    if (timeToWait > 0 && timeToWait <= MILLISECS_PER_FRAME) 
+	if (timeToWait > 0 && timeToWait <= MILLISECS_PER_FRAME)
 	{
-        SDL_Delay(timeToWait);
-    }
+		SDL_Delay(timeToWait);
+	}
 
-    // The difference in ticks since the last frame, converted to seconds
-    double deltaTime = (SDL_GetTicks() - millisecsPreviousFrame) / 1000.0;
+	// The difference in ticks since the last frame, converted to seconds
+	double deltaTime = (SDL_GetTicks() - millisecsPreviousFrame) / 1000.0;
 
-    // Store the "previous" frame time
-    millisecsPreviousFrame = SDL_GetTicks();
+	// Store the "previous" frame time
+	millisecsPreviousFrame = SDL_GetTicks();
 
 	const Uint64 updateStart = SDL_GetPerformanceCounter();
 	eventBus->Reset();
@@ -544,7 +540,7 @@ void GameModule::Update()
 		registry->GetSystem<PhysicsWorldSystem>());
 	registry->Update();
 
-	// update allways system 
+	// update allways system
 	registry->GetSystem<MovementSystem>().Update(deltaTime);
 	registry->GetSystem<PhysicsSyncSystem>().PushToPhysics();
 	registry->GetSystem<PhysicsVelocitySystem>().Update();
@@ -559,11 +555,10 @@ void GameModule::Update()
 	registry->GetSystem<ProjectileEmitterSystem>().Update(registry);
 	registry->GetSystem<ProjectileLifeCycleSystem>().Update();
 	lastUpdateMs = ElapsedMs(updateStart, SDL_GetPerformanceCounter());
-
 }
 
 /**
- * Render frame function 
+ * Render frame function
  */
 void GameModule::Render()
 {
@@ -576,10 +571,10 @@ void GameModule::Render()
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	SDL_RenderClear(renderer);
 
-	registry->GetSystem<RenderSystem>().Update(renderer,assetManager, camera);
+	registry->GetSystem<RenderSystem>().Update(renderer, assetManager, camera);
 	registry->GetSystem<RenderTextSystem>().Update(renderer, assetManager, camera);
 	registry->GetSystem<RenderHealthBarSystem>().Update(renderer, assetManager, camera);
-	
+
 	/** debug box collision from entity */
 	if (isDebug)
 	{
@@ -603,7 +598,6 @@ void GameModule::Render()
 
 	lastRenderMs = ElapsedMs(renderStart, SDL_GetPerformanceCounter());
 	SDL_RenderPresent(renderer);
-
 }
 
 void GameModule::RenderDiagnosticsUi()

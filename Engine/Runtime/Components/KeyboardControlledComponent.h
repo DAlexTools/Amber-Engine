@@ -3,7 +3,7 @@
 
 #include <glm/glm.hpp>
 
-struct KeyboardControlledComponent 
+struct KeyboardControlledComponent
 {
 	glm::vec2 upVelocity;
 	glm::vec2 rightVelocity;
@@ -18,7 +18,5 @@ struct KeyboardControlledComponent
 		this->leftVelocity = leftVelocity;
 	}
 };
-
-
 
 #endif

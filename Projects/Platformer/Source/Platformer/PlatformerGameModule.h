@@ -17,7 +17,7 @@
 #include "Core/Math/Vector2D.h"
 #include "Core/Platform/PlatformTypes.h"
 #include "Game/GameModuleInterface.h"
-#include "Body.h"
+#include "Physics/Dynamics/Body.h"
 
 namespace AE
 {

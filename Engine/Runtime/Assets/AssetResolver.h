@@ -16,11 +16,11 @@ namespace AE
  */
 struct RuntimeAssetRoot
 {
-    /** Logical name of the asset root. */
-    std::string Name;
+	/** Logical name of the asset root. */
+	std::string Name;
 
-     /** Absolute path to the asset root directory. */
-    std::filesystem::path Path;
+	/** Absolute path to the asset root directory. */
+	std::filesystem::path Path;
 };
 
 /**
@@ -31,17 +31,17 @@ struct RuntimeAssetRoot
  */
 struct RuntimeAssetResolverConfig
 {
-    /** Root directory of the current project. */
-    std::filesystem::path ProjectRoot;
+	/** Root directory of the current project. */
+	std::filesystem::path ProjectRoot;
 
-    /** Root directory of the engine installation. */
-    std::filesystem::path EngineRoot;
+	/** Root directory of the engine installation. */
+	std::filesystem::path EngineRoot;
 
-    /** Project content directory. */
-    std::filesystem::path ContentRoot;
+	/** Project content directory. */
+	std::filesystem::path ContentRoot;
 
-    /** Available asset roots used during asset resolution. */
-    std::vector<RuntimeAssetRoot> Roots;
+	/** Available asset roots used during asset resolution. */
+	std::vector<RuntimeAssetRoot> Roots;
 };
 
 /**
@@ -120,6 +120,6 @@ std::filesystem::path ResolveRuntimeAssetPath(const std::string& AssetId, const 
  */
 std::filesystem::path ResolveRuntimeAssetPath(const std::string& AssetId, const std::vector<RuntimeAssetRoot>& Roots);
 
-}
+} // namespace AE
 
 #endif

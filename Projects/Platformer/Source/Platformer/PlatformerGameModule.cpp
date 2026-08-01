@@ -20,8 +20,8 @@
 
 #include "Logging/Logger.h"
 #include "Game/RuntimeViewerSDL.h"
-#include "Physics/Constraint.h"
-#include "Shape.h"
+#include "Physics/Constraints/Constraint.h"
+#include "Physics/Geometry/Shape.h"
 #if AMBER_ENABLE_PLATFORMER_EDITOR_SCENE
 #include "PlatformerSceneObjects.h"
 #include "Scene/ObjectFactory.h"

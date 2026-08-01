@@ -5,38 +5,38 @@
 #include <iostream>
 #include <string>
 
-int main( int argc, char* argv[])
+int main(int argc, char* argv[])
 {
 #if SMOKE_TEST
-    bool smokeTest = false;
+	bool smokeTest = false;
 #endif
 
-    for (int i = 1; i < argc; ++i)
-    {
-        const std::string argument = argv[i];
+	for (int i = 1; i < argc; ++i)
+	{
+		const std::string argument = argv[i];
 #if SMOKE_TEST
-        if (argument == "--smoke-test")
-        {
-            smokeTest = true;
-        }
+		if (argument == "--smoke-test")
+		{
+			smokeTest = true;
+		}
 #endif
-    }
+	}
 
-    ContainerSandboxApp app;
+	ContainerSandboxApp app;
 #if SMOKE_TEST
-    if (smokeTest)
-    {
-        const bool passed = app.RunSmokeTest();
-        if (!passed)
-        {
-            std::cerr << "Container sandbox smoke test failed." << std::endl;
-            return 1;
-        }
+	if (smokeTest)
+	{
+		const bool passed = app.RunSmokeTest();
+		if (!passed)
+		{
+			std::cerr << "Container sandbox smoke test failed." << std::endl;
+			return 1;
+		}
 
-        std::cout << "Container sandbox smoke test passed." << std::endl;
-        return 0;
-    }
+		std::cout << "Container sandbox smoke test passed." << std::endl;
+		return 0;
+	}
 #endif
 
-    return app.Run();
+	return app.Run();
 }

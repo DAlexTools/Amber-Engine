@@ -9,26 +9,23 @@
 class AnimationSystem : public System
 {
 public:
-    AnimationSystem()
-    {
-        RequireComponent<SpriteComponent>();
-        RequireComponent<AnimationComponent>();
-    }
+	AnimationSystem()
+	{
+		RequireComponent<SpriteComponent>();
+		RequireComponent<AnimationComponent>();
+	}
 
-    void Update()
-    {
-        for  (auto entity : GetSystemEntity())
-        {
-            auto& animation = entity.GetComponent<AnimationComponent>();
-            auto& sprite = entity.GetComponent<SpriteComponent>();
+	void Update()
+	{
+		for (auto entity : GetSystemEntity())
+		{
+			auto& animation = entity.GetComponent<AnimationComponent>();
+			auto& sprite = entity.GetComponent<SpriteComponent>();
 
-            animation.currentFrame = ((SDL_GetTicks() - animation.startTime) * animation.frameSpeedRate / 1000) % animation.numFrames;
-            sprite.srcRect.x = animation.currentFrame * sprite.width;
-        }
-    }
-
-
+			animation.currentFrame = ((SDL_GetTicks() - animation.startTime) * animation.frameSpeedRate / 1000) % animation.numFrames;
+			sprite.srcRect.x = animation.currentFrame * sprite.width;
+		}
+	}
 };
-
 
 #endif

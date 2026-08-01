@@ -27,7 +27,7 @@ Engine/
     EntityComponentSystem/
     Components/ Systems/
     Assets/ Scene/ Logging/
-  Editor/                AmberEditor shell, editor services, diagnostics and OutputLog
+  Editor/                AmberEditor app, viewport, scene, asset, runtime, diagnostics and OutputLog modules
   ThirdParty/            Bundled headers/sources such as glm, imgui, lua and sol
   Content/               Reserved engine content
 Projects/

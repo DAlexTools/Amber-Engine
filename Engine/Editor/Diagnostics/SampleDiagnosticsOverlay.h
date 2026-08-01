@@ -7,7 +7,7 @@
 #include <string>
 
 #include "Core/Platform/PlatformTypes.h"
-#include "OutputLogWidget.h"
+#include "OutputLog/OutputLogWidget.h"
 
 namespace AE::Editor
 {

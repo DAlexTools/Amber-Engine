@@ -7,9 +7,9 @@
 #include <iostream>
 #include <sstream>
 
-#include "Physics/Constraint.h"
+#include "Physics/Constraints/Constraint.h"
 #include "Logging/Logger.h"
-#include "Shape.h"
+#include "Physics/Geometry/Shape.h"
 #include "imgui.h"
 #include "imgui_impl_sdl.h"
 #include "imgui_sdl.h"

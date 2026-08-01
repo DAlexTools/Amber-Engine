@@ -8,12 +8,12 @@
 
 #include "Core/BuildConfig.h"
 #include "Core/Platform/PlatformTypes.h"
-#include "Body.h"
+#include "Physics/Dynamics/Body.h"
 #include "Core/Math/Vector2D.h"
 #include "Classes/World.h"
 
 #ifdef AMBER_ENABLE_PHYSICS_LAB_OUTPUT_LOG
-#include "OutputLogWidget.h"
+#include "OutputLog/OutputLogWidget.h"
 #endif
 
 class PhysicsLabApp

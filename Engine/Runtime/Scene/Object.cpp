@@ -10,31 +10,31 @@ namespace AE::Scene
 {
 
 Object::Object(ObjectData objectData)
-    : data(std::move(objectData))
+	: data(std::move(objectData))
 {
-    if (data.className.empty())
-    {
-        data.className = GetClassName();
-    }
+	if (data.className.empty())
+	{
+		data.className = GetClassName();
+	}
 }
 
 const char* Object::GetClassName() const
 {
-    return "Object";
+	return "Object";
 }
 
 void Object::ConfigureEntity(Registry& ownerRegistry)
 {
-    registry = &ownerRegistry;
-    entity = ownerRegistry.CreateEntity();
-    entity.SetName(data.name);
-    entity.AddComponent<SceneObjectComponent>(data.name, data.className, data.assetId, data.visible);
-    entity.AddComponent<TransformComponent>(
-        glm::vec2(data.transform.position.x, data.transform.position.y),
-        glm::vec2(data.transform.scale.x, data.transform.scale.y),
-        data.transform.rotationDegrees);
-    entityConfigured = true;
-    OnCreate();
+	registry = &ownerRegistry;
+	entity = ownerRegistry.CreateEntity();
+	entity.SetName(data.name);
+	entity.AddComponent<SceneObjectComponent>(data.name, data.className, data.assetId, data.visible);
+	entity.AddComponent<TransformComponent>(
+		glm::vec2(data.transform.position.x, data.transform.position.y),
+		glm::vec2(data.transform.scale.x, data.transform.scale.y),
+		data.transform.rotationDegrees);
+	entityConfigured = true;
+	OnCreate();
 }
 
 void Object::OnCreate()
@@ -47,57 +47,57 @@ void Object::OnDestroy()
 
 bool Object::HasEntity() const
 {
-    return entityConfigured;
+	return entityConfigured;
 }
 
 Entity Object::GetEntity() const
 {
-    return entity;
+	return entity;
 }
 
 Registry* Object::GetRegistry() const
 {
-    return registry;
+	return registry;
 }
 
 const ObjectData& Object::GetData() const
 {
-    return data;
+	return data;
 }
 
 ObjectData& Object::GetData()
 {
-    return data;
+	return data;
 }
 
 const std::string& Object::GetName() const
 {
-    return data.name;
+	return data.name;
 }
 
 const std::string& Object::GetAssetId() const
 {
-    return data.assetId;
+	return data.assetId;
 }
 
 ObjectKind Object::GetKind() const
 {
-    return data.kind;
+	return data.kind;
 }
 
 const Transform& Object::GetTransform() const
 {
-    return data.transform;
+	return data.transform;
 }
 
 const Vec2& Object::GetSize() const
 {
-    return data.size;
+	return data.size;
 }
 
 bool Object::IsVisible() const
 {
-    return data.visible;
+	return data.visible;
 }
 
-}
+} // namespace AE::Scene

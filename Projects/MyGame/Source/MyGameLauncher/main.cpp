@@ -4,9 +4,9 @@
 
 int main(int argc, char** argv)
 {
-    MyGame::MyGameModule module;
-    AE::RuntimePlayerOptions options;
-    options.projectFilePath = "MyGame.amberproject";
-    options.windowTitle = "MyGame";
-    return AE::RuntimePlayer::RunFromArguments(module, argc, argv, options);
+	MyGame::MyGameModule module;
+	AE::RuntimePlayerOptions options;
+	options.projectFilePath = "MyGame.amberproject";
+	options.windowTitle = "MyGame";
+	return AE::RuntimePlayer::RunFromArguments(module, argc, argv, options);
 }

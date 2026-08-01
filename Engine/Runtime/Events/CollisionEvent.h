@@ -11,8 +11,12 @@ public:
 	Entity b;
 	bool fromPhysics;
 
-	CollisionEvent(Entity a, Entity b, bool fromPhysics = false) : a(a), b(b), fromPhysics(fromPhysics) {}
+	CollisionEvent(Entity a, Entity b, bool fromPhysics = false)
+		: a(a)
+		, b(b)
+		, fromPhysics(fromPhysics)
+	{
+	}
 };
-
 
 #endif

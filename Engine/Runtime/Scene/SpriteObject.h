@@ -9,12 +9,12 @@ namespace AE::Scene
 class SpriteObject : public Object
 {
 public:
-    explicit SpriteObject(ObjectData data);
+	explicit SpriteObject(ObjectData data);
 
-    const char* GetClassName() const override;
-    void ConfigureEntity(Registry& ownerRegistry) override;
+	const char* GetClassName() const override;
+	void ConfigureEntity(Registry& ownerRegistry) override;
 };
 
-}
+} // namespace AE::Scene
 
 #endif

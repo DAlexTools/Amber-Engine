@@ -6,8 +6,8 @@
 
 #include "Core/Platform/PlatformTypes.h"
 #include "Core/Threading/ThreadPool.h"
-#include "Body.h"
-#include "Shape.h"
+#include "Physics/Dynamics/Body.h"
+#include "Physics/Geometry/Shape.h"
 #include "Classes/World.h"
 
 namespace

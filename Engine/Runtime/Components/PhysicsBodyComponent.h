@@ -5,27 +5,27 @@
 
 namespace AE::Physics
 {
-    struct Body;
+struct Body;
 }
 
 struct PhysicsBodyComponent
 {
-    AE::Physics::Body* body = nullptr;
-    bool pullPositionFromPhysics = true;
-    bool pullRotationFromPhysics = true;
-    glm::vec2 localCenterOffset = glm::vec2(0.0f, 0.0f);
+	AE::Physics::Body* body = nullptr;
+	bool pullPositionFromPhysics = true;
+	bool pullRotationFromPhysics = true;
+	glm::vec2 localCenterOffset = glm::vec2(0.0f, 0.0f);
 
-    PhysicsBodyComponent(
-        AE::Physics::Body* body = nullptr,
-        bool pullPositionFromPhysics = true,
-        bool pullRotationFromPhysics = true,
-        glm::vec2 localCenterOffset = glm::vec2(0.0f, 0.0f))
-    {
-        this->body = body;
-        this->pullPositionFromPhysics = pullPositionFromPhysics;
-        this->pullRotationFromPhysics = pullRotationFromPhysics;
-        this->localCenterOffset = localCenterOffset;
-    }
+	PhysicsBodyComponent(
+		AE::Physics::Body* body = nullptr,
+		bool pullPositionFromPhysics = true,
+		bool pullRotationFromPhysics = true,
+		glm::vec2 localCenterOffset = glm::vec2(0.0f, 0.0f))
+	{
+		this->body = body;
+		this->pullPositionFromPhysics = pullPositionFromPhysics;
+		this->pullRotationFromPhysics = pullRotationFromPhysics;
+		this->localCenterOffset = localCenterOffset;
+	}
 };
 
 #endif

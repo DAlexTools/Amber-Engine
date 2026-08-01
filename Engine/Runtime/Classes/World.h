@@ -1,10 +1,10 @@
 #ifndef WORLD_H
 #define WORLD_H
 
-#include "Body.h"
+#include "Physics/Dynamics/Body.h"
 #include "Core/Platform/PlatformTypes.h"
-#include "Physics/Constraint.h"
-#include "Physics/Contact.h"
+#include "Physics/Constraints/Constraint.h"
+#include "Physics/Collision/Contact.h"
 #include <utility>
 #include <vector>
 

@@ -3,13 +3,12 @@
 
 struct HealthComponent
 {
-    int healthPercentage;
+	int healthPercentage;
 
-    HealthComponent(int healthPercentage = 0)
-    {
-        this->healthPercentage = healthPercentage;
-    }
+	HealthComponent(int healthPercentage = 0)
+	{
+		this->healthPercentage = healthPercentage;
+	}
 };
-
 
 #endif

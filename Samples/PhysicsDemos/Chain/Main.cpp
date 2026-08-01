@@ -1,20 +1,19 @@
 #include "Application.h"
 
-
 int main(int argc, char* args[])
 {
-    Application app;
+	Application app;
 
-    app.Setup();
+	app.Setup();
 
-    while (app.IsRunning())
-    {
-        app.Input();
-        app.Update();
-        app.Render();
-    }
+	while (app.IsRunning())
+	{
+		app.Input();
+		app.Update();
+		app.Render();
+	}
 
-    app.Destroy();
+	app.Destroy();
 
-    return 0;
+	return 0;
 }

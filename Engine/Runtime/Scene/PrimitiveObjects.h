@@ -9,21 +9,21 @@ namespace AE::Scene
 class BoxObject : public Object
 {
 public:
-    explicit BoxObject(ObjectData data);
+	explicit BoxObject(ObjectData data);
 
-    const char* GetClassName() const override;
-    void ConfigureEntity(Registry& ownerRegistry) override;
+	const char* GetClassName() const override;
+	void ConfigureEntity(Registry& ownerRegistry) override;
 };
 
 class CircleObject : public Object
 {
 public:
-    explicit CircleObject(ObjectData data);
+	explicit CircleObject(ObjectData data);
 
-    const char* GetClassName() const override;
-    void ConfigureEntity(Registry& ownerRegistry) override;
+	const char* GetClassName() const override;
+	void ConfigureEntity(Registry& ownerRegistry) override;
 };
 
-}
+} // namespace AE::Scene
 
 #endif
