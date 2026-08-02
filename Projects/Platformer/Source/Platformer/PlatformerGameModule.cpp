@@ -2318,6 +2318,16 @@ void PlatformerGameModule::UpdateCamera()
 	const float targetCameraX = player.position.X + player.width * 0.5f - static_cast<float>(WindowWidth) * 0.45f;
 	const float maxCameraX = static_cast<float>(LevelCols * TileSize - WindowWidth);
 	cameraX = ClampFloat(targetCameraX, 0.0f, std::max(0.0f, maxCameraX));
+
+	const float targetCameraY =
+		player.position.Y +
+		player.height * 0.5f -
+		static_cast<float>(WindowHeight) * 0.5f;
+
+	const float maxCameraY =
+		static_cast<float>(LevelRows * TileSize - WindowHeight);
+
+	cameraY = ClampFloat(targetCameraY, 0.0f, std::max(0.0f, maxCameraY));
 }
 
 bool PlatformerGameModule::IsSolidTile(int tileX, int tileY) const

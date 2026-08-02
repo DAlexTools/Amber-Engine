@@ -36,10 +36,10 @@ public:
 
 	struct ObjectBounds
 	{
-		float x = 0.0f;
-		float y = 0.0f;
-		float w = 0.0f;
-		float h = 0.0f;
+		float X = 0.0f;
+		float Y = 0.0f;
+		float W = 0.0f;
+		float H = 0.0f;
 	};
 
 	enum class EDropPayloadType
@@ -100,13 +100,13 @@ public:
 	void ReleaseRenderResources();
 
 private:
-	float cameraX = 0.0f;
-	float cameraY = 0.0f;
-	float zoom = 1.0f;
-	bool showGrid = true;
-	bool panning = false;
-	EditorVec2 panStartMouseScreen;
-	EditorVec2 panStartCamera;
+	float CameraX = 0.0f;
+	float CameraY = 0.0f;
+	float Zoom = 1.0f;
+	bool ShowGrid = true;
+	bool Panning = false;
+	EditorVec2 PanStartMouseScreen;
+	EditorVec2 PanStartCamera;
 
 	enum class GizmoAxis
 	{

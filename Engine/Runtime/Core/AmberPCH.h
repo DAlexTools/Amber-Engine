@@ -20,7 +20,11 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <exception>
 
 #include "Platform/PlatformTypes.h"
+#include "Math/AmberMath.h"
+#include "Math/Vector2D.h"
+#include "Math/VectorN.h"
 
 #endif

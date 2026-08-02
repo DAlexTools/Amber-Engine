@@ -21,7 +21,7 @@ public:
 
 	virtual ~Constraint() = default;
 
-	AE::Math::MatrixMN GetInvM() const;
+	AE::Math::FMatrixMN<float> GetInvM() const;
 	AE::Math::FVectorN GetVelocities() const;
 
 	virtual void PreSolve(const float dt) {}
@@ -35,7 +35,7 @@ public:
 class JointConstraint : public Constraint
 {
 private:
-	AE::Math::MatrixMN jacobian;
+	AE::Math::FMatrixMN<float> jacobian;
 	AE::Math::FVectorN cachedLambda;
 	float bias;
 

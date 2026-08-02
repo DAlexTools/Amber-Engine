@@ -56,16 +56,16 @@ float ComputeEffectiveMass(
 //  [ 0     0     0     0     1/mb  0    ]
 //  [ 0     0     0     0     0     1/Ib ]
 ///////////////////////////////////////////////////////////////////////////////
-AE::Math::MatrixMN Constraint::GetInvM() const
+AE::Math::FMatrixMN<float> Constraint::GetInvM() const
 {
-	AE::Math::MatrixMN invM(6, 6);
+	AE::Math::FMatrixMN<float> invM(6, 6);
 	invM.Zero();
-	invM.rows[0][0] = a->invMass;
-	invM.rows[1][1] = a->invMass;
-	invM.rows[2][2] = a->invI;
-	invM.rows[3][3] = b->invMass;
-	invM.rows[4][4] = b->invMass;
-	invM.rows[5][5] = b->invI;
+	invM.Rows[0][0] = a->invMass;
+	invM.Rows[1][1] = a->invMass;
+	invM.Rows[2][2] = a->invI;
+	invM.Rows[3][3] = b->invMass;
+	invM.Rows[4][4] = b->invMass;
+	invM.Rows[5][5] = b->invI;
 
 	return invM;
 }
@@ -136,21 +136,21 @@ void JointConstraint::PreSolve(const float dt)
 	jacobian.Zero();
 
 	FVector2D J1 = (pa - pb) * 2.0;
-	jacobian.rows[0][0] = J1.X; // A linear velocity.x
-	jacobian.rows[0][1] = J1.Y; // A linear velocity.y
+	jacobian.Rows[0][0] = J1.X; // A linear velocity.x
+	jacobian.Rows[0][1] = J1.Y; // A linear velocity.y
 
 	float J2 = ra.CrossProduct(pa - pb) * 2.0;
-	jacobian.rows[0][2] = J2; // A angular velocity
+	jacobian.Rows[0][2] = J2; // A angular velocity
 
 	FVector2D J3 = (pb - pa) * 2.0;
-	jacobian.rows[0][3] = J3.X; // B linear velocity.x
-	jacobian.rows[0][4] = J3.Y; // B linear velocity.y
+	jacobian.Rows[0][3] = J3.X; // B linear velocity.x
+	jacobian.Rows[0][4] = J3.Y; // B linear velocity.y
 
 	float J4 = rb.CrossProduct(pb - pa) * 2.0;
-	jacobian.rows[0][5] = J4; // B angular velocity
+	jacobian.Rows[0][5] = J4; // B angular velocity
 
 	// Warm starting (apply cached lambda)
-	const AE::Math::MatrixMN Jt = jacobian.Transpose();
+	const AE::Math::FMatrixMN<float> Jt = jacobian.Transpose();
 	AE::Math::FVectorN impulses = Jt * cachedLambda;
 
 	// Apply the impulses to both bodies
@@ -172,16 +172,16 @@ void JointConstraint::PreSolve(const float dt)
 void JointConstraint::Solve()
 {
 	const AE::Math::FVectorN V = GetVelocities();
-	const AE::Math::MatrixMN invM = GetInvM();
+	const AE::Math::FMatrixMN<float> invM = GetInvM();
 
-	const AE::Math::MatrixMN J = jacobian;
-	const AE::Math::MatrixMN Jt = jacobian.Transpose();
+	const AE::Math::FMatrixMN<float> J = jacobian;
+	const AE::Math::FMatrixMN<float> Jt = jacobian.Transpose();
 
 	// Compute lambda using Ax=b (Gauss-Seidel method)
-	const AE::Math::MatrixMN lhs = J * invM * Jt; // A
+	const AE::Math::FMatrixMN<float> lhs = J * invM * Jt; // A
 	AE::Math::FVectorN rhs = J * V * -1.0f;		  // b
 	rhs[0] -= bias;
-	const AE::Math::FVectorN lambda = AE::Math::MatrixMN::SolveGaussSeidel(lhs, rhs);
+	const AE::Math::FVectorN lambda = AE::Math::FMatrixMN<float>::SolveGaussSeidel(lhs, rhs);
 	cachedLambda += lambda;
 
 	// Compute the impulses with both direction and magnitude

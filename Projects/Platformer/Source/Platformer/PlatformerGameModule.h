@@ -255,7 +255,8 @@ private:
 	bool resetKeyWasDown = false;
 	bool pendingJumpPressed = false;
 	bool pendingShootPressed = false;
-	float cameraX = 0.0f;
+	float cameraX = 23.0f;
+	float cameraY = 0.0f;
 	float fixedStepAccumulator = 0.0f;
 	float coyoteTimer = 0.0f;
 	float jumpBufferTimer = 0.0f;

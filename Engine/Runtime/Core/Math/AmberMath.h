@@ -1,11 +1,6 @@
 #ifndef AMBER_MATH_H
 #define AMBER_MATH_H
 
-#include <cmath>
-#include <memory.h>
-#include <limits>
-#include <type_traits>
-
 namespace AE::Math
 {
 

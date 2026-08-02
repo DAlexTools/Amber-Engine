@@ -12,7 +12,7 @@ object Circle "Editor Coin 4" "" "CoinObject" 1705.000 322.600 0.000 1.000 1.000
 object Circle "Editor Coin 5" "" "CoinObject" 2153.000 386.600 0.000 1.000 1.000 18.000 18.000 1 0
 object Circle "Editor Coin 6" "" "CoinObject" 2569.000 290.600 0.000 1.000 1.000 18.000 18.000 1 0
 object Box "Ground Main" "" "SolidPlatformObject" 1536.000 512.000 0.000 1.000 1.000 3072.000 64.000 1 0
-object Box "Ground Ledge 1" "" "SolidPlatformObject" 581.192 211.493 0.000 1.000 1.000 192.000 32.000 1 0
+object Box "Ground Ledge 1" "" "SolidPlatformObject" 581.192 145.405 0.000 1.000 1.000 192.000 32.000 1 0
 object Box "Ground Ledge 2" "" "SolidPlatformObject" 896.000 432.000 0.000 1.000 1.000 192.000 32.000 1 0
 object Box "Ground Ledge 3" "" "SolidPlatformObject" 1264.000 400.000 0.000 1.000 1.000 224.000 32.000 1 0
 object Box "Ground Ledge 4" "" "SolidPlatformObject" 1696.000 368.000 0.000 1.000 1.000 192.000 32.000 1 0
@@ -22,7 +22,7 @@ object Box "Low Step 1" "" "SolidPlatformObject" 1904.000 464.000 0.000 1.000 1.
 object Box "Low Step 2" "" "SolidPlatformObject" 2368.000 464.000 0.000 1.000 1.000 128.000 32.000 1 0
 object Box "Floating Platform 1" "" "SolidPlatformObject" 400.000 400.000 0.000 1.000 1.000 96.000 32.000 1 0
 object Box "Floating Platform 2" "" "SolidPlatformObject" 560.000 336.000 0.000 1.000 1.000 96.000 32.000 1 0
-object Box "Floating Platform 3" "" "SolidPlatformObject" 736.000 110.433 36.423 1.000 1.000 128.000 32.000 1 0
+object Box "Floating Platform 3" "" "SolidPlatformObject" 882.337 64.801 357.165 1.000 1.000 128.000 32.000 1 0
 object Box "Floating Platform 4" "" "SolidPlatformObject" 1024.000 336.000 0.000 1.000 1.000 128.000 32.000 1 0
 object Box "Floating Platform 5" "" "SolidPlatformObject" 1504.000 304.000 0.000 1.000 1.000 128.000 32.000 1 0
 object Box "Floating Platform 6" "" "SolidPlatformObject" 1824.000 272.000 0.000 1.000 1.000 128.000 32.000 1 0
@@ -74,11 +74,11 @@ component "FEnemySpawnComponent" "CanShoot" Bool "true"
 component "FEnemySpawnComponent" "ShootCooldown" Float "1.050"
 component "FEnemySpawnComponent" "ShootRange" Float "460.000"
 component "FEnemySpawnComponent" "ProjectileSpeed" Float "360.000"
-object Box "Enemy Shooter" "" "EnemySpawnObject" 2528.000 307.000 0.000 1.000 1.000 32.000 28.000 1 0
-component "FEnemySpawnComponent" "Speed" Float "70.000"
+object Box "Enemy Shooter" "" "EnemySpawnObject" 2415.000 174.000 0.000 1.000 1.000 32.000 28.000 1 0
+component "FEnemySpawnComponent" "Speed" Float "400.000"
 component "FEnemySpawnComponent" "Direction" Float "1.000"
-component "FEnemySpawnComponent" "PatrolWidth" Float "192.000"
-component "FEnemySpawnComponent" "MaxHealth" Int "2"
+component "FEnemySpawnComponent" "PatrolWidth" Float "400.000"
+component "FEnemySpawnComponent" "MaxHealth" Int "1"
 component "FEnemySpawnComponent" "JumpCooldown" Float "1.200"
 component "FEnemySpawnComponent" "JumpVelocity" Float "-340.000"
 component "FEnemySpawnComponent" "AlertRange" Float "460.000"
@@ -143,7 +143,8 @@ object Circle "Physics Ball 7" "" "PhysicsCircleObject" 1166.000 218.000 0.000 1
 object Box "Physics Bridge" "" "PhysicsBridgeObject" 1625.000 304.000 0.000 1.000 1.000 370.000 96.000 1 0
 component "FPhysicsBridgeComponent" "SegmentCount" Int "23"
 object Box "Physics Chain" "" "PhysicsChainObject" 2220.000 288.000 0.000 1.000 1.000 96.000 276.000 1 0
-object Box "Ground Ledge 1 Copy" "" "SolidPlatformObject" 441.819 52.826 13.630 1.000 1.000 192.000 32.000 1 0
+component "FPhysicsChainComponent" "LinkCount" Int "7"
+object Box "Ground Ledge 1 Copy" "" "SolidPlatformObject" 441.819 -82.497 13.630 1.000 1.000 192.000 32.000 1 0
 object Circle "Physics Ball 3 Copy" "" "PhysicsCircleObject" 1247.000 274.000 0.000 1.000 1.000 26.000 26.000 1 0
 component "FPhysicsCircleComponent" "Mass" Float "200.000"
 component "FPhysicsCircleComponent" "Friction" Float "0.050"
@@ -173,10 +174,15 @@ component "FMovingPlatformComponent" "Phase" Float "0.000"
 object Box "Floating Platform 3 Copy" "" "SolidPlatformObject" 857.270 205.175 332.907 1.000 1.000 128.000 32.000 1 0
 object Box "Box" "" "SolidPlatformObject" 216.000 -23.393 30.830 1.000 1.000 128.000 32.000 1 0
 object Box "Box Copy" "" "SolidPlatformObject" 403.000 129.500 30.514 1.000 1.000 128.000 32.000 1 0
-object Box "Moving Platform" "" "MovingPlatformObject" 1329.678 122.386 0.000 1.000 1.000 154.000 50.000 1 0
+object Box "Moving Platform" "" "MovingPlatformObject" 1230.546 46.857 0.000 1.000 1.000 154.000 50.000 1 0
 component "FMovingPlatformComponent" "VerticalMotion" Bool "false"
 component "FMovingPlatformComponent" "Amplitude" Float "92.000"
 component "FMovingPlatformComponent" "Speed" Float "1.150"
 component "FMovingPlatformComponent" "Phase" Float "0.000"
 object Box "Solid Platform" "" "SolidPlatformObject" -44.540 92.191 358.340 2.444 3.460 128.000 32.000 1 0
-object Box "Box" "" "BoxObject" 624.812 42.226 352.658 1.000 1.000 128.000 32.000 1 0
+object Box "Box" "" "BoxObject" 738.105 -30.156 352.658 1.000 1.000 128.000 32.000 1 0
+object Box "Moving Platform Copy" "" "MovingPlatformObject" 1477.986 99.180 0.000 1.000 1.000 154.000 50.000 1 0
+component "FMovingPlatformComponent" "VerticalMotion" Bool "false"
+component "FMovingPlatformComponent" "Amplitude" Float "92.000"
+component "FMovingPlatformComponent" "Speed" Float "1.150"
+component "FMovingPlatformComponent" "Phase" Float "1.000"

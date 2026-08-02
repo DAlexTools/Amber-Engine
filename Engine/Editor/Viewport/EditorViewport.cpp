@@ -18,8 +18,8 @@ constexpr float Pi = 3.14159265358979323846f;
 
 bool Contains(float x, float y, const EditorViewport::ObjectBounds& bounds)
 {
-	return x >= bounds.x && x <= bounds.x + bounds.w &&
-		   y >= bounds.y && y <= bounds.y + bounds.h;
+	return x >= bounds.X && x <= bounds.X + bounds.W &&
+		   y >= bounds.Y && y <= bounds.Y + bounds.H;
 }
 
 float DegreesToRadians(float Degrees)
@@ -56,12 +56,12 @@ ImVec2 RotatePoint(const ImVec2& Point, const ImVec2& Center, float RotationDegr
 
 std::array<ImVec2, 4> RotatedQuad(const EditorViewport::ObjectBounds& Bounds, float RotationDegrees)
 {
-	const ImVec2 Center(Bounds.x + Bounds.w * 0.5f, Bounds.y + Bounds.h * 0.5f);
+	const ImVec2 Center(Bounds.X + Bounds.W * 0.5f, Bounds.Y + Bounds.H * 0.5f);
 	std::array<ImVec2, 4> Points = {
-		ImVec2(Bounds.x, Bounds.y),
-		ImVec2(Bounds.x + Bounds.w, Bounds.y),
-		ImVec2(Bounds.x + Bounds.w, Bounds.y + Bounds.h),
-		ImVec2(Bounds.x, Bounds.y + Bounds.h)};
+		ImVec2(Bounds.X, Bounds.Y),
+		ImVec2(Bounds.X + Bounds.W, Bounds.Y),
+		ImVec2(Bounds.X + Bounds.W, Bounds.Y + Bounds.H),
+		ImVec2(Bounds.X, Bounds.Y + Bounds.H)};
 
 	for (ImVec2& Point : Points)
 	{
@@ -72,7 +72,7 @@ std::array<ImVec2, 4> RotatedQuad(const EditorViewport::ObjectBounds& Bounds, fl
 
 bool ContainsRotatedBounds(const ImVec2& Mouse, const EditorViewport::ObjectBounds& Bounds, float RotationDegrees)
 {
-	const ImVec2 Center(Bounds.x + Bounds.w * 0.5f, Bounds.y + Bounds.h * 0.5f);
+	const ImVec2 Center(Bounds.X + Bounds.W * 0.5f, Bounds.Y + Bounds.H * 0.5f);
 	const ImVec2 UnrotatedMouse = RotatePoint(Mouse, Center, -RotationDegrees);
 	return Contains(UnrotatedMouse.x, UnrotatedMouse.y, Bounds);
 }
@@ -221,10 +221,10 @@ std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 			FocusOrigin();
 		}
 		ImGui::SameLine();
-		ImGui::Checkbox("Grid", &showGrid);
+		ImGui::Checkbox("Grid", &ShowGrid);
 		ImGui::SameLine();
 		ImGui::SetNextItemWidth(160.0f);
-		ImGui::SliderFloat("Zoom", &zoom, 0.25f, 2.0f, "%.2fx");
+		ImGui::SliderFloat("Zoom", &Zoom, 0.25f, 2.0f, "%.2fx");
 	}
 
 	ImVec2 canvasPos = ImGui::GetCursorScreenPos();
@@ -240,23 +240,21 @@ std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 	auto worldToScreen = [&](EditorVec2 world)
 	{
 		return ImVec2(
-			canvasCenter.x + (world.x - cameraX) * zoom,
-			canvasCenter.y + (world.y - cameraY) * zoom);
+			canvasCenter.x + (world.x - CameraX) * Zoom,
+			canvasCenter.y + (world.y - CameraY) * Zoom);
 	};
 	auto screenToWorld = [&](ImVec2 screen)
 	{
-		return EditorVec2{
-			cameraX + (screen.x - canvasCenter.x) / zoom,
-			cameraY + (screen.y - canvasCenter.y) / zoom};
+		return EditorVec2{ CameraX + (screen.x - canvasCenter.x) / Zoom, CameraY + (screen.y - canvasCenter.y) / Zoom};
 	};
 	auto boundsToScreen = [&](const ObjectBounds& bounds)
 	{
-		const ImVec2 topLeft = worldToScreen(EditorVec2{bounds.x, bounds.y});
+		const ImVec2 topLeft = worldToScreen(EditorVec2{bounds.X, bounds.Y});
 		return ObjectBounds{
 			topLeft.x,
 			topLeft.y,
-			bounds.w * zoom,
-			bounds.h * zoom};
+			bounds.W * Zoom,
+			bounds.H * Zoom};
 	};
 
 	bool canvasClickConsumed = false;
@@ -265,33 +263,33 @@ std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 	if (canvasHovered && io.MouseWheel != 0.0f)
 	{
 		const EditorVec2 mouseWorldBeforeZoom = screenToWorld(io.MousePos);
-		SetZoom(zoom * std::pow(1.12f, io.MouseWheel));
+		SetZoom(Zoom * std::pow(1.12f, io.MouseWheel));
 		const EditorVec2 mouseWorldAfterZoom = screenToWorld(io.MousePos);
-		cameraX += mouseWorldBeforeZoom.x - mouseWorldAfterZoom.x;
-		cameraY += mouseWorldBeforeZoom.y - mouseWorldAfterZoom.y;
+		CameraX += mouseWorldBeforeZoom.x - mouseWorldAfterZoom.x;
+		CameraY += mouseWorldBeforeZoom.y - mouseWorldAfterZoom.y;
 	}
 
 	if (canvasHovered && ImGui::IsMouseClicked(2))
 	{
-		panning = true;
-		panStartMouseScreen = EditorVec2{io.MousePos.x, io.MousePos.y};
-		panStartCamera = EditorVec2{cameraX, cameraY};
+		Panning = true;
+		PanStartMouseScreen = EditorVec2{io.MousePos.x, io.MousePos.y};
+		PanStartCamera = EditorVec2{CameraX, CameraY};
 		activeGizmoAxis = GizmoAxis::None;
 		activeGizmoObjectId = 0;
 		ActiveScaleGizmoAxis = GizmoAxis::None;
 		ActiveScaleGizmoObjectId = 0;
 	}
 
-	if (panning)
+	if (Panning)
 	{
 		if (!ImGui::IsMouseDown(2))
 		{
-			panning = false;
+			Panning = false;
 		}
 		else
 		{
-			cameraX = panStartCamera.x - (io.MousePos.x - panStartMouseScreen.x) / zoom;
-			cameraY = panStartCamera.y - (io.MousePos.y - panStartMouseScreen.y) / zoom;
+			CameraX = PanStartCamera.x - (io.MousePos.x - PanStartMouseScreen.x) / Zoom;
+			CameraY = PanStartCamera.y - (io.MousePos.y - PanStartMouseScreen.y) / Zoom;
 			canvasClickConsumed = true;
 		}
 	}
@@ -314,10 +312,10 @@ std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 			rendererConfig.contentRoot = activeProject->ResolveProjectPath(activeProject->contentRoot);
 			rendererConfig.assetRoots = assetRegistry.GetRoots();
 			rendererConfig.cameraPolicy = playing ? RuntimeCameraPolicy::SceneCamera : RuntimeCameraPolicy::Explicit;
-			rendererConfig.cameraX = playing ? 0.0f : cameraX;
-			rendererConfig.cameraY = playing ? 0.0f : cameraY;
-			rendererConfig.zoom = playing ? 1.0f : zoom;
-			rendererConfig.showGrid = showGrid;
+			rendererConfig.cameraX = playing ? 0.0f : CameraX;
+			rendererConfig.cameraY = playing ? 0.0f : CameraY;
+			rendererConfig.zoom = playing ? 1.0f : Zoom;
+			rendererConfig.showGrid = ShowGrid;
 
 			const AE::Scene::Document runtimeDocument = sceneDocument.ToRuntimeDocument();
 			if (runtimeRegistry)
@@ -365,11 +363,11 @@ std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 		drawList->AddRectFilled(canvasPos, canvasEnd, IM_COL32(16, 18, 20, 255));
 	}
 
-	if (!runtimeSceneRendered && showGrid)
+	if (!runtimeSceneRendered && ShowGrid)
 	{
-		const float gridStep = 32.0f * zoom;
-		const float originX = canvasCenter.x - cameraX * zoom;
-		const float originY = canvasCenter.y - cameraY * zoom;
+		const float gridStep = 32.0f * Zoom;
+		const float originX = canvasCenter.x - CameraX * Zoom;
+		const float originY = canvasCenter.y - CameraY * Zoom;
 		const ImU32 gridColor = IM_COL32(58, 65, 72, 120);
 
 		for (float x = std::fmod(originX - canvasPos.x, gridStep); x < canvasSize.x; x += gridStep)
@@ -417,8 +415,8 @@ std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 					if (object.kind == SceneObjectKind::Circle)
 					{
 						drawList->AddCircle(
-							ImVec2(screenBounds.x + screenBounds.w * 0.5f, screenBounds.y + screenBounds.h * 0.5f),
-							std::max(4.0f, std::min(screenBounds.w, screenBounds.h) * 0.5f),
+							ImVec2(screenBounds.X + screenBounds.W * 0.5f, screenBounds.Y + screenBounds.H * 0.5f),
+							std::max(4.0f, std::min(screenBounds.W, screenBounds.H) * 0.5f),
 							color,
 							32,
 							thickness);
@@ -454,8 +452,8 @@ std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 			else if (object.kind == SceneObjectKind::Camera)
 			{
 				drawList->AddCircle(
-					ImVec2(screenBounds.x + screenBounds.w * 0.5f, screenBounds.y + screenBounds.h * 0.5f),
-					std::max(8.0f, 20.0f * zoom),
+					ImVec2(screenBounds.X + screenBounds.W * 0.5f, screenBounds.Y + screenBounds.H * 0.5f),
+					std::max(8.0f, 20.0f * Zoom),
 					color,
 					24,
 					thickness);
@@ -463,9 +461,9 @@ std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 			else if (object.kind == SceneObjectKind::Circle)
 			{
 				const ImVec2 center(
-					screenBounds.x + screenBounds.w * 0.5f,
-					screenBounds.y + screenBounds.h * 0.5f);
-				const float radius = std::max(4.0f, std::min(screenBounds.w, screenBounds.h) * 0.5f);
+					screenBounds.X + screenBounds.W * 0.5f,
+					screenBounds.Y + screenBounds.H * 0.5f);
+				const float radius = std::max(4.0f, std::min(screenBounds.W, screenBounds.H) * 0.5f);
 				drawList->AddCircleFilled(center, radius, ShapeFillColor(object, playing, actorTypeRegistry), 32);
 				drawList->AddCircle(center, radius, color, 32, thickness);
 			}
@@ -499,7 +497,7 @@ std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 			if (editEnabled)
 			{
 				drawList->AddText(
-					ImVec2(screenBounds.x, screenBounds.y - 18.0f),
+					ImVec2(screenBounds.X, screenBounds.Y - 18.0f),
 					IM_COL32(210, 216, 222, 230),
 					object.name.c_str());
 			}
@@ -644,7 +642,7 @@ std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 		const ObjectBounds SelectedScreenBounds = boundsToScreen(GetObjectBounds(*selectedObject));
 		const ImVec2 Center = worldToScreen(selectedObject->transform.position);
 		const ImVec2 Mouse = ImGui::GetIO().MousePos;
-		const float Radius = std::max(34.0f, std::max(SelectedScreenBounds.w, SelectedScreenBounds.h) * 0.62f);
+		const float Radius = std::max(34.0f, std::max(SelectedScreenBounds.W, SelectedScreenBounds.H) * 0.62f);
 		const float DistanceX = Mouse.x - Center.x;
 		const float DistanceY = Mouse.y - Center.y;
 		const float Distance = std::sqrt(DistanceX * DistanceX + DistanceY * DistanceY);
@@ -853,8 +851,8 @@ std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 		{
 			const ImVec2 Mouse = ImGui::GetIO().MousePos;
 			return EditorVec2{
-				cameraX + (Mouse.x - canvasCenter.x) / zoom,
-				cameraY + (Mouse.y - canvasCenter.y) / zoom};
+				CameraX + (Mouse.x - canvasCenter.x) / Zoom,
+				CameraY + (Mouse.y - canvasCenter.y) / Zoom};
 		};
 
 		if (const ImGuiPayload* Payload = ImGui::AcceptDragDropPayload("AMBER_ASSET"))
@@ -950,29 +948,29 @@ std::optional<EditorViewport::FDropRequest> EditorViewport::Draw(
 
 float EditorViewport::GetZoom() const
 {
-	return zoom;
+	return Zoom;
 }
 
 void EditorViewport::SetZoom(float value)
 {
-	zoom = std::max(0.25f, std::min(2.0f, value));
+	Zoom = std::max(0.25f, std::min(2.0f, value));
 }
 
 void EditorViewport::FocusOrigin()
 {
-	cameraX = 0.0f;
-	cameraY = 0.0f;
+	CameraX = 0.0f;
+	CameraY = 0.0f;
 }
 
 void EditorViewport::FocusObject(const SceneObject& Object)
 {
-	cameraX = Object.transform.position.x;
-	cameraY = Object.transform.position.y;
+	CameraX = Object.transform.position.x;
+	CameraY = Object.transform.position.y;
 }
 
 EditorVec2 EditorViewport::GetViewCenter() const
 {
-	return EditorVec2{cameraX, cameraY};
+	return EditorVec2{CameraX, CameraY};
 }
 
 std::optional<EditorViewport::FContextMenuRequest> EditorViewport::ConsumeContextMenuRequest()

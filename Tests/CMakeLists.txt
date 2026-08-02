@@ -30,6 +30,7 @@ gtest_discover_tests(PhysicsUnitTests
 set(ENGINE_UNIT_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Engine/AssetResolverTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Engine/LogBusTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Engine/MatrixMNTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Engine/SceneAssetTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Engine/ThreadPoolTests.cpp
 )
