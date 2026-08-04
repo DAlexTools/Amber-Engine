@@ -1,8 +1,6 @@
 #ifndef MATRIXMN_H
 #define MATRIXMN_H
 
-#include "VectorN.h"
-
 namespace AE::Math
 {
 
