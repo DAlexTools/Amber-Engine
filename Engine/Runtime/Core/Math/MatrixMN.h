@@ -3,14 +3,6 @@
 
 #include "VectorN.h"
 
-#include <cassert>
-#include <cmath>
-#include <cstddef>
-#include <limits>
-#include <type_traits>
-#include <utility>
-#include <vector>
-
 namespace AE::Math
 {
 
